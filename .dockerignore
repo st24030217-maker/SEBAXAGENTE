@@ -1,0 +1,14 @@
+node_modules
+.env
+data
+*.log
+.git
+n8n/node_modules
+n8n/runtime
+n8n/data
+n8n/respaldos
+tests
+logs
+scripts/*.cmd
+scripts/*.vbs
+scripts/*.ps1

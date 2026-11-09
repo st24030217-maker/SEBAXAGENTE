@@ -1,0 +1,111 @@
+# ============================================================
+#  PROSPECCIÓN: el agente busca clientes por ti
+#  Aquí defines quién eres, a quién buscar y cómo escribirles.
+#  Después de editarlo, reinicia el servidor o usa
+#  Ajustes → Recargar en el panel.
+# ============================================================
+
+remitente:
+  nombre: "Sebastián Salinas"
+  apodo: "Sebas"            # cómo te saluda el panel
+  empresa: "sss.solutions"
+  ciudad: "Lerdo, Durango"
+  whatsapp: "+52 871 916 4677"
+  portafolio: "https://portafolio-salinas-serrano-sebastia.vercel.app"
+  # Qué haces, en una frase. Claude la usa para redactar.
+  propuesta: >
+    Desarrollo páginas web, apps instalables (PWA), sistemas a la medida,
+    tiendas en línea y menús digitales para negocios de la Comarca Lagunera,
+    con atención en persona en Torreón, Gómez Palacio y Lerdo.
+
+# Zonas donde buscar (centro de cada ciudad). El DENUE busca en un radio de hasta 5 km.
+ciudades:
+  - nombre: "Torreón"
+    lat: 25.5428
+    lon: -103.4068
+  - nombre: "Gómez Palacio"
+    lat: 25.5611
+    lon: -103.4983
+  - nombre: "Lerdo"
+    lat: 25.5376
+    lon: -103.5245
+
+radio_metros: 5000
+
+# Rubros a buscar. "palabras" es lo que se busca en el DENUE (sin acentos).
+# "proyecto" es el trabajo de tu portafolio que se menciona como ejemplo.
+rubros:
+  - nombre: "Restaurantes"
+    palabras: "restaurante"
+    servicio: "un menú digital con pedidos por WhatsApp"
+    proyecto: "Los Compadres (menú digital) y KB Huates (app de pedidos)"
+  - nombre: "Taquerías y comida"
+    palabras: "tacos"
+    servicio: "un menú digital con pedidos por WhatsApp"
+    proyecto: "KB Huates (app de pedidos por WhatsApp)"
+  - nombre: "Barberías"
+    palabras: "barberia"
+    servicio: "una app para agendar citas con pago en línea y recordatorios"
+    proyecto: "Barbería Vázquez (reservas con pago y avisos)"
+  - nombre: "Estéticas y salones"
+    palabras: "estetica"
+    servicio: "una app para agendar citas con pago en línea y recordatorios"
+    proyecto: "Barbería Vázquez (reservas con pago y avisos)"
+  - nombre: "Tiendas y boutiques"
+    palabras: "boutique"
+    servicio: "un catálogo en línea o una tienda con pagos"
+    proyecto: "Milea Studio (catálogo con búsqueda y cotizaciones)"
+  - nombre: "Gimnasios"
+    palabras: "gimnasio"
+    servicio: "un sistema de membresías con tarjeta de lealtad"
+    proyecto: "simulador de tarjeta de lealtad con Wallet"
+  - nombre: "Consultorios"
+    palabras: "consultorio"
+    servicio: "una página web con agenda de citas en línea"
+    proyecto: "Barbería Vázquez (sistema de reservas)"
+  - nombre: "Escuelas y academias"
+    palabras: "escuela"
+    servicio: "una plataforma web con registro de alumnos y buen posicionamiento en Google"
+    proyecto: "EPAD USICAMM 2026 (plataforma educativa)"
+
+# Piloto automático: el agente busca negocios nuevos solo, sin que le des a Buscar.
+automatico:
+  buscar: true
+  # Cada cuántas horas busca la siguiente combinación rubro + ciudad (va rotando por todas).
+  cada_horas: 3
+  # Si ya tienes muchos pendientes por revisar, deja de buscar hasta que avances.
+  maximo_por_revisar: 150
+  # Envío automático: el agente elige y le escribe solo a los negocios con este puntaje o más,
+  # sin pasar por tu revisión (respetando el límite diario y el horario). 0 = tú apruebas cada uno.
+  aprobar_solos_desde_puntaje: 6
+
+envio:
+  # --- WhatsApp (chip aparte) ---
+  # Mensajes de primer contacto por día. Empieza bajo la primera semana (10-15)
+  # para que WhatsApp no marque el chip como spam; después puedes subir poco a poco.
+  whatsapp_limite_diario: 12
+  # Pausa al azar entre un mensaje y otro (minutos), para que se vea natural.
+  whatsapp_minutos_min: 7
+  whatsapp_minutos_max: 16
+  # --- Correo ---
+  # Máximo de correos por día. Empieza bajo para no caer en spam.
+  limite_diario: 20
+  # Minutos mínimos entre un correo y el siguiente (se ve más natural).
+  minutos_entre_correos: 4
+  # Solo se envía en este horario (hora de La Laguna).
+  zona_horaria: "America/Monterrey"
+  dias: ["lunes", "martes", "miercoles", "jueves", "viernes"]
+  hora_inicio: "09:00"
+  hora_fin: "18:00"
+  # Seguimiento: si no marcas que respondió, a los N días se prepara un segundo correo
+  # (queda en "Por revisar" para que tú lo apruebes). 0 = sin seguimiento.
+  dias_para_seguimiento: 4
+
+# Cómo debe sonar el mensaje. Claude respeta estas reglas al redactar.
+estilo:
+  - "Habla de tú, cercano y profesional, como alguien de La Laguna que conoce la zona."
+  - "Máximo 110 palabras en el correo y 60 en WhatsApp."
+  - "Menciona algo concreto del negocio (su giro, su colonia, si no tiene página o si su página es lenta)."
+  - "Nada de promesas exageradas ni presión. Ofrece una llamada corta o mostrar un ejemplo."
+  - "Nunca inventes datos del negocio ni precios."
+  - "No uses emojis."

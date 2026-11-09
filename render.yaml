@@ -1,0 +1,45 @@
+# Despliegue en Render (https://render.com) con "Blueprint":
+# Render lee este archivo y crea el servicio con su disco. Las claves (sync: false)
+# te las pide en pantalla al crearlo: NUNCA se escriben aquí, porque el repo es público.
+services:
+  - type: web
+    name: agente-sebax
+    runtime: docker
+    plan: starter            # siempre prendido (el plan gratis se duerme y no permite disco)
+    region: ohio             # la región más cercana a México
+    healthCheckPath: /health
+    autoDeploy: true         # cada cambio que subas a GitHub se publica solo
+    disk:
+      name: datos
+      mountPath: /app/data   # base de clientes + sesión de WhatsApp (sobrevive a reinicios)
+      sizeGB: 1
+    envVars:
+      # --- Obligatorias (Render te las pide al crear el servicio) ---
+      - key: ADMIN_TOKEN
+        sync: false          # contraseña del panel: usa una larga y difícil
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: DENUE_TOKEN
+        sync: false
+      - key: WA_NUMERO
+        sync: false          # número del chip a 10 dígitos
+      # --- Opcionales ---
+      - key: ANTHROPIC_API_KEY
+        sync: false          # si le cargas saldo a Claude, se usa primero
+      # --- Fijas ---
+      - key: ADMIN_SIN_TOKEN_EN_RED_LOCAL
+        value: "false"       # en internet el panel SIEMPRE pide contraseña
+      - key: IA_PROVEEDOR
+        value: auto
+      - key: GEMINI_MODELO
+        value: gemini-3.5-flash
+      - key: AGENTE_MODELO
+        value: claude-sonnet-5-5
+      - key: PROSPECCION_MODELO
+        value: claude-haiku-5-5
+      - key: AGENTE_ESFUERZO
+        value: low
+      - key: PAYMENT_PROVIDER
+        value: manual
+      - key: TELEGRAM_MODE
+        value: polling

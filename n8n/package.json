@@ -1,0 +1,8 @@
+{
+  "name": "agente-sebax-n8n",
+  "private": true,
+  "description": "n8n local para las automatizaciones del agente de ventas",
+  "dependencies": {
+    "n8n": "2.46.6"
+  }
+}

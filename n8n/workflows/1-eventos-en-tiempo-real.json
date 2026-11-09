@@ -1,0 +1,173 @@
+{
+  "id": "AgEventosTiempo1",
+  "name": "Agente · 1. Eventos en tiempo real",
+  "active": true,
+  "nodes": [
+    {
+      "id": "1e4d14a8-eff5-417c-9dae-b94ec5e6cb6c",
+      "name": "Nota",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -300
+      ],
+      "parameters": {
+        "content": "## Eventos del agente en tiempo real\nEl agente envía aquí cada evento: **lead nuevo, cotización, pedido, pago, cita, derivación a humano y errores**.\n\nRevisa la pestaña **Executions** para ver el historial.\n\nPara recibir avisos, activa Telegram o Gmail (clic derecho → Activate) y conecta la credencial.",
+        "width": 460,
+        "height": 240
+      }
+    },
+    {
+      "id": "fb02f1ec-6738-46e9-b1dd-e33ca89cf3bb",
+      "name": "Evento del agente",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agente-eventos",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "webhookId": "0a99070e-1109-4ff4-b3ef-82535a4d9c98"
+    },
+    {
+      "id": "8188fcac-5878-4cfb-8e76-97c05537f55c",
+      "name": "Formatear aviso",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const ICONOS = { lead_nuevo: \"🆕\", cotizacion: \"🧾\", pedido: \"🛒\", pago: \"💰\", cita: \"📅\", derivacion: \"🙋\", error: \"⚠️\" };\nconst URGENTES = [\"pago\", \"derivacion\", \"error\", \"pedido\"];\nreturn $input.all().map(({ json }) => {\n  const ev = json.body || json;\n  return { json: {\n    tipo: ev.tipo,\n    urgente: URGENTES.includes(ev.tipo),\n    asunto: `${ICONOS[ev.tipo] || \"🔔\"} Agente de ventas: ${ev.tipo}`,\n    texto: `${ICONOS[ev.tipo] || \"🔔\"} ${ev.texto}`,\n    datos: ev.datos || {},\n    fecha: ev.fecha,\n  } };\n});"
+      }
+    },
+    {
+      "id": "0ea7c48b-34fd-4c05-8431-5bc0651795ea",
+      "name": "¿Es urgente?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cc6b872a-55bd-4403-9459-ca9628faa081",
+              "leftValue": "={{ $json.urgente }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ab27cdac-7768-4788-a047-7b6a6e11e9af",
+      "name": "Avisar por Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        -100
+      ],
+      "parameters": {
+        "chatId": "={{ $env.OWNER_TELEGRAM_CHAT_ID }}",
+        "text": "={{ $json.texto }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "disabled": true,
+      "notes": "Actívalo: crea una credencial de Telegram con tu bot y pon OWNER_TELEGRAM_CHAT_ID en el .env del agente."
+    },
+    {
+      "id": "c5d2c33b-3eb2-4e7b-a1f7-b5bdafafa57a",
+      "name": "Avisar por Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        720,
+        100
+      ],
+      "parameters": {
+        "sendTo": "tu-correo@ejemplo.com",
+        "subject": "={{ $json.asunto }}",
+        "emailType": "text",
+        "message": "={{ $json.texto }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "disabled": true,
+      "notes": "Actívalo: conecta tu cuenta de Google y cambia el destinatario."
+    }
+  ],
+  "connections": {
+    "Evento del agente": {
+      "main": [
+        [
+          {
+            "node": "Formatear aviso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatear aviso": {
+      "main": [
+        [
+          {
+            "node": "¿Es urgente?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Es urgente?": {
+      "main": [
+        [
+          {
+            "node": "Avisar por Telegram",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Avisar por Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Santiago",
+    "saveManualExecutions": true
+  },
+  "pinData": {},
+  "tags": []
+}

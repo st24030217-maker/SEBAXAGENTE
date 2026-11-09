@@ -1,0 +1,32 @@
+{
+  "name": "agente-sebax",
+  "version": "1.0.0",
+  "description": "Agente de ventas automático con Claude: web, WhatsApp, Instagram/Facebook y Telegram, con cotizaciones, pedidos, pagos, citas, seguimientos y panel de administración.",
+  "type": "module",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning src/server.js",
+    "dev": "node --disable-warning=ExperimentalWarning --watch src/server.js",
+    "chat": "node --disable-warning=ExperimentalWarning scripts/chat.js",
+    "test": "node --disable-warning=ExperimentalWarning --test tests/*.test.js",
+    "n8n": "node n8n/iniciar.mjs",
+    "n8n:reimportar": "node n8n/iniciar.mjs --reimportar",
+    "autoarranque": "powershell -ExecutionPolicy Bypass -File scripts/autoarranque.ps1",
+    "autoarranque:quitar": "powershell -ExecutionPolicy Bypass -File scripts/autoarranque.ps1 -Quitar"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0",
+    "baileys": "^7.0.0-rc14",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "imapflow": "^1.7.8",
+    "mailparser": "^3.14.2",
+    "nodemailer": "^7.0.13",
+    "pino": "^9.14.0",
+    "qrcode": "^1.5.4",
+    "yaml": "^2.7.0"
+  }
+}

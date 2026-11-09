@@ -1,0 +1,856 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agente Sebax</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Mismo sistema visual que el portafolio de sss.solutions: monocromático negro & blanco. */
+:root{
+  --bg:#000000;--surface:#0a0a0a;--surface-hover:#141414;--glass:rgba(10,10,10,.75);
+  --line:rgba(255,255,255,.12);--line-glow:rgba(255,255,255,.25);
+  --fg:#ffffff;--text:#a1a1aa;--muted:#71717a;--chip:rgba(255,255,255,.06);
+  --primary-rgb:255,255,255;--inv-bg:#ffffff;--inv-fg:#000000;
+  --n1:#ffffff;--n2:#d4d4d8;--n3:#a1a1aa;--n4:#71717a;--n5:#52525b;--n6:#3f3f46;
+  --bad:#f87171;
+  --shadow:0 8px 30px rgba(0,0,0,.8);--glow:0 0 25px rgba(255,255,255,.15);
+  --font-h:"Outfit",system-ui,sans-serif;--font-b:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --t:.2s cubic-bezier(.4,0,.2,1);--t2:.4s cubic-bezier(.4,0,.2,1);
+  color-scheme:dark;
+}
+:root[data-theme="light"]{
+  --bg:#ffffff;--surface:#f4f4f5;--surface-hover:#e4e4e7;--glass:rgba(255,255,255,.85);
+  --line:rgba(0,0,0,.12);--line-glow:rgba(0,0,0,.2);
+  --fg:#09090b;--text:#52525b;--muted:#71717a;--chip:rgba(0,0,0,.05);
+  --primary-rgb:9,9,11;--inv-bg:#09090b;--inv-fg:#ffffff;
+  --n1:#09090b;--n2:#27272a;--n3:#52525b;--n4:#71717a;--n5:#a1a1aa;--n6:#d4d4d8;
+  --bad:#dc2626;
+  --shadow:0 8px 30px rgba(0,0,0,.08);--glow:0 0 25px rgba(0,0,0,.08);
+  color-scheme:light;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{scroll-behavior:smooth}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font:14.5px/1.6 var(--font-b);transition:background-color var(--t2),color var(--t2)}
+/* Fondo: cuadrícula + brillos tenues, igual que el hero del portafolio */
+.fondo{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+.fondo .grid-bg{position:absolute;inset:0;background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:60px 60px;opacity:.15;
+  -webkit-mask-image:radial-gradient(circle at 50% 30%,#000 30%,transparent 80%);mask-image:radial-gradient(circle at 50% 30%,#000 30%,transparent 80%)}
+.fondo .glow{position:absolute;border-radius:50%;filter:blur(60px);animation:flota 10s infinite alternate}
+.fondo .g1{top:-5%;left:15%;width:420px;height:420px;background:radial-gradient(circle,rgba(var(--primary-rgb),.10),transparent 70%)}
+.fondo .g2{bottom:0;right:5%;width:520px;height:520px;background:radial-gradient(circle,rgba(161,161,170,.08),transparent 70%);animation-direction:alternate-reverse;animation-duration:14s}
+@keyframes flota{to{transform:translate(30px,20px) scale(1.08)}}
+h1,h2,h3,h4{font-family:var(--font-h);color:var(--fg);font-weight:700;line-height:1.2}
+svg.i{width:20px;height:20px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+a{color:var(--fg)}
+code{background:var(--chip);border:1px solid var(--line);padding:1px 6px;border-radius:6px;font-size:.9em;color:var(--fg)}
+b,strong{color:var(--fg)}
+.muted{color:var(--muted)}
+h2{font-size:17px;margin:26px 0 10px;letter-spacing:-.01em}
+.text-gradient{background:linear-gradient(180deg,var(--n1) 15%,var(--n3) 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+
+/* ---------- App shell ---------- */
+.shell{display:grid;grid-template-columns:256px 1fr;min-height:100vh}
+.side{position:sticky;top:0;height:100vh;padding:24px 14px;display:flex;flex-direction:column;gap:26px;border-right:1px solid var(--line);background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.brand{display:flex;align-items:center;gap:10px;padding:0 10px}
+.brand img{height:26px;width:auto}
+:root[data-theme="light"] .brand img,:root[data-theme="light"] .logo-img{filter:invert(1)}
+.brand-name{font-family:var(--font-h);font-weight:800;font-size:19px;color:var(--fg);letter-spacing:-.01em}
+.brand-name span{font-weight:400;color:var(--text)}
+.brand-sub{display:block;font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin:-2px 0 0 10px}
+.side nav{display:flex;flex-direction:column;gap:2px}
+.side nav button{all:unset;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;color:var(--text);cursor:pointer;font-family:var(--font-h);font-weight:600;font-size:15px;position:relative;transition:all var(--t)}
+.side nav button:hover{background:var(--chip);color:var(--fg)}
+.side nav button.on{background:var(--chip);color:var(--fg)}
+.side nav button.on::after{content:"";position:absolute;left:12px;right:12px;bottom:4px;height:2px;border-radius:2px;background:linear-gradient(90deg,var(--n1),var(--n3));opacity:.0}
+.side nav button.on::before{content:"";position:absolute;left:-14px;top:10px;bottom:10px;width:2px;background:var(--fg);border-radius:2px}
+.side-foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 6px 0 10px;font-size:12.5px;color:var(--muted)}
+.estado-red{display:inline-flex;align-items:center;gap:8px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--fg);box-shadow:0 0 10px var(--fg);animation:late 1.8s infinite}
+@keyframes late{50%{opacity:.35}}
+.tema{all:unset;cursor:pointer;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);color:var(--fg);transition:all var(--t)}
+.tema:hover{border-color:var(--fg);transform:rotate(15deg)}
+.tema svg{width:17px;height:17px}
+.content{min-width:0}
+.topbar{display:none}
+main{padding:34px 36px 64px;max-width:1200px;margin:0 auto;animation:entra .5s cubic-bezier(.4,0,.2,1) both}
+@keyframes entra{from{opacity:0;transform:translateY(14px)}}
+.tabbar{display:none}
+
+@media (max-width:860px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .side{display:none}
+  .topbar{display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10;padding:12px 16px;padding-top:max(12px,env(safe-area-inset-top));background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+  .topbar img{height:22px}
+  .topbar .brand-name{font-size:17px}
+  .topbar .tema{margin-left:auto;width:34px;height:34px}
+  main{padding:18px 16px calc(100px + env(safe-area-inset-bottom))}
+  .tabbar{display:flex;position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:15;padding:6px;border-radius:24px;background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);box-shadow:var(--shadow)}
+  .tabbar button{all:unset;flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 0 6px;border-radius:18px;color:var(--muted);font-family:var(--font-h);font-size:11px;font-weight:600;cursor:pointer;transition:all var(--t)}
+  .tabbar button svg{width:21px;height:21px}
+  .tabbar button.on{color:var(--inv-fg);background:var(--inv-bg)}
+}
+
+/* ---------- Componentes base ---------- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:20px;transition:transform var(--t2),border-color var(--t2),box-shadow var(--t2)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+.kpi span{color:var(--muted);font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:1px}
+.kpi b{display:block;font-family:var(--font-h);font-size:30px;font-weight:800;letter-spacing:-1px;margin:4px 0 2px}
+.chip,.badge{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;white-space:nowrap;background:var(--chip);color:var(--text);border:1px solid var(--line)}
+.chip.ok{color:var(--fg);border-color:var(--line-glow);background:rgba(var(--primary-rgb),.08)}
+.chip.warn{color:var(--fg);border-style:dashed;border-color:var(--line-glow)}
+.chip.bad{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,transparent);background:color-mix(in srgb,var(--bad) 8%,transparent)}
+.chip i.pt{width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block}
+button.b,a.b{font-family:var(--font-h);font-weight:600;font-size:14px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 20px;border-radius:30px;cursor:pointer;text-decoration:none;
+  background:rgba(var(--primary-rgb),.06);border:1px solid var(--line-glow);color:var(--fg);transition:all var(--t2)}
+button.b:hover,a.b:hover{background:rgba(var(--primary-rgb),.12);border-color:var(--fg);transform:translateY(-2px)}
+button.b:active,a.b:active{transform:scale(.97)}
+button.b:disabled{opacity:.45;cursor:not-allowed;transform:none}
+button.p,a.p{background:var(--inv-bg);color:var(--inv-fg);border-color:transparent;font-weight:700;box-shadow:0 4px 20px rgba(var(--primary-rgb),.2)}
+button.p:hover,a.p:hover{background:var(--inv-bg);color:var(--inv-fg);border-color:transparent;box-shadow:0 8px 30px rgba(var(--primary-rgb),.35);transform:translateY(-3px)}
+.ghost{background:transparent!important;border-color:transparent!important}
+.ghost:hover{border-color:var(--line)!important}
+select,input,textarea{font:inherit;color:var(--fg);background:var(--surface-hover);border:1px solid var(--line);border-radius:12px;padding:11px 15px;outline:none;transition:all var(--t)}
+input::placeholder,textarea::placeholder{color:var(--muted)}
+input:focus,textarea:focus,select:focus{border-color:var(--fg);box-shadow:0 0 0 3px rgba(var(--primary-rgb),.15);background:var(--surface)}
+textarea{resize:vertical;line-height:1.6}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.scroll{overflow-x:auto;border-radius:20px;border:1px solid var(--line);background:var(--surface)}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:13px 15px;border-bottom:1px solid var(--line);vertical-align:top}
+td{color:var(--text)}
+tr:last-child td{border-bottom:0}
+th{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:1px}
+tr.click{cursor:pointer}tr.click:hover td{background:var(--surface-hover)}
+.split{display:grid;grid-template-columns:340px 1fr;gap:14px;min-height:70vh}
+@media (max-width:900px){.split{grid-template-columns:1fr}}
+.list{max-height:76vh;overflow:auto;padding:0}
+.item{padding:13px 16px;border-bottom:1px solid var(--line);cursor:pointer;transition:background var(--t)}.item:hover,.item.on{background:var(--surface-hover)}
+.item small{color:var(--muted);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat{display:flex;flex-direction:column;gap:8px;max-height:52vh;overflow:auto;padding:14px;background:var(--bg);border:1px solid var(--line);border-radius:16px}
+.m{max-width:80%;padding:10px 14px;border-radius:16px;white-space:pre-wrap;word-wrap:break-word;color:var(--fg)}
+.m.cliente{align-self:flex-start;background:var(--surface-hover);border-bottom-left-radius:4px}
+.m.agente{align-self:flex-end;background:var(--inv-bg);color:var(--inv-fg);border-bottom-right-radius:4px}
+.m.humano{align-self:flex-end;background:var(--n6);color:var(--n1);border-bottom-right-radius:4px}
+.m small{display:block;opacity:.6;font-size:11px;margin-top:3px}
+.bars{display:flex;align-items:flex-end;gap:4px;height:130px}
+.bars div{flex:1;background:linear-gradient(180deg,var(--n1),var(--n4));border-radius:6px 6px 2px 2px;min-height:3px}
+.aviso{display:flex;gap:12px;align-items:flex-start;border:1px dashed var(--line-glow);background:var(--surface);padding:14px 16px;border-radius:16px;margin:0 0 18px;font-size:13.5px}
+.aviso svg{color:var(--fg);margin-top:1px}
+
+/* ---------- Login ---------- */
+.login-wrap{min-height:100vh;display:grid;place-items:center;padding:16px}
+.login{width:100%;max-width:400px;text-align:center;padding:34px 28px;background:var(--glass);backdrop-filter:blur(14px)}
+.login .logo-img{height:44px;margin:0 auto 16px;display:block}
+.login h1{font-size:28px;margin:0 0 6px;letter-spacing:-1px;font-weight:800}
+.login form{display:flex;flex-direction:column;gap:10px;margin-top:22px}
+
+/* ---------- Prospección ---------- */
+.hero{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap;margin-bottom:24px;animation:entra .8s .05s both}
+.hero-tag{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-h);font-weight:600;font-size:13px;color:var(--text);margin-bottom:10px}
+.hero h1{font-size:clamp(30px,5.2vw,48px);margin:0;letter-spacing:-2px;font-weight:900;line-height:1.05}
+.hero p{margin:10px 0 0;color:var(--text);font-size:15.5px}
+.estado-cfg{display:flex;gap:6px;flex-wrap:wrap}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+@media (max-width:860px){.stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}}
+.stat{position:relative;overflow:hidden}
+.stat::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--n1),var(--n3));opacity:0;transition:opacity var(--t)}
+.stat:hover{transform:translateY(-4px);border-color:rgba(var(--primary-rgb),.4)}
+.stat:hover::before{opacity:1}
+.stat span{color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px}
+.stat b{display:block;font-family:var(--font-h);font-size:36px;font-weight:800;letter-spacing:-1.5px;margin:6px 0 0;line-height:1.1}
+.stat b small{font-size:16px;font-weight:600;color:var(--muted);letter-spacing:0}
+.stat > small{color:var(--muted);font-size:12.5px;display:flex;align-items:center;gap:6px}
+.stat > small svg{width:14px;height:14px}
+.stat.dest{background:var(--inv-bg);border-color:transparent;box-shadow:0 4px 20px rgba(var(--primary-rgb),.2)}
+.stat.dest span,.stat.dest > small{color:var(--inv-fg);opacity:.6}
+.stat.dest b{color:var(--inv-fg)}
+.stat.dest::before{display:none}
+.stat .mini-ring{position:absolute;right:16px;top:16px}
+.tubo{margin-top:14px}
+.piloto{display:flex;gap:14px;align-items:flex-start;margin-top:14px}
+.piloto-ico{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);color:var(--muted);flex:none}
+.piloto-ico.on{background:var(--inv-bg);color:var(--inv-fg);border-color:transparent}
+.piloto-ico.on svg{animation:gira 6s linear infinite}
+.piloto-t{font-family:var(--font-h);font-size:16px}
+.piloto p{margin:4px 0 2px;color:var(--text);font-size:14px}
+.piloto small{color:var(--muted);font-size:12.5px}
+.tubo-bar{display:flex;height:8px;border-radius:999px;overflow:hidden;background:var(--surface-hover);gap:2px}
+.tubo-bar i{display:block;height:100%;transition:width 1.5s cubic-bezier(.1,.8,.2,1)}
+.tubo-ley{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:12px;font-size:12.5px;color:var(--muted)}
+.tubo-ley span{display:inline-flex;align-items:center;gap:7px}.tubo-ley i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.buscador{margin-top:14px;padding:24px}
+.buscador h3{margin:0;font-size:21px;letter-spacing:-.5px}
+.buscador .sub{color:var(--text);font-size:14px;margin:4px 0 18px}
+.etq{font-family:var(--font-h);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted)}
+.toggles{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 18px}
+.toggles button{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:25px;border:1px solid var(--line);background:var(--surface-hover);color:var(--text);font-family:var(--font-h);font-size:14px;font-weight:600;transition:all var(--t)}
+.toggles button svg{width:16px;height:16px}
+.toggles button:hover{color:var(--fg);border-color:var(--line-glow)}
+.toggles button.on{background:linear-gradient(135deg,var(--n1),var(--n3));color:var(--inv-fg);border-color:transparent;box-shadow:0 4px 15px rgba(var(--primary-rgb),.2)}
+.btn-big{width:100%;padding:15px 22px!important;font-size:15.5px!important}
+.extras{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.extras .b{font-size:13px;padding:8px 16px}
+.lista-head{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin:34px 0 14px;flex-wrap:wrap}
+.lista-head h2{margin:0;font-size:26px;letter-spacing:-1px;font-weight:800}
+.tabs-p{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 14px;scrollbar-width:none;margin:0 -2px}
+.tabs-p::-webkit-scrollbar{display:none}
+.tabs-p button{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border-radius:25px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-family:var(--font-h);font-size:14px;font-weight:600;white-space:nowrap;transition:all var(--t)}
+.tabs-p button:hover{color:var(--fg)}
+.tabs-p button.on{background:linear-gradient(135deg,var(--n1),var(--n3));color:var(--inv-fg);border-color:transparent;box-shadow:0 4px 15px rgba(var(--primary-rgb),.2)}
+.tabs-p button em{font-style:normal;font-size:11px;padding:1px 8px;border-radius:999px;background:var(--chip)}
+.tabs-p button.on em{background:rgba(0,0,0,.15)}
+.buscar-in{position:relative;margin-bottom:14px}
+.buscar-in svg{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--muted);width:18px;height:18px}
+.buscar-in input{width:100%;padding-left:46px;border-radius:30px;background:var(--surface)}
+.pros{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px}
+@media (max-width:860px){.pros{grid-template-columns:minmax(0,1fr);gap:10px}}
+.pros>*,.stats>*,.grid>*{min-width:0}
+.pro{display:flex;gap:14px;align-items:center;padding:16px;cursor:pointer;border-radius:20px;animation:entra .5s ease both;transition:transform .5s cubic-bezier(.175,.885,.32,1.275),box-shadow .4s,border-color .4s}
+.pro:hover{transform:translateY(-4px);border-color:rgba(var(--primary-rgb),.3);box-shadow:var(--shadow),var(--glow)}
+.pro:active{transform:scale(.985)}
+.pro-body{flex:1;min-width:0}
+.pro-top{display:flex;align-items:center;gap:8px}
+.pro-top b{font-family:var(--font-h);font-size:16.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pro small{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.pro small svg{width:13px;height:13px}
+.pro-meta{display:flex;align-items:center;gap:6px;margin-top:9px;min-width:0}
+.ic{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);color:var(--muted);opacity:.35;flex:none}
+.ic svg{width:13px;height:13px}
+.ic.on{opacity:1;color:var(--fg);border-color:var(--line-glow);background:rgba(var(--primary-rgb),.06)}
+.pro-meta em{font-style:normal;font-size:12.5px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-left:4px}
+.ring{--v:0;--c:var(--n4);width:50px;height:50px;border-radius:50%;flex:none;display:grid;place-items:center;background:conic-gradient(var(--c) calc(var(--v) * 1%),var(--surface-hover) 0)}
+.ring::before{content:"";grid-area:1/1;width:calc(100% - 8px);height:calc(100% - 8px);border-radius:50%;background:var(--surface)}
+.ring b{grid-area:1/1;position:relative;font-family:var(--font-h);font-size:17px;font-weight:800;color:var(--fg)}
+.ring.alto{--c:var(--n1)}.ring.medio{--c:var(--n3)}.ring.bajo{--c:var(--n5)}
+.ring.big{width:64px;height:64px}.ring.big::before{width:calc(100% - 10px);height:calc(100% - 10px)}.ring.big b{font-size:22px}
+.ring.anim{animation:gira 1s linear infinite;--v:28;--c:var(--fg)}
+@keyframes gira{to{transform:rotate(360deg)}}
+.wa-btn{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;flex:none;background:var(--inv-bg);color:var(--inv-fg);box-shadow:0 4px 20px rgba(var(--primary-rgb),.2);transition:all var(--t2)}
+.wa-btn:hover{transform:translateY(-3px);box-shadow:0 8px 30px rgba(var(--primary-rgb),.35)}
+.wa-btn:active{transform:scale(.92)}
+.vacio{text-align:center;padding:48px 16px;color:var(--muted);border:1px dashed var(--line);border-radius:20px}
+.vacio .logo-img{height:30px;margin:0 auto 14px;opacity:.6;display:block}
+.vacio b{font-family:var(--font-h);font-size:17px}
+.skel{border-radius:20px;height:84px;border:1px solid var(--line);background:linear-gradient(90deg,var(--surface) 0%,var(--surface-hover) 50%,var(--surface) 100%);background-size:200% 100%;animation:brillo 1.3s infinite}
+@keyframes brillo{to{background-position:-200% 0}}
+
+/* ---------- Hoja de detalle ---------- */
+.hoja{position:fixed;inset:0;z-index:40;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);animation:fondo .25s ease}
+@keyframes fondo{from{opacity:0}}
+.sheet{width:100%;max-width:660px;max-height:94vh;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:26px 26px 0 0;padding:10px 20px calc(22px + env(safe-area-inset-bottom));animation:sube .4s cubic-bezier(.2,.9,.25,1);box-shadow:var(--shadow)}
+@keyframes sube{from{transform:translateY(40px);opacity:0}}
+@media (min-width:860px){.hoja{align-items:center}.sheet{border-radius:26px;padding-top:22px}.grab{display:none}}
+.grab{width:42px;height:4px;border-radius:9px;background:var(--line-glow);margin:2px auto 14px}
+.sheet-head{display:flex;gap:14px;align-items:center}
+.sheet-head h3{margin:0;font-size:23px;letter-spacing:-.5px;font-weight:800}
+.sheet-head small{display:flex;align-items:center;gap:6px;color:var(--muted)}
+.sheet-head small svg{width:14px;height:14px}
+.icon-btn{all:unset;cursor:pointer;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);color:var(--fg);margin-left:auto;flex:none;transition:all var(--t)}
+.icon-btn:hover{border-color:var(--fg);transform:rotate(90deg)}
+.info{display:grid;gap:9px;margin:18px 0 14px;padding:14px 16px;border:1px solid var(--line);border-radius:16px;background:var(--bg)}
+.info div{display:flex;gap:10px;align-items:flex-start;font-size:13.5px}
+.info svg{width:16px;height:16px;color:var(--muted);margin-top:3px}
+.info a{word-break:break-all}
+.razones{display:flex;gap:6px;flex-wrap:wrap}
+.seg{display:flex;gap:4px;padding:4px;border:1px solid var(--line);background:var(--bg);border-radius:30px;margin:20px 0 8px}
+.seg button{all:unset;flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:9px 6px;border-radius:30px;font-family:var(--font-h);font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;transition:all var(--t)}
+.seg button svg{width:16px;height:16px}
+.seg button.on{background:var(--inv-bg);color:var(--inv-fg)}
+.sheet label{display:block;font-family:var(--font-h);font-size:13px;font-weight:600;color:var(--fg);margin:14px 0 7px}
+.sheet input,.sheet textarea{width:100%}
+.acciones{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px}
+.acciones .full{grid-column:1/-1}
+.acciones .b{padding:12px 14px}
+.peligro{color:var(--bad)!important}
+.nota-pie{font-size:12px;color:var(--muted);margin:14px 0 0;text-align:center}
+.mas{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+.mas button{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:12px;padding:18px;border-radius:20px;border:1px solid var(--line);background:var(--bg);font-family:var(--font-h);font-weight:600;color:var(--fg);transition:all var(--t)}
+.mas button:hover{border-color:var(--line-glow)}
+
+/* ---------- Toast ---------- */
+.toast{position:fixed;left:50%;bottom:calc(104px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:60;padding:12px 22px;border-radius:30px;font-family:var(--font-h);font-weight:600;font-size:14px;
+  background:var(--inv-bg);color:var(--inv-fg);box-shadow:var(--shadow);animation:sube .3s ease;max-width:calc(100vw - 32px);transition:opacity .3s,transform .3s}
+.toast.bad{background:var(--bad);color:#fff}
+.toast.out{opacity:0;transform:translate(-50%,10px)}
+@media (min-width:860px){.toast{bottom:30px}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="apple-touch-icon" href="/sss-logo.png"><link rel="icon" href="/sss-logo.png">
+</head>
+<body>
+<div id="app"></div>
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} }, del(k) { try { localStorage.removeItem(k); } catch {} } };
+let token = store.get("admin_token") || "";
+let tab = store.get("admin_tab") || "prospeccion";
+let moneda = "CLP";
+let convSel = null;
+
+const money = (v) => { try { return new Intl.NumberFormat("es-CL", { style: "currency", currency: moneda, maximumFractionDigits: ["CLP","COP","PYG"].includes(moneda) ? 0 : 2 }).format(v || 0); } catch { return v; } };
+const fecha = (iso) => iso ? new Date(iso).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" }) : "-";
+const ETAPA_CLASE = { ganado: "ok", perdido: "bad", negociacion: "warn", cotizado: "warn" };
+const chip = (t, c = "") => `<span class="chip ${c}">${esc(t)}</span>`;
+
+async function api(path, opts = {}) {
+  const res = await fetch("/admin/api" + path, { ...opts, headers: { "Content-Type": "application/json", "x-admin-token": token, ...(opts.headers || {}) } });
+  if (res.status === 401) { store.del("admin_token"); token = ""; sinToken = false; login(); throw new Error("No autorizado"); }
+  const d = await res.json();
+  if (!res.ok) throw new Error(d.error || "Error");
+  return d;
+}
+const post = (p, body) => api(p, { method: "POST", body: JSON.stringify(body || {}) });
+
+// ---------- Íconos (trazos estilo Lucide) ----------
+const ICONOS = {
+  target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  msg: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+  chart: '<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+  bag: '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+  cal: '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+  grid: '<rect width="7" height="7" x="3" y="3" rx="1.5"/><rect width="7" height="7" x="14" y="3" rx="1.5"/><rect width="7" height="7" x="14" y="14" rx="1.5"/><rect width="7" height="7" x="3" y="14" rx="1.5"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  mail: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
+  phone: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>',
+  globe: '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
+  pin: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
+  send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  trash: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
+  save: '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/>',
+  star: '<path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>',
+  hand: '<path d="M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v6M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>',
+  alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4M12 17h.01"/>',
+  people: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>',
+  flask: '<path d="M10 2v7.31M14 9.3V2M8.5 2h7M14 9.3a6.5 6.5 0 1 1-4 0"/><path d="M5.52 16h12.96"/>',
+  undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+  utensils: '<path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>',
+  flame: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
+  scissors: '<circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/>',
+  sparkles: '<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/>',
+  dumbbell: '<path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18 22 4-4"/><path d="m2 6 4-4"/><path d="m3 10 7-7"/><path d="m14 21 7-7"/>',
+  stetho: '<path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6 6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6 6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/>',
+  cap: '<path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>',
+  store: '<path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/>',
+  building: '<rect width="16" height="20" x="4" y="2" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  idcard: '<rect width="20" height="14" x="2" y="5" rx="2"/><circle cx="8" cy="12" r="2"/><path d="M14 10h4M14 14h4"/>',
+};
+const LOGO = '<img src="/sss-logo.png" alt="sss.solutions" class="logo-img">';
+const MARCA = `<div class="brand">${LOGO}<span class="brand-name">sss.<span>solutions</span></span></div>`;
+// Tema: "auto" (por defecto) sigue al celular/PC: si el sistema está en modo oscuro (o cambia solo
+// al anochecer), el panel también. El botón rota: automático → oscuro → claro → automático.
+ICONOS.auto = '<circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20z" fill="currentColor"/>';
+const TEMA_NOMBRE = { auto: "Tema automático", dark: "Modo oscuro", light: "Modo claro" };
+const TEMA_ICO = { auto: "auto", dark: "moon", light: "sun" };
+const sistemaOscuro = window.matchMedia ? matchMedia("(prefers-color-scheme: dark)") : null;
+let tema = store.get("tema_modo") || "auto";
+const aplicarTema = () => {
+  const real = tema === "auto" ? (sistemaOscuro && !sistemaOscuro.matches ? "light" : "dark") : tema;
+  document.documentElement.setAttribute("data-theme", real);
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", real === "dark" ? "#000000" : "#ffffff");
+};
+aplicarTema();
+sistemaOscuro?.addEventListener?.("change", () => tema === "auto" && aplicarTema());
+const botonTema = () => `<button class="tema" data-tema title="${TEMA_NOMBRE[tema]}" aria-label="${TEMA_NOMBRE[tema]}">${ico(TEMA_ICO[tema])}</button>`;
+function enlazarTema() {
+  document.querySelectorAll("[data-tema]").forEach((b) => (b.onclick = () => {
+    tema = { auto: "dark", dark: "light", light: "auto" }[tema]; store.set("tema_modo", tema); aplicarTema();
+    document.querySelectorAll("[data-tema]").forEach((x) => { x.innerHTML = ico(TEMA_ICO[tema]); x.title = TEMA_NOMBRE[tema]; });
+    toast(TEMA_NOMBRE[tema]);
+  }));
+}
+const ico = (n) => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICONOS[n] || ""}</svg>`;
+const WA_ICO = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M17.5 14.4c-.3-.1-1.7-.8-2-.9-.3-.1-.5-.1-.7.1-.2.3-.8.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.5-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6l.4-.5c.2-.2.2-.3.3-.5.1-.2 0-.4 0-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.1.2 2.1 3.2 5.1 4.5.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.7-.7 2-1.4.2-.7.2-1.3.2-1.4-.1-.1-.3-.2-.6-.3zM12 21.8c-1.8 0-3.5-.5-5-1.4l-.4-.2-3.7 1 1-3.6-.2-.4A9.8 9.8 0 1 1 12 21.8zm8.4-18.2A11.8 11.8 0 0 0 1.7 17.8L0 24l6.3-1.7a11.8 11.8 0 0 0 5.7 1.4 11.8 11.8 0 0 0 8.4-20.1z"/></svg>';
+
+function toast(msg, tipo = "ok") {
+  const t = document.createElement("div");
+  t.className = "toast " + tipo;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.classList.add("out"), 2600);
+  setTimeout(() => t.remove(), 3000);
+}
+const skeleton = (n = 4) => `<div class="pros">${'<div class="skel"></div>'.repeat(n)}</div>`;
+
+// En la red de casa el servidor no pide contraseña: probamos antes de mostrar el login.
+async function probarRedLocal() {
+  try { const r = await fetch("/admin/api/config"); if (r.ok) { sinToken = true; return render(); } } catch {}
+  login();
+}
+
+function login() {
+  $("#app").innerHTML = `<div class="fondo"><div class="grid-bg"></div><div class="glow g1"></div><div class="glow g2"></div></div><div class="login-wrap"><div class="card login">${LOGO}<h1 class="text-gradient">Agente Sebax</h1><p class="muted" style="margin:0">Escribe tu clave de acceso (ADMIN_TOKEN del archivo .env).</p>
+  <form id="f"><input id="t" type="password" placeholder="Clave de acceso" autofocus><button class="b p btn-big">Entrar</button></form><p id="e" class="muted"></p></div></div>`;
+  $("#f").onsubmit = async (e) => { e.preventDefault(); token = $("#t").value.trim(); try { await api("/config"); store.set("admin_token", token); render(); } catch (err) { $("#e").textContent = err.message; } };
+}
+
+const NAV = [
+  ["prospeccion", "Prospección", "target"], ["leads", "Leads", "users"], ["conversaciones", "Chats", "msg"], ["resumen", "Resumen", "chart"],
+  ["pedidos", "Pedidos", "bag"], ["citas", "Citas", "cal"], ["seguimientos", "Seguimientos", "clock"], ["ajustes", "Ajustes", "gear"],
+];
+const NAV_MOVIL = ["prospeccion", "leads", "conversaciones", "resumen"];
+const TABS = Object.fromEntries(NAV.map(([k, v]) => [k, v]));
+
+let sinToken = false; // true si el servidor nos deja entrar sin contraseña (red de casa)
+function render() {
+  if (!token && !sinToken) return probarRedLocal();
+  if (!VIEWS[tab]) tab = "prospeccion";
+  const titulo = TABS[tab];
+  const boton = ([k, v, i]) => `<button data-t="${k}" class="${k === tab ? "on" : ""}">${ico(i)}<span>${v}</span></button>`;
+  $("#app").innerHTML = `<div class="fondo"><div class="grid-bg"></div><div class="glow g1"></div><div class="glow g2"></div></div><div class="shell">
+    <aside class="side"><div>${MARCA}<span class="brand-sub">Agente de ventas</span></div>
+      <nav>${NAV.map(boton).join("")}</nav>
+      <div class="side-foot">${sinToken ? `<span class="estado-red"><span class="dot"></span>Red de casa</span>` : `<button class="b ghost" id="salir">Cerrar sesión</button>`}${botonTema()}</div></aside>
+    <div class="content"><div class="topbar">${MARCA}${botonTema()}</div><main id="main">${skeleton()}</main></div>
+    <nav class="tabbar">${NAV.filter(([k]) => NAV_MOVIL.includes(k)).map(boton).join("")}<button id="mas" class="${NAV_MOVIL.includes(tab) ? "" : "on"}">${ico("grid")}<span>Más</span></button></nav>
+  </div>`;
+  document.querySelectorAll("[data-t]").forEach((b) => (b.onclick = () => ir(b.dataset.t)));
+  $("#mas").onclick = menuMas;
+  enlazarTema();
+  $("#salir") && ($("#salir").onclick = () => { store.del("admin_token"); token = ""; render(); });
+  VIEWS[tab]().catch((e) => ($("#main").innerHTML = `<div class="aviso">${ico("alert")}<div>Error: ${esc(e.message)}</div></div>`));
+}
+
+function ir(t) {
+  tab = t; store.set("admin_tab", t);
+  document.querySelectorAll(".hoja").forEach((h) => h.remove());
+  render(); window.scrollTo(0, 0);
+}
+
+function menuMas() {
+  const el = document.createElement("div");
+  el.className = "hoja";
+  el.innerHTML = `<div class="sheet"><div class="grab"></div><h3 style="margin:0 0 12px">Más secciones</h3><div class="mas">${NAV.filter(([k]) => !NAV_MOVIL.includes(k)).map(([k, v, i]) => `<button data-ir="${k}">${ico(i)}${v}</button>`).join("")}</div></div>`;
+  document.body.appendChild(el);
+  el.onclick = (e) => { if (e.target === el) el.remove(); };
+  el.querySelectorAll("[data-ir]").forEach((b) => (b.onclick = () => ir(b.dataset.ir)));
+}
+
+// ---------- Prospección ----------
+const P_FILTROS = { por_revisar: "Por revisar", aprobado: "En cola", enviado: "Enviados", whatsapp: "WhatsApp", respondio: "Respondieron", cliente: "Clientes", nuevo: "Analizando", fallido: "Fallidos", descartado: "Descartados", no_contactar: "Bajas", todos: "Todos" };
+const P_ESTADO = { nuevo: ["analizando", ""], por_revisar: ["por revisar", "warn"], aprobado: ["en cola", ""], enviado: ["enviado", "ok"], whatsapp: ["WhatsApp", "ok"], respondio: ["respondió", "ok"], cliente: ["cliente", "ok"], descartado: ["descartado", ""], no_contactar: ["pidió baja", "bad"], fallido: ["falló", "bad"] };
+const TUBO = [["por_revisar", "Por revisar", "var(--n6)"], ["aprobado", "En cola", "var(--n5)"], ["enviado", "Enviados", "var(--n4)"], ["whatsapp", "WhatsApp", "var(--n3)"], ["respondio", "Respondieron", "var(--n2)"], ["cliente", "Clientes", "var(--n1)"]];
+const RUBRO_ICO = { "Restaurantes": "utensils", "Taquerías y comida": "flame", "Barberías": "scissors", "Estéticas y salones": "sparkles", "Tiendas y boutiques": "bag", "Gimnasios": "dumbbell", "Consultorios": "stetho", "Escuelas y academias": "cap" };
+const icoRubro = (r) => ico(RUBRO_ICO[r] || "store");
+const chipPt = (t, c = "") => `<span class="chip ${c}"><i class="pt"></i>${esc(t)}</span>`;
+let pFiltro = store.get("p_filtro") || "por_revisar";
+let pSel = { rubros: new Set(), ciudades: new Set() };
+let pTimer = null;
+const ptsClase = (n) => (n >= 6 ? "alto" : n >= 3 ? "medio" : "bajo");
+const ring = (p, big = "") => p.estado === "nuevo" ? `<div class="ring anim ${big}"><b></b></div>` : `<div class="ring ${ptsClase(p.puntaje)} ${big}" style="--v:${p.puntaje * 10}"><b>${p.puntaje}</b></div>`;
+const parse = (s) => { try { return JSON.parse(s || "null"); } catch { return null; } };
+const waLink = (tel, texto) => `https://wa.me/52${String(tel).replace(/\D/g, "").slice(-10)}?text=${encodeURIComponent(texto || "")}`;
+const saludo = () => { const h = new Date().getHours(); return h < 12 ? "Buenos días" : h < 19 ? "Buenas tardes" : "Buenas noches"; };
+
+// Tarjeta del piloto automático: qué buscó, qué sigue y cuándo.
+const cuandoRel = (iso) => {
+  const m = Math.round((new Date(iso) - Date.now()) / 60000);
+  if (m <= 0) return "en unos momentos";
+  if (m < 60) return `en ${m} min`;
+  return `en ${Math.round(m / 60)} h`;
+};
+function pilotoHtml(a) {
+  if (!a) return "";
+  const activo = a.activa && !a.motivo;
+  const estado = !a.activa ? "Apagado" : a.motivo ? "En pausa" : "Activo";
+  const detalle = !a.activa
+    ? "Actívalo en config/prospeccion.yaml (automatico.buscar: true)."
+    : a.motivo
+      ? esc(a.motivo.charAt(0).toUpperCase() + a.motivo.slice(1)) + "."
+      : `Próxima búsqueda: <b>${esc(a.siguiente)}</b> ${cuandoRel(a.proxima)}.`;
+  const ultimo = a.ultimo
+    ? `Última: ${esc(a.ultimo.busqueda || "")}${a.ultimo.nuevos != null ? ` · ${a.ultimo.nuevos} nuevos` : ""} · ${fecha(a.ultimo.fecha)}`
+    : "Aún no ha buscado por su cuenta.";
+  const aprob = a.aprobarDesde ? `aprueba solos los de puntaje ${a.aprobarDesde}+` : "tú apruebas cada correo";
+  return `<div class="card piloto"><div class="piloto-ico ${activo ? "on" : ""}">${ico("refresh")}</div>
+    <div style="min-width:0;flex:1"><div class="row" style="margin:0;gap:8px"><b class="piloto-t">Piloto automático</b>${chipPt(estado, activo ? "ok" : a.activa ? "warn" : "")}</div>
+    <p>${detalle}</p><small>Busca cada ${a.cadaHoras} h rotando rubros y ciudades · ${aprob}. ${ultimo}</small></div></div>`;
+}
+
+let waInfo = null;
+let qrTimer = null;
+function waHtml(w) {
+  if (!w || !w.activo) return "";
+  if (w.estado === "conectado") {
+    return `<div class="card piloto"><div class="piloto-ico on">${WA_ICO}</div><div style="min-width:0;flex:1">
+      <div class="row" style="margin:0;gap:8px"><b class="piloto-t">WhatsApp conectado</b>${chipPt(w.numero ? "+52 " + w.numero : "chip", "ok")}</div>
+      <p>Hoy van <b>${w.enviadosHoy}</b> de ${w.limite} mensajes de primer contacto. Si alguien responde, el agente conversa y agenda solo.</p>
+      <small>Los mensajes salen espaciados al azar y solo en horario laboral, para cuidar el chip. <a href="#" id="wa-off">Desvincular</a></small></div></div>`;
+  }
+  return `<div class="card piloto" id="wa-card"><div class="piloto-ico">${WA_ICO}</div><div style="min-width:0;flex:1">
+    <div class="row" style="margin:0;gap:8px"><b class="piloto-t">Conecta tu chip de WhatsApp</b>${chipPt(w.estado === "esperando_qr" ? "Esperando QR" : "Conectando", "warn")}</div>
+    <p>En el celular con el <b>chip nuevo</b>: abre WhatsApp → <b>Ajustes</b> → <b>Dispositivos vinculados</b> → <b>Vincular un dispositivo</b> y escanea este código.</p>
+    <div id="wa-qr" style="margin-top:12px">${w.estado === "esperando_qr" ? '<div class="skel" style="width:240px;height:240px"></div>' : '<small>Preparando el código…</small>'}</div>
+    <div style="margin-top:14px"><small>¿El panel está abierto en el mismo celular del chip y no puedes escanear?</small><br>
+      <button class="b" id="wa-cod" style="margin-top:8px">${ico("phone")} Vincular con código${w.numeroChip ? " al " + w.numeroChip : ""}</button>
+      <div id="wa-cod-out" style="margin-top:10px"></div></div></div></div>`;
+}
+async function sondearQr() {
+  clearTimeout(qrTimer);
+  if (tab !== "prospeccion" || !$("#wa-card")) return;
+  try {
+    const w = await api("/whatsapp");
+    if (w.estado === "conectado") return vistaProspeccion();
+    if (w.qr && $("#wa-qr")) $("#wa-qr").innerHTML = `<img src="${w.qr}" alt="Código QR de WhatsApp" style="width:240px;height:240px;border-radius:16px;background:#fff;padding:10px">`;
+  } catch {}
+  qrTimer = setTimeout(sondearQr, 3000);
+}
+
+async function vistaProspeccion() {
+  clearTimeout(pTimer);
+  const s = await api("/prospeccion");
+  const c = s.config, n = s.porEstado;
+  waInfo = s.whatsapp;
+  const wa = s.whatsapp || {};
+  const apodo = s.remitente.apodo || String(s.remitente.nombre).split(" ")[0];
+  const pendientes = n.por_revisar || 0;
+  const ok = (v, si, no) => chipPt(v ? si : no, v ? "ok" : "bad");
+  const totalTubo = TUBO.reduce((a, [k]) => a + (n[k] || 0), 0);
+  const pct = Math.min(100, Math.round(((wa.enviadosHoy || 0) / Math.max(1, wa.limite || 1)) * 100));
+  $("#main").innerHTML = `
+  <section class="hero">
+    <div><span class="hero-tag"><span class="dot"></span>Prospección activa</span><h1>${saludo()}, <span class="text-gradient">${esc(apodo)}</span>.</h1>
+      <p>${pendientes ? `Tienes <b>${pendientes}</b> negocio${pendientes === 1 ? "" : "s"} esperando tu revisión.` : "Todo al día. Busca nuevos clientes cuando quieras."}</p></div>
+    <div class="estado-cfg">${ok(c.denue, "INEGI", "sin INEGI")}${ok(wa.estado === "conectado", "WhatsApp", "WhatsApp sin conectar")}${c.ia?.activa ? chipPt((c.ia.activa === "gemini" ? "Gemini" : "Claude") + " activo", "ok") : chipPt("Plantillas", "warn")}</div>
+  </section>
+  ${!c.denue ? `<div class="aviso">${ico("alert")}<div>Falta el <b>DENUE_TOKEN</b> en <code>.env</code> para buscar negocios reales.</div></div>` : ""}
+  ${wa.estado !== "conectado" ? waHtml(wa) : ""}
+  <div class="stats">
+    <div class="card stat dest"><span>Por revisar</span><b>${pendientes}</b><small>${n.nuevo ? `${n.nuevo} analizándose…` : "listos para aprobar"}</small></div>
+    <div class="card stat"><div class="mini-ring ring ${pct >= 100 ? "medio" : "alto"}" style="--v:${pct};width:38px;height:38px"><b style="font-size:10px">${pct}%</b></div><span>Mensajes hoy</span><b>${wa.enviadosHoy || 0}<small style="font-size:15px">/${wa.limite || 0}</small></b><small>${s.enHorario ? ico("sun") + " en horario" : ico("moon") + " fuera de horario"}</small></div>
+    <div class="card stat"><span>En cola</span><b>${n.aprobado || 0}</b><small>salen solos</small></div>
+    <div class="card stat"><span>Respondieron</span><b>${(n.respondio || 0) + (n.cliente || 0)}</b><small>${n.cliente || 0} ya son clientes</small></div>
+  </div>
+  ${wa.estado === "conectado" ? waHtml(wa) : ""}
+  ${pilotoHtml(s.automatico)}
+  ${totalTubo ? `<div class="card tubo"><div class="row" style="justify-content:space-between;margin:0 0 10px"><b style="font-size:13.5px">Tu embudo</b><small class="muted">${totalTubo} negocios en proceso</small></div>
+    <div class="tubo-bar">${TUBO.filter(([k]) => n[k]).map(([k, , col]) => `<i style="width:${(n[k] / totalTubo) * 100}%;background:${col}" title="${k}"></i>`).join("")}</div>
+    <div class="tubo-ley">${TUBO.map(([k, v, col]) => `<span><i style="background:${col}"></i>${v} <b>${n[k] || 0}</b></span>`).join("")}</div></div>` : ""}
+  <section class="card buscador">
+    <h3>Buscar clientes nuevos</h3><p class="sub">El agente busca en el directorio del INEGI, revisa su página web y te redacta el mensaje.</p>
+    <span class="etq">Rubros</span>
+    <div class="toggles" id="tg-r">${s.rubros.map((r, i) => `<button data-i="${i}" class="${pSel.rubros.has(i) ? "on" : ""}">${icoRubro(r)} ${esc(r)}</button>`).join("")}</div>
+    <span class="etq">Ciudades</span>
+    <div class="toggles" id="tg-c">${s.ciudades.map((r, i) => `<button data-i="${i}" class="${pSel.ciudades.has(i) ? "on" : ""}">${ico("pin")} ${esc(r)}</button>`).join("")}</div>
+    <button class="b p btn-big" id="buscar" ${c.denue ? "" : "disabled"}>${ico("search")} <span>Buscar negocios</span></button>
+    <p class="muted" style="font-size:12px;margin:8px 0 0;text-align:center">Si no eliges nada, busca en todos los rubros y ciudades.</p>
+    <p id="bmsg" style="margin:10px 0 0;font-size:13.5px"></p>
+    <div class="extras">
+      ${c.correo ? `<button class="b" id="prueba">${ico("send")} Correo de prueba</button>` : ""}
+      ${!c.denue || !s.total ? `<button class="b" id="ejemplos">${ico("flask")} Cargar ejemplos</button>` : ""}
+      ${s.total ? `<button class="b ghost" id="borrar-ej">${ico("trash")} Quitar ejemplos</button>` : ""}
+    </div>
+  </section>
+  <div class="lista-head"><div><h2>Prospectos</h2><small class="muted">${esc(s.horario)}</small></div>${pendientes ? `<button class="b p" id="lote">${ico("send")} Aprobar los 10 mejores</button>` : ""}</div>
+  <div class="tabs-p">${Object.entries(P_FILTROS).map(([k, v]) => `<button data-f="${k}" class="${k === pFiltro ? "on" : ""}">${v}${k !== "todos" && n[k] ? ` <em>${n[k]}</em>` : ""}</button>`).join("")}</div>
+  <div class="buscar-in">${ico("search")}<input id="pq" placeholder="Buscar por nombre, colonia o giro"></div>
+  <div id="plist">${skeleton(3)}</div>`;
+
+  const tog = (id, set) => document.querySelectorAll(`#${id} button`).forEach((b) => (b.onclick = () => { const i = Number(b.dataset.i); set.has(i) ? set.delete(i) : set.add(i); b.classList.toggle("on"); }));
+  tog("tg-r", pSel.rubros); tog("tg-c", pSel.ciudades);
+  $("#buscar").onclick = async () => {
+    const b = $("#buscar"); b.disabled = true; b.innerHTML = `<div class="ring anim" style="width:20px;height:20px"></div> Buscando en el INEGI…`;
+    try {
+      const r = await post("/prospeccion/buscar", { rubros: [...pSel.rubros], ciudades: [...pSel.ciudades] });
+      $("#bmsg").innerHTML = `${r.encontrados} encontrados · <b>${r.nuevos} nuevos</b>${r.sinContacto ? ` · ${r.sinContacto} sin datos de contacto (omitidos)` : ""}. Se están analizando.${r.errores.length ? `<br>Avisos: ${r.errores.map(esc).join("<br>")}` : ""}`;
+      toast(`${r.nuevos} negocios nuevos encontrados`);
+      pFiltro = r.nuevos ? "nuevo" : pFiltro; store.set("p_filtro", pFiltro);
+      setTimeout(vistaProspeccion, 1800);
+    } catch (e) { $("#bmsg").textContent = "No se pudo buscar: " + e.message; b.disabled = false; b.innerHTML = `${ico("search")} <span>Buscar negocios</span>`; }
+  };
+  $("#prueba") && ($("#prueba").onclick = async () => { try { const r = await post("/prospeccion/prueba-correo"); toast("Correo de prueba enviado a " + r.para); } catch (e) { toast(e.message, "bad"); } });
+  $("#ejemplos") && ($("#ejemplos").onclick = async () => { await post("/prospeccion/ejemplos"); pFiltro = "todos"; vistaProspeccion(); });
+  $("#borrar-ej") && ($("#borrar-ej").onclick = async () => { if (!confirm("¿Quitar los prospectos de ejemplo?")) return; const r = await api("/prospeccion/ejemplos", { method: "DELETE" }); toast(`${r.borrados} ejemplos quitados`); vistaProspeccion(); });
+  document.querySelectorAll(".tabs-p button").forEach((b) => (b.onclick = () => { pFiltro = b.dataset.f; store.set("p_filtro", pFiltro); document.querySelectorAll(".tabs-p button").forEach((x) => x.classList.toggle("on", x === b)); listaProspectos(); }));
+  let t; $("#pq").oninput = () => { clearTimeout(t); t = setTimeout(listaProspectos, 200); };
+  $("#lote") && ($("#lote").onclick = async () => {
+    if (!confirm("¿Aprobar los 10 negocios con mejor puntaje? Saldrán por WhatsApp poco a poco, dentro del horario y del límite diario.")) return;
+    const r = await post("/prospeccion/aprobar-lote", { cantidad: 10 }); toast(`${r.aprobados} negocios en cola de envío`); vistaProspeccion();
+  });
+  $("#wa-off") && ($("#wa-off").onclick = async (e) => { e.preventDefault(); if (!confirm("¿Desvincular el chip de WhatsApp del agente?")) return; await post("/whatsapp/desconectar"); toast("Chip desvinculado"); setTimeout(vistaProspeccion, 1500); });
+  $("#wa-cod") && ($("#wa-cod").onclick = async () => {
+    let num = waInfo?.numeroChip;
+    if (!num) { num = prompt("Número del chip a 10 dígitos:"); if (!num) return; }
+    try {
+      const r = await post("/whatsapp/codigo", { numero: num });
+      $("#wa-cod-out").innerHTML = `<div class="info" style="margin:0"><div><span>En el celular del chip: WhatsApp → <b>Ajustes</b> → <b>Dispositivos vinculados</b> → <b>Vincular un dispositivo</b> → <b>Vincular con número de teléfono</b> y escribe:</span></div>
+        <div style="font-family:var(--font-h);font-size:34px;font-weight:800;letter-spacing:4px;color:var(--fg);justify-content:center">${esc(r.codigo)}</div><div><small class="muted">El código vence en unos minutos. Si vence, pide otro.</small></div></div>`;
+    } catch (e) { toast(e.message, "bad"); }
+  });
+  if ($("#wa-card")) sondearQr();
+  await listaProspectos();
+  if (n.nuevo || s.analizando) pTimer = setTimeout(() => tab === "prospeccion" && !$(".hoja") && !document.activeElement?.matches("input,textarea") && vistaProspeccion().catch(() => {}), 8000);
+}
+
+async function listaProspectos() {
+  const estado = pFiltro === "todos" ? "" : pFiltro;
+  const rows = await api(`/prospectos?estado=${estado}&q=${encodeURIComponent($("#pq")?.value || "")}`);
+  if (!rows.length) {
+    $("#plist").innerHTML = `<div class="vacio">${LOGO}<b>Nada por aquí todavía</b><p style="margin:4px 0 0">${pFiltro === "por_revisar" ? "Busca negocios arriba y aparecerán aquí listos para revisar." : "Cuando haya negocios en esta etapa, los verás aquí."}</p></div>`;
+    return;
+  }
+  $("#plist").innerHTML = `<div class="pros">${rows.map((p, i) => {
+    const [et, cl] = P_ESTADO[p.estado] || [p.estado, ""];
+    const raz = (parse(p.razones) || [])[0] || "";
+    const puedeWa = p.telefono && !["no_contactar", "descartado"].includes(p.estado);
+    return `<article class="card pro" data-p="${p.id}" style="animation-delay:${Math.min(i, 12) * 25}ms">${ring(p)}
+      <div class="pro-body"><div class="pro-top"><b>${esc(p.nombre)}</b>${p.estado !== "por_revisar" ? chip(et, cl) : ""}</div>
+      <small>${icoRubro(p.rubro)} ${esc(p.rubro || p.giro || "")} · ${esc(p.colonia ? p.colonia + ", " : "")}${esc(p.ciudad || "")}</small>
+      <div class="pro-meta"><span class="ic ${p.email ? "on" : ""}" title="Correo">${ico("mail")}</span><span class="ic ${p.telefono ? "on" : ""}" title="Teléfono">${ico("phone")}</span><span class="ic ${p.sitio_web ? "on" : ""}" title="Página web">${ico("globe")}</span><em>${esc(raz)}</em></div></div>
+      ${puedeWa && !["enviado", "aprobado", "whatsapp", "respondio", "cliente"].includes(p.estado) ? `<a class="wa-btn" data-wa="${p.id}" title="${waInfo?.estado === "conectado" ? "Aprobar y enviar por WhatsApp" : "Abrir WhatsApp en mi celular"}" target="_blank" rel="noopener" href="#">${WA_ICO}</a>` : ""}
+    </article>`;
+  }).join("")}</div>`;
+  document.querySelectorAll(".pro").forEach((el) => (el.onclick = () => abrirProspecto(el.dataset.p)));
+  // WhatsApp directo desde la tarjeta: trae el texto redactado, abre WhatsApp y lo marca como contactado.
+  document.querySelectorAll("[data-wa]").forEach((a) => (a.onclick = async (e) => {
+    e.stopPropagation(); e.preventDefault();
+    if (waInfo?.estado === "conectado") {
+      try { await post(`/prospectos/${a.dataset.wa}/aprobar`); toast("En cola: sale por WhatsApp en los próximos minutos"); setTimeout(listaProspectos, 400); }
+      catch (err) { toast(err.message, "bad"); }
+      return;
+    }
+    const win = window.open("", "_blank");
+    try {
+      const p = await api("/prospectos/" + a.dataset.wa);
+      if (win) win.location = waLink(p.telefono, p.whatsapp_texto); else location.href = waLink(p.telefono, p.whatsapp_texto);
+      if (!["respondio", "cliente"].includes(p.estado)) await api("/prospectos/" + p.id, { method: "PATCH", body: JSON.stringify({ estado: "whatsapp" }) });
+      toast("Marcado como contactado por WhatsApp");
+      setTimeout(listaProspectos, 600);
+    } catch (err) { win?.close(); toast(err.message, "bad"); }
+  }));
+}
+
+async function abrirProspecto(id) {
+  const p = await api("/prospectos/" + id);
+  const raz = parse(p.razones) || [];
+  const web = parse(p.web_detalle);
+  const ejemplo = p.fuente === "ejemplo";
+  const [et, cl] = P_ESTADO[p.estado] || [p.estado, ""];
+  const cerrar = () => { $(".hoja")?.remove(); vistaProspeccion(); };
+  const velocidad = web?.puntaje != null ? ` · velocidad <b>${web.puntaje}/100</b>${web.carga ? ` (${esc(web.carga)})` : ""}` : web?.estado === "no_carga" ? " · <b>no abre</b>" : "";
+  const panelInicial = p.telefono || !p.email ? "wa" : "correo";
+  const chipWa = waInfo?.estado === "conectado";
+  const el = document.createElement("div");
+  el.className = "hoja";
+  el.innerHTML = `<div class="sheet">
+    <div class="grab"></div>
+    <div class="sheet-head">${ring(p, "big")}<div style="min-width:0"><h3>${esc(p.nombre)}</h3><small>${icoRubro(p.rubro)} ${esc(p.giro || p.rubro || "")}</small></div><button class="icon-btn" id="x" aria-label="Cerrar">${ico("x")}</button></div>
+    <div class="info">
+      <div>${ico("pin")}<span>${esc([p.direccion, p.colonia, p.ciudad].filter(Boolean).join(", ")) || "Sin dirección"}</span></div>
+      ${p.empleados ? `<div>${ico("people")}<span>${esc(p.empleados)}</span></div>` : ""}
+      <div>${ico("globe")}<span>${p.sitio_web ? `<a href="${esc(p.sitio_web)}" target="_blank" rel="noopener">${esc(p.sitio_web)}</a>${velocidad}` : "Sin página web"}</span></div>
+    </div>
+    <div class="razones">${chip(et, cl)}${raz.map((r) => chip(r)).join("")}</div>
+    ${ejemplo ? `<div class="aviso" style="margin:14px 0 0">${ico("flask")}<div>Es un negocio de <b>ejemplo</b>: puedes probar todo, pero nunca se le envía nada.</div></div>` : ""}
+    ${p.error ? `<div class="aviso" style="margin:14px 0 0">${ico("alert")}<div>${esc(p.error)}</div></div>` : ""}
+    <div class="seg">
+      <button data-m="correo" class="${panelInicial === "correo" ? "on" : ""}">${ico("mail")} Correo</button>
+      <button data-m="wa" class="${panelInicial === "wa" ? "on" : ""}">${ico("msg")} WhatsApp</button>
+      <button data-m="datos">${ico("idcard")} Datos</button>
+    </div>
+    <div data-panel="correo" ${panelInicial === "correo" ? "" : "hidden"}>
+      ${p.email ? "" : `<p class="muted" style="font-size:13px">Este negocio no tiene correo. Si lo consigues, agrégalo en <b>Datos</b>.</p>`}
+      <label>Asunto</label><input id="as" value="${esc(p.asunto || "")}">
+      <label>Mensaje</label><textarea id="co" rows="10">${esc(p.correo || "")}</textarea>
+    </div>
+    <div data-panel="wa" ${panelInicial === "wa" ? "" : "hidden"}>
+      <label>Mensaje de WhatsApp</label><textarea id="wt" rows="7">${esc(p.whatsapp_texto || "")}</textarea>
+    </div>
+    <div data-panel="datos" hidden>
+      <label>Correo del negocio</label><input id="em" value="${esc(p.email || "")}" placeholder="sin correo" type="email">
+      <label>Teléfono / WhatsApp</label><input id="tel" value="${esc(p.telefono || "")}" placeholder="sin teléfono" inputmode="tel">
+      <label>Notas</label><textarea id="nt" rows="3" placeholder="Ej. hablé con el dueño, le interesa para enero">${esc(p.notas || "")}</textarea>
+    </div>
+    <div class="acciones">
+      ${(p.telefono || p.email) && !["enviado", "aprobado", "no_contactar"].includes(p.estado) ? `<button class="b p full btn-big" id="ap">${ico("send")} ${p.telefono ? (chipWa ? "Aprobar y enviar por WhatsApp" : "Aprobar (sale al conectar el chip)") : "Aprobar y enviar correo"}</button>` : ""}
+      ${p.estado === "aprobado" ? `<button class="b full" id="desap">${ico("undo")} Sacar de la cola de envío</button>` : ""}
+      ${p.telefono && p.estado !== "no_contactar" ? `<a class="b full" id="wa" href="${waLink(p.telefono, p.whatsapp_texto)}" target="_blank" rel="noopener">${ico("phone")} Enviar yo desde mi celular</a>` : ""}
+      <button class="b" id="resp">${ico("hand")} Respondió</button>
+      <button class="b" id="cli">${ico("star")} Es cliente</button>
+      <button class="b" id="re">${ico("refresh")} Redactar otra vez</button>
+      <button class="b" id="gu">${ico("save")} Guardar</button>
+      <button class="b ghost full peligro" id="desc">${ico("trash")} Descartar</button>
+    </div>
+    <p class="nota-pie">${p.envios ? `Correos enviados: ${p.envios}${p.ultimo_envio ? " · último " + fecha(p.ultimo_envio) : ""} · ` : ""}Cada correo lleva tu firma y la opción de darse de baja.</p>
+  </div>`;
+  document.body.appendChild(el);
+  el.onclick = (e) => { if (e.target === el) cerrar(); };
+  el.querySelectorAll(".seg button").forEach((b) => (b.onclick = () => {
+    el.querySelectorAll(".seg button").forEach((x) => x.classList.toggle("on", x === b));
+    el.querySelectorAll("[data-panel]").forEach((pn) => (pn.hidden = pn.dataset.panel !== b.dataset.m));
+  }));
+  const campos = () => ({ email: $("#em").value.trim(), telefono: $("#tel").value.replace(/\D/g, ""), asunto: $("#as").value, correo: $("#co").value, whatsapp_texto: $("#wt").value, notas: $("#nt").value });
+  const guardar = (extra = {}) => api("/prospectos/" + id, { method: "PATCH", body: JSON.stringify({ ...campos(), ...extra }) });
+  const accion = (sel, fn) => $(sel, el) && ($(sel, el).onclick = async (e) => { try { await fn(e); } catch (err) { toast(err.message, "bad"); } });
+  $("#wt").oninput = () => $("#wa") && ($("#wa").href = waLink($("#tel").value || p.telefono, $("#wt").value));
+  accion("#x", cerrar);
+  accion("#gu", async () => { await guardar(); toast("Cambios guardados"); cerrar(); });
+  accion("#ap", async () => {
+    if (!confirm(ejemplo ? "Es un ejemplo: quedará aprobado pero no se envía. ¿Seguir?" : p.telefono ? "¿Enviar este mensaje por WhatsApp? Sale en los próximos minutos, dentro del horario." : `¿Enviar este correo a ${$("#em").value}? Sale en los próximos minutos (dentro del horario).`)) return;
+    await guardar(); await post(`/prospectos/${id}/aprobar`); toast("Aprobado: queda en la cola de envío"); cerrar();
+  });
+  accion("#desap", async () => { await guardar({ estado: "por_revisar" }); toast("Lo sacaste de la cola"); cerrar(); });
+  accion("#wa", async () => { await guardar({ estado: "whatsapp" }); toast("Marcado como contactado por WhatsApp"); setTimeout(cerrar, 300); });
+  accion("#re", async (e) => {
+    const b = e.currentTarget; b.disabled = true; b.innerHTML = `<div class="ring anim" style="width:18px;height:18px"></div> Redactando…`;
+    const r = await post(`/prospectos/${id}/redactar`);
+    $("#as").value = r.asunto || ""; $("#co").value = r.correo || ""; $("#wt").value = r.whatsapp_texto || "";
+    b.disabled = false; b.innerHTML = `${ico("refresh")} Redactar otra vez`; toast("Mensaje nuevo listo");
+  });
+  accion("#resp", async () => { await guardar({ estado: "respondio" }); toast("Marcado como respondió"); cerrar(); });
+  accion("#cli", async () => { await guardar({ estado: "cliente" }); toast("Nuevo cliente registrado"); cerrar(); });
+  accion("#desc", async () => { await guardar({ estado: "descartado" }); toast("Descartado"); cerrar(); });
+}
+
+const VIEWS = {
+  prospeccion: vistaProspeccion,
+
+  async resumen() {
+    const dias = Number(store.get("admin_dias") || 30);
+    const r = await api("/resumen?dias=" + dias);
+    moneda = r.moneda;
+    const max = Math.max(1, ...r.ventasPorDia.map((d) => d.monto));
+    const etapas = ["nuevo", "interesado", "cotizado", "negociacion", "ganado", "perdido"];
+    const emb = Object.fromEntries(r.embudo.map((e) => [e.etapa, e.n]));
+    $("#main").innerHTML = `<div class="row"><select id="dias">${[7, 30, 90, 365].map((d) => `<option value="${d}" ${d === dias ? "selected" : ""}>Últimos ${d} días</option>`).join("")}</select></div>
+    <div class="grid">
+      <div class="card kpi"><span>Ventas pagadas</span><b>${money(r.pagados.monto)}</b><span>${r.pagados.n} pedidos</span></div>
+      <div class="card kpi"><span>Pedidos creados</span><b>${r.pedidos.n}</b><span>${money(r.pedidos.monto)}</span></div>
+      <div class="card kpi"><span>Cotizaciones</span><b>${r.cotizaciones.n}</b><span>${money(r.cotizaciones.monto)}</span></div>
+      <div class="card kpi"><span>Conversaciones</span><b>${r.conversaciones}</b><span>${r.leads} leads</span></div>
+      <div class="card kpi"><span>Conversión a venta</span><b>${r.conversion}%</b><span>pagados / conversaciones</span></div>
+      <div class="card kpi"><span>Citas agendadas</span><b>${r.citas}</b><span>${r.derivaciones} derivadas a humano</span></div>
+      <div class="card kpi"><span>Costo IA (estimado)</span><b>US$ ${r.ia.costoUsdEstimado}</b><span>${r.ia.llamadas} llamadas</span></div>
+    </div>
+    <h2>Ventas por día</h2><div class="card">${r.ventasPorDia.length ? `<div class="bars">${r.ventasPorDia.map((d) => `<div title="${d.dia}: ${money(d.monto)}" style="height:${(d.monto / max) * 100}%"></div>`).join("")}</div>` : '<p class="muted">Aún no hay ventas pagadas en este período.</p>'}</div>
+    <h2>Embudo de ventas</h2><div class="grid">${etapas.map((e) => `<div class="card kpi"><span>${e}</span><b>${emb[e] || 0}</b></div>`).join("")}</div>
+    <h2>Por canal</h2><div class="grid">${r.porCanal.map((c) => `<div class="card kpi"><span>${esc(c.canal)}</span><b>${c.n}</b></div>`).join("") || '<p class="muted">Sin datos</p>'}</div>`;
+    $("#dias").onchange = (e) => { store.set("admin_dias", e.target.value); VIEWS.resumen(); };
+  },
+
+  async conversaciones() {
+    $("#main").innerHTML = `<div class="split"><div class="card list"><div class="row" style="padding:10px;margin:0"><input id="q" placeholder="Buscar nombre, teléfono, email" style="flex:1"><select id="fl"><option value="todas">Todas</option><option value="pausadas">Atiende humano</option></select></div><div id="lista"></div></div><div class="card" id="det"><p class="muted">Selecciona una conversación.</p></div></div>`;
+    const cargar = async () => {
+      const rows = await api(`/conversaciones?q=${encodeURIComponent($("#q").value)}&filtro=${$("#fl").value}`);
+      $("#lista").innerHTML = rows.map((c) => `<div class="item ${c.id === convSel ? "on" : ""}" data-id="${esc(c.id)}"><b>${esc(c.nombre || c.id)}</b> ${chip(c.canal)} ${c.bot_activo ? "" : chip("humano", "warn")} ${c.etapa ? chip(c.etapa, ETAPA_CLASE[c.etapa]) : ""}<small>${esc(c.ultimo || "")}</small><small>${fecha(c.actualizado)}</small></div>`).join("") || '<p class="muted" style="padding:12px">Sin conversaciones todavía.</p>';
+      document.querySelectorAll(".item").forEach((el) => (el.onclick = () => { convSel = el.dataset.id; cargar(); detalle(convSel); }));
+    };
+    $("#q").oninput = () => cargar();
+    $("#fl").onchange = () => cargar();
+    await cargar();
+    if (convSel) detalle(convSel);
+  },
+
+  async leads() {
+    const etapa = store.get("admin_etapa") || "";
+    const rows = await api("/leads" + (etapa ? "?etapa=" + etapa : ""));
+    $("#main").innerHTML = `<div class="row"><select id="et"><option value="">Todas las etapas</option>${["nuevo", "interesado", "cotizado", "negociacion", "ganado", "perdido"].map((e) => `<option ${e === etapa ? "selected" : ""}>${e}</option>`).join("")}</select><button class="b" id="csv">${ico("save")} Exportar CSV</button></div>
+    <div class="scroll"><table><tr><th>Nombre</th><th>Contacto</th><th>Necesidad</th><th>Etapa</th><th>Prob.</th><th>Canal</th><th>Actualizado</th></tr>
+    ${rows.map((l) => `<tr class="click" data-id="${esc(l.conversacion_id)}"><td>${esc(l.nombre || "-")}<br><small class="muted">${esc(l.empresa || "")}</small></td><td>${esc(l.telefono || "")}<br>${esc(l.email || "")}</td><td>${esc(l.necesidad || "")}</td><td>${chip(l.etapa, ETAPA_CLASE[l.etapa])}</td><td>${l.puntaje ?? "-"}</td><td>${esc(l.canal)}</td><td>${fecha(l.actualizado)}</td></tr>`).join("") || '<tr><td colspan="7" class="muted">Sin leads</td></tr>'}</table></div>`;
+    $("#et").onchange = (e) => { store.set("admin_etapa", e.target.value); VIEWS.leads(); };
+    $("#csv").onclick = async () => { const r = await fetch("/admin/api/leads.csv", { headers: { "x-admin-token": token } }); const b = await r.blob(); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = "leads.csv"; a.click(); };
+    irAConversacion();
+  },
+
+  async pedidos() {
+    const r0 = await api("/resumen?dias=1"); moneda = r0.moneda;
+    const rows = await api("/pedidos");
+    const estados = ["pendiente_pago", "pagado", "enviado", "entregado", "cancelado"];
+    const cls = { pagado: "ok", entregado: "ok", enviado: "ok", cancelado: "bad", pendiente_pago: "warn" };
+    $("#main").innerHTML = `<div class="scroll"><table><tr><th>#</th><th>Cliente</th><th>Productos</th><th>Total</th><th>Pago</th><th>Entrega</th><th>Estado</th><th>Fecha</th></tr>
+    ${rows.map((p) => { const items = (JSON.parse(p.items).items || []).map((i) => `${i.cantidad} x ${esc(i.nombre)}`).join("<br>");
+      return `<tr><td>${p.id}</td><td class="click" data-id="${esc(p.conversacion_id)}"><u>${esc(p.nombre || p.conversacion_id)}</u><br><small class="muted">${esc(p.canal)}</small></td><td>${items}</td><td>${money(p.total)}</td><td>${esc(p.metodo_pago || "")}${p.link_pago ? `<br><a href="${esc(p.link_pago)}" target="_blank" rel="noopener">link</a>` : ""}</td><td>${esc(p.entrega || "")}<br><small class="muted">${esc(p.direccion || "")}</small>${p.datos_facturacion ? `<br><small class="muted">Factura: ${esc(p.datos_facturacion)}</small>` : ""}</td>
+      <td>${chip(p.estado, cls[p.estado])}<br><select data-p="${p.id}">${estados.map((e) => `<option ${e === p.estado ? "selected" : ""}>${e}</option>`).join("")}</select></td><td>${fecha(p.creado)}</td></tr>`; }).join("") || '<tr><td colspan="8" class="muted">Sin pedidos</td></tr>'}</table></div>
+    <p class="muted">Al cambiar el estado, el cliente recibe un aviso automático por su canal.</p>`;
+    document.querySelectorAll("select[data-p]").forEach((s) => (s.onchange = async () => { if (!confirm(`¿Cambiar pedido #${s.dataset.p} a "${s.value}" y avisar al cliente?`)) return VIEWS.pedidos(); try { await post(`/pedidos/${s.dataset.p}/estado`, { estado: s.value }); } catch (e) { alert(e.message); } VIEWS.pedidos(); }));
+    irAConversacion();
+  },
+
+  async citas() {
+    const rows = await api("/citas");
+    $("#main").innerHTML = `<div class="scroll"><table><tr><th>Fecha</th><th>Cliente</th><th>Tipo</th><th>Notas</th><th>Estado</th></tr>
+    ${rows.map((c) => `<tr><td>${fecha(c.inicio)}</td><td class="click" data-id="${esc(c.conversacion_id)}"><u>${esc(c.nombre || c.conversacion_id)}</u></td><td>${esc(c.tipo || "")}</td><td>${esc(c.notas || "")}</td><td><select data-c="${c.id}">${["confirmada", "realizada", "cancelada"].map((e) => `<option ${e === c.estado ? "selected" : ""}>${e}</option>`).join("")}</select></td></tr>`).join("") || '<tr><td colspan="5" class="muted">Sin citas</td></tr>'}</table></div>`;
+    document.querySelectorAll("select[data-c]").forEach((s) => (s.onchange = async () => { await post(`/citas/${s.dataset.c}/estado`, { estado: s.value }); }));
+    irAConversacion();
+  },
+
+  async seguimientos() {
+    const rows = await api("/seguimientos");
+    $("#main").innerHTML = `<div class="scroll"><table><tr><th>Programado</th><th>Cliente</th><th>Motivo</th><th>Origen</th><th>Estado</th><th></th></tr>
+    ${rows.map((s) => `<tr><td>${fecha(s.ejecutar_en)}</td><td class="click" data-id="${esc(s.conversacion_id)}"><u>${esc(s.nombre || s.conversacion_id)}</u></td><td>${esc(s.contexto || "")}</td><td>${esc(s.origen)}</td><td>${chip(s.estado, { enviado: "ok", fallido: "bad", pendiente: "warn" }[s.estado])}</td><td>${s.estado === "pendiente" ? `<button class="b" data-s="${s.id}">Cancelar</button>` : ""}</td></tr>`).join("") || '<tr><td colspan="6" class="muted">Sin seguimientos</td></tr>'}</table></div>
+    <p class="muted">Los seguimientos se envían solo dentro del horario de atención. En WhatsApp, fuera de las 24 h desde el último mensaje del cliente se necesita una plantilla aprobada.</p>`;
+    document.querySelectorAll("button[data-s]").forEach((b) => (b.onclick = async () => { await post(`/seguimientos/${b.dataset.s}/cancelar`); VIEWS.seguimientos(); }));
+    irAConversacion();
+  },
+
+  async ajustes() {
+    const c = await api("/config");
+    const si = (v) => (v ? chip("activo", "ok") : chip("no configurado"));
+    $("#main").innerHTML = `<div class="grid"><div class="card"><h2>Negocio</h2><p>${esc(c.negocio)}</p><p class="muted">Modelo: ${esc(c.modelo)} · esfuerzo: ${esc(c.esfuerzo)} · pagos: ${esc(c.pagos)}</p>
+    <button class="b p" id="rec">Recargar config/negocio.yaml</button><p id="rr" class="muted"></p></div>
+    <div class="card"><h2>Canales</h2>${Object.entries(c.canales).map(([k, v]) => `<p>${esc(k)}: ${si(v)}</p>`).join("")}</div>
+    <div class="card"><h2>Avisos al dueño</h2><p>Telegram: ${si(c.avisos.telegram)}</p><p>Webhook: ${si(c.avisos.webhook)}</p></div>
+    <div class="card"><h2>Respaldo de datos</h2><p class="muted">Descarga todos tus datos (negocios, conversaciones, citas) o súbelos a otro lugar, por ejemplo de tu PC a la nube.</p>
+      <div class="row" style="margin:12px 0 0"><button class="b p" id="resp-dl">${ico("save")} Descargar respaldo</button>
+      <label class="b" style="margin:0">${ico("undo")} Restaurar respaldo<input type="file" id="resp-up" accept=".db" hidden></label></div><p id="resp-msg" class="muted"></p></div></div>`;
+    $("#resp-dl").onclick = async () => {
+      const r = await fetch("/admin/api/respaldo", { headers: { "x-admin-token": token } });
+      if (!r.ok) return toast("No se pudo descargar el respaldo", "bad");
+      const a = document.createElement("a"); a.href = URL.createObjectURL(await r.blob()); a.download = `agente-respaldo-${new Date().toISOString().slice(0, 10)}.db`; a.click();
+    };
+    $("#resp-up").onchange = async (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      if (!confirm(`¿Reemplazar TODOS los datos de este agente con "${f.name}"? Los datos actuales se guardan aparte por seguridad.`)) return;
+      $("#resp-msg").textContent = "Subiendo…";
+      try {
+        const r = await fetch("/admin/api/restaurar", { method: "POST", headers: { "x-admin-token": token, "Content-Type": "application/octet-stream" }, body: f });
+        const d = await r.json(); if (!r.ok) throw new Error(d.error);
+        $("#resp-msg").textContent = d.mensaje; setTimeout(() => location.reload(), 15000);
+      } catch (err) { $("#resp-msg").textContent = "Error: " + err.message; }
+    };
+    $("#rec").onclick = async () => { try { const r = await post("/recargar-config"); $("#rr").textContent = `Recargado: ${r.productos} productos.`; } catch (e) { $("#rr").textContent = "Error: " + e.message; } };
+  },
+};
+
+function irAConversacion() {
+  document.querySelectorAll("[data-id]").forEach((el) => (el.onclick = () => { convSel = el.dataset.id; tab = "conversaciones"; store.set("admin_tab", tab); render(); }));
+}
+
+async function detalle(id) {
+  const d = await api("/conversaciones/" + encodeURIComponent(id));
+  const c = d.conversacion, l = d.lead || {};
+  const r0 = await api("/resumen?dias=1"); moneda = r0.moneda;
+  $("#det").innerHTML = `<div class="row"><h2 style="margin:0">${esc(c.nombre || c.id)}</h2>${chip(c.canal)} ${l.etapa ? chip(l.etapa, ETAPA_CLASE[l.etapa]) : ""}
+    <button class="b" id="bot" style="margin-left:auto">${c.bot_activo ? "Pausar agente (atiendo yo)" : "Reactivar agente"}</button></div>
+    <p class="muted">${[l.telefono, l.email, l.empresa].filter(Boolean).map(esc).join(" · ") || "Sin datos de contacto aún"}${l.necesidad ? `<br>Necesidad: ${esc(l.necesidad)}` : ""}${l.notas ? `<br>Notas: ${esc(l.notas).replace(/\n/g, "<br>")}` : ""}</p>
+    <div class="row"><select id="etp">${["nuevo", "interesado", "cotizado", "negociacion", "ganado", "perdido"].map((e) => `<option ${e === l.etapa ? "selected" : ""}>${e}</option>`).join("")}</select><input id="nota" placeholder="Agregar nota interna" style="flex:1"><button class="b" id="gl">Guardar</button></div>
+    <div class="chat" id="chat">${d.mensajes.map((m) => `<div class="m ${m.rol}">${esc(m.texto)}<small>${m.rol} · ${fecha(m.creado)}</small></div>`).join("")}</div>
+    <form id="env" class="row" style="margin-top:8px"><textarea id="txt" rows="2" style="flex:1" placeholder="Responder como humano (se envía al cliente por ${esc(c.canal)} y pausa al agente)"></textarea><button class="b p">Enviar</button></form>
+    ${d.cotizaciones.length ? `<h2>Cotizaciones</h2>${d.cotizaciones.map((q) => `<p>#${q.id} · ${money(q.total)} · ${fecha(q.creado)} <span class="muted">${(JSON.parse(q.items).items || []).map((i) => `${i.cantidad} x ${esc(i.nombre)}`).join(", ")}</span></p>`).join("")}` : ""}
+    ${d.pedidos.length ? `<h2>Pedidos</h2>${d.pedidos.map((p) => `<p>#${p.id} · ${money(p.total)} · ${chip(p.estado)} · ${esc(p.metodo_pago || "")}</p>`).join("")}` : ""}
+    ${d.citas.length ? `<h2>Citas</h2>${d.citas.map((x) => `<p>${fecha(x.inicio)} · ${esc(x.tipo || "")} · ${chip(x.estado)}</p>`).join("")}` : ""}`;
+  const chat = $("#chat"); chat.scrollTop = chat.scrollHeight;
+  $("#bot").onclick = async () => { await post(`/conversaciones/${encodeURIComponent(id)}/bot`, { activo: !c.bot_activo }); detalle(id); };
+  $("#gl").onclick = async () => { await api(`/leads/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ etapa: $("#etp").value, notas: $("#nota").value || undefined }) }); detalle(id); };
+  $("#env").onsubmit = async (e) => { e.preventDefault(); const t = $("#txt").value.trim(); if (!t) return; try { await post(`/conversaciones/${encodeURIComponent(id)}/mensaje`, { texto: t }); detalle(id); } catch (err) { alert(err.message); } };
+}
+
+render();
+setInterval(() => { if ((token || sinToken) && tab === "conversaciones" && convSel && !document.activeElement?.matches("textarea,input")) detalle(convSel).catch(() => {}); }, 15000);
+</script>
+</body>
+</html>

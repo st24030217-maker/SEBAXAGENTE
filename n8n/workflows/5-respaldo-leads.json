@@ -1,0 +1,117 @@
+{
+  "id": "AgRespaldoLead01",
+  "name": "Agente · 5. Respaldo diario de leads",
+  "active": true,
+  "nodes": [
+    {
+      "id": "4aa5c74d-e814-4c73-acf4-9d44dcb4651b",
+      "name": "Nota",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -260
+      ],
+      "parameters": {
+        "content": "## Respaldo diario de leads\nTodos los días a las **23:30** descarga los leads en CSV (abre en Excel) y los guarda en la carpeta **n8n/respaldos**.",
+        "width": 420,
+        "height": 180
+      }
+    },
+    {
+      "id": "02e13633-ebbc-4b3d-804c-a1404ad736e0",
+      "name": "Todos los días 23:30",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 23 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "d1e9724c-aae2-4d2a-ab68-80cc78c89a0d",
+      "name": "Descargar CSV de leads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "url": "={{ $env.AGENTE_URL }}/admin/api/leads.csv",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-admin-token",
+              "value": "={{ $env.AGENTE_ADMIN_TOKEN }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "85ac0aa9-b732-494c-9da0-9009e85ce169",
+      "name": "Guardar en n8n/respaldos",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "operation": "write",
+        "fileName": "={{ $env.N8N_RESPALDOS }}/leads-{{ $now.toFormat('yyyy-MM-dd') }}.csv",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Todos los días 23:30": {
+      "main": [
+        [
+          {
+            "node": "Descargar CSV de leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Descargar CSV de leads": {
+      "main": [
+        [
+          {
+            "node": "Guardar en n8n/respaldos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Santiago",
+    "saveManualExecutions": true
+  },
+  "pinData": {},
+  "tags": []
+}

@@ -1,0 +1,9 @@
+node_modules/
+.env
+data/
+*.log
+n8n/node_modules/
+n8n/runtime/
+n8n/data/
+n8n/respaldos/
+logs/

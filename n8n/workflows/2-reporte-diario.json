@@ -1,0 +1,165 @@
+{
+  "id": "AgReporteDiario1",
+  "name": "Agente · 2. Reporte diario de ventas",
+  "active": true,
+  "nodes": [
+    {
+      "id": "354040c3-750a-4afb-aaa0-96b695cccb71",
+      "name": "Nota",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -280
+      ],
+      "parameters": {
+        "content": "## Reporte diario de ventas\nTodos los días a las **20:00** consulta las métricas del día al agente y arma un resumen.\n\nActiva Telegram o Gmail para recibirlo.",
+        "width": 420,
+        "height": 200
+      }
+    },
+    {
+      "id": "99887045-1b6c-4276-a9cd-1530429c2e7c",
+      "name": "Todos los días 20:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 20 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "e24bb5af-5510-4873-872d-9c4e87c001ee",
+      "name": "Métricas de hoy",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "url": "={{ $env.AGENTE_URL }}/admin/api/resumen?dias=1",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-admin-token",
+              "value": "={{ $env.AGENTE_ADMIN_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b30bcb32-e182-48e1-b0a4-5f6803253130",
+      "name": "Armar reporte",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nconst fmt = (v) => new Intl.NumberFormat(\"es-CL\", { style: \"currency\", currency: r.moneda, maximumFractionDigits: 0 }).format(v || 0);\nconst texto = [\n  \"📊 Reporte de ventas de hoy\",\n  `💰 Ventas pagadas: ${fmt(r.pagados.monto)} (${r.pagados.n} pedidos)`,\n  `🛒 Pedidos creados: ${r.pedidos.n} por ${fmt(r.pedidos.monto)}`,\n  `🧾 Cotizaciones: ${r.cotizaciones.n} por ${fmt(r.cotizaciones.monto)}`,\n  `💬 Conversaciones: ${r.conversaciones} · Leads: ${r.leads}`,\n  `📅 Citas: ${r.citas} · 🙋 Derivadas a humano: ${r.derivaciones}`,\n  `🎯 Conversión: ${r.conversion}%`,\n  `🤖 Costo IA estimado: US$ ${r.ia.costoUsdEstimado}`,\n].join(\"\\n\");\nreturn [{ json: { asunto: \"📊 Reporte diario de ventas\", texto, metricas: r } }];"
+      }
+    },
+    {
+      "id": "2c2da346-f7c3-4af2-9023-00c18955be4f",
+      "name": "Avisar por Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        -100
+      ],
+      "parameters": {
+        "chatId": "={{ $env.OWNER_TELEGRAM_CHAT_ID }}",
+        "text": "={{ $json.texto }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "disabled": true,
+      "notes": "Actívalo: crea una credencial de Telegram con tu bot y pon OWNER_TELEGRAM_CHAT_ID en el .env del agente."
+    },
+    {
+      "id": "4b13c114-ae74-40b5-addd-fd86f2e6dd42",
+      "name": "Avisar por Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        720,
+        100
+      ],
+      "parameters": {
+        "sendTo": "tu-correo@ejemplo.com",
+        "subject": "={{ $json.asunto }}",
+        "emailType": "text",
+        "message": "={{ $json.texto }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "disabled": true,
+      "notes": "Actívalo: conecta tu cuenta de Google y cambia el destinatario."
+    }
+  ],
+  "connections": {
+    "Todos los días 20:00": {
+      "main": [
+        [
+          {
+            "node": "Métricas de hoy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Métricas de hoy": {
+      "main": [
+        [
+          {
+            "node": "Armar reporte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar reporte": {
+      "main": [
+        [
+          {
+            "node": "Avisar por Telegram",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Avisar por Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Santiago",
+    "saveManualExecutions": true
+  },
+  "pinData": {},
+  "tags": []
+}

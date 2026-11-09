@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agente de ventas · Demo</title>
+  <style>
+    :root { --bg:#f6f7f9; --fg:#1d2433; --muted:#5b6475; --card:#fff; --accent:#4f46e5; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#0f1220; --fg:#e8eaf2; --muted:#a3a9bb; --card:#181c2e; } }
+    * { box-sizing: border-box; }
+    body { margin:0; font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--fg); }
+    main { max-width:760px; margin:0 auto; padding:48px 16px 120px; }
+    h1 { font-size:2rem; margin:0 0 8px; }
+    p { color:var(--muted); }
+    .card { background:var(--card); border-radius:14px; padding:20px 22px; margin:20px 0; box-shadow:0 2px 12px #0000000d; }
+    code { background:#8881; padding:2px 6px; border-radius:6px; font-size:.9em; word-break:break-all; }
+    ul { padding-left:20px; color:var(--muted); }
+    a { color:var(--accent); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Tu agente de ventas está funcionando 🚀</h1>
+    <p>Esta es una página de prueba. Abre el chat en la esquina inferior derecha y conversa como si fueras un cliente.</p>
+
+    <div class="card">
+      <strong>Prueba estas conversaciones:</strong>
+      <ul>
+        <li>"Hola, necesito un notebook para la universidad, tengo unos 500 mil"</li>
+        <li>"¿Cuánto me sale el monitor 4K con despacho a Concepción?"</li>
+        <li>"Quiero comprar 3 kits de teclado y mouse, ¿me haces descuento?"</li>
+        <li>"Quiero agendar una asesoría para mi empresa el jueves"</li>
+        <li>"Quiero hablar con una persona"</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <strong>Para ponerlo en tu sitio web</strong>, pega esta línea antes de <code>&lt;/body&gt;</code>:
+      <p><code>&lt;script src="https://TU-SERVIDOR/widget.js" data-color="#4f46e5" defer&gt;&lt;/script&gt;</code></p>
+    </div>
+
+    <div class="card">
+      <strong>Panel de administración:</strong> <a href="/admin">/admin</a> — conversaciones, leads, pedidos, citas, seguimientos y métricas.
+    </div>
+  </main>
+  <script src="/widget.js" defer></script>
+</body>
+</html>

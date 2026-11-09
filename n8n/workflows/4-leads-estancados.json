@@ -1,0 +1,165 @@
+{
+  "id": "AgLeadsEstanca01",
+  "name": "Agente · 4. Leads estancados",
+  "active": true,
+  "nodes": [
+    {
+      "id": "bf136771-e791-4fc2-94cb-35f81f0c4d69",
+      "name": "Nota",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -280
+      ],
+      "parameters": {
+        "content": "## Leads estancados\nCada mañana (lun–vie 9:00) busca clientes **cotizados o en negociación sin movimiento hace 3+ días** y te envía la lista para que los llames.",
+        "width": 420,
+        "height": 200
+      }
+    },
+    {
+      "id": "b604440e-a464-4095-b450-e88a96e45030",
+      "name": "Lun a vie 9:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1-5"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "d545e791-063e-482e-bf22-ad9f03fd24c8",
+      "name": "Leer leads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "url": "={{ $env.AGENTE_URL }}/admin/api/leads",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-admin-token",
+              "value": "={{ $env.AGENTE_ADMIN_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a6b063f7-6470-45e1-8476-dfec9f9028f0",
+      "name": "Filtrar estancados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const limite = Date.now() - 3 * 86400000;\nconst estancados = $input.all().map((i) => i.json)\n  .filter((l) => [\"cotizado\", \"negociacion\"].includes(l.etapa) && new Date(l.actualizado).getTime() < limite)\n  .sort((a, b) => (b.puntaje || 0) - (a.puntaje || 0));\nif (!estancados.length) return [];\nconst lineas = estancados.slice(0, 20).map((l) =>\n  `• ${l.nombre || \"Sin nombre\"} (${l.etapa}, prob. ${l.puntaje ?? \"-\"}/10) ${l.telefono || l.email || l.canal}: ${l.necesidad || \"\"}`);\nreturn [{ json: {\n  asunto: `⏳ ${estancados.length} leads esperando seguimiento`,\n  texto: `⏳ Leads sin movimiento hace 3+ días (${estancados.length}):\\n${lineas.join(\"\\n\")}`,\n} }];"
+      }
+    },
+    {
+      "id": "6e6a6dd8-165c-4c46-aff4-916b8a7d9668",
+      "name": "Avisar por Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        -100
+      ],
+      "parameters": {
+        "chatId": "={{ $env.OWNER_TELEGRAM_CHAT_ID }}",
+        "text": "={{ $json.texto }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "disabled": true,
+      "notes": "Actívalo: crea una credencial de Telegram con tu bot y pon OWNER_TELEGRAM_CHAT_ID en el .env del agente."
+    },
+    {
+      "id": "2185d07e-a64e-4e99-958c-6ba4fb175882",
+      "name": "Avisar por Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        720,
+        100
+      ],
+      "parameters": {
+        "sendTo": "tu-correo@ejemplo.com",
+        "subject": "={{ $json.asunto }}",
+        "emailType": "text",
+        "message": "={{ $json.texto }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "disabled": true,
+      "notes": "Actívalo: conecta tu cuenta de Google y cambia el destinatario."
+    }
+  ],
+  "connections": {
+    "Lun a vie 9:00": {
+      "main": [
+        [
+          {
+            "node": "Leer leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer leads": {
+      "main": [
+        [
+          {
+            "node": "Filtrar estancados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar estancados": {
+      "main": [
+        [
+          {
+            "node": "Avisar por Telegram",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Avisar por Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Santiago",
+    "saveManualExecutions": true
+  },
+  "pinData": {},
+  "tags": []
+}

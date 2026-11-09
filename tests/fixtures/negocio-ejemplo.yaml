@@ -1,0 +1,146 @@
+# ============================================================
+#  CONFIGURACIÓN DEL NEGOCIO
+#  Este es el "cerebro comercial" del agente. Todo lo que el
+#  agente sabe de tu negocio sale de aquí. Edítalo con tus datos
+#  reales y reinicia el servidor.
+#
+#  ⚠ Los datos de abajo son de EJEMPLO. Reemplázalos.
+# ============================================================
+
+negocio:
+  nombre: "Sebax Store"
+  rubro: "Tienda de tecnología y accesorios"
+  descripcion: >
+    Vendemos computadores, accesorios y servicios técnicos para
+    personas y pymes, con despacho a todo el país.
+  sitio_web: "https://www.ejemplo.cl"
+  telefono: "+56 9 1234 5678"
+  email: "ventas@ejemplo.cl"
+  direccion: "Av. Ejemplo 123, Santiago"
+  zona_horaria: "America/Santiago"
+  moneda: "CLP"            # CLP, USD, MXN, ARS, COP, PEN, EUR...
+  idioma: "español de Chile"
+
+agente:
+  nombre: "Sofía"
+  personalidad: >
+    Cercana, profesional y resolutiva. Habla de tú, con frases cortas,
+    sin tecnicismos innecesarios. Usa emojis con moderación (máximo uno
+    por mensaje).
+  objetivo: >
+    Entender lo que el cliente necesita, recomendarle la mejor opción
+    del catálogo, cotizar y cerrar la venta (pedido + pago) o agendar
+    una reunión con el equipo.
+
+# Horario de atención y disponibilidad para citas (formato 24 h).
+# Deja un día vacío ("") si no atiendes ese día.
+horario:
+  lunes: "09:00-18:00"
+  martes: "09:00-18:00"
+  miercoles: "09:00-18:00"
+  jueves: "09:00-18:00"
+  viernes: "09:00-17:00"
+  sabado: "10:00-14:00"
+  domingo: ""
+
+citas:
+  activo: true
+  duracion_minutos: 30
+  anticipacion_minima_horas: 2
+  dias_maximos_adelante: 14
+  tipos:
+    - "Reunión de asesoría (videollamada)"
+    - "Visita a la tienda"
+    - "Visita técnica a domicilio"
+
+# Catálogo. "id" debe ser único y no cambiar. precio = precio unitario
+# en la moneda del negocio (impuestos incluidos). stock: null = sin control.
+catalogo:
+  - id: NB-001
+    nombre: "Notebook Pro 14\""
+    categoria: "Computadores"
+    precio: 899990
+    stock: 12
+    descripcion: "Intel Core i7, 16 GB RAM, SSD 512 GB, pantalla 14\" 2.8K. Ideal para trabajo y diseño."
+  - id: NB-002
+    nombre: "Notebook Estudiante 15\""
+    categoria: "Computadores"
+    precio: 449990
+    stock: 25
+    descripcion: "Intel Core i5, 8 GB RAM, SSD 256 GB. Liviano, buena batería, perfecto para estudiar."
+  - id: MN-001
+    nombre: "Monitor 27\" 4K"
+    categoria: "Monitores"
+    precio: 329990
+    stock: 8
+    descripcion: "IPS, 4K UHD, USB-C con carga 65W. Excelente para productividad."
+  - id: AC-001
+    nombre: "Kit teclado + mouse inalámbrico"
+    categoria: "Accesorios"
+    precio: 39990
+    stock: 50
+    descripcion: "Silencioso, batería de larga duración, conexión por receptor USB."
+  - id: AC-002
+    nombre: "Audífonos con cancelación de ruido"
+    categoria: "Accesorios"
+    precio: 129990
+    stock: 15
+    descripcion: "Bluetooth, cancelación activa de ruido, 30 h de batería."
+  - id: SV-001
+    nombre: "Instalación y configuración a domicilio"
+    categoria: "Servicios"
+    precio: 35000
+    stock: null
+    descripcion: "Un técnico instala y deja configurado tu equipo (Santiago urbano)."
+  - id: SV-002
+    nombre: "Plan soporte pyme mensual"
+    categoria: "Servicios"
+    precio: 89990
+    stock: null
+    descripcion: "Soporte remoto ilimitado y 1 visita mensual para hasta 10 equipos."
+
+politicas:
+  envios: "Despacho a todo Chile en 2 a 5 días hábiles. Gratis sobre $300.000; bajo eso, $5.990 en Santiago y $8.990 en regiones."
+  retiro: "Retiro gratis en tienda (Av. Ejemplo 123) desde el día hábil siguiente al pago."
+  devoluciones: "10 días para cambios o devoluciones con el producto sin uso y en su caja."
+  garantia: "12 meses de garantía del fabricante en todos los equipos."
+  medios_pago: "Tarjetas de crédito y débito, transferencia bancaria."
+  facturacion: "Emitimos boleta o factura. Para factura pedimos RUT y razón social."
+
+envio:
+  costo_santiago: 5990
+  costo_regiones: 8990
+  gratis_desde: 300000
+
+descuentos:
+  maximo_porcentaje: 10   # el agente NUNCA podrá dar más que esto (se valida en el servidor)
+  reglas: >
+    Solo ofrece descuento si el cliente lo pide o si duda por precio y está
+    cerca de comprar. Empieza por 5%. Sobre 3 unidades del mismo producto o
+    compras de pymes sobre $1.500.000 puedes llegar al 10%.
+
+pagos:
+  instrucciones_transferencia: >
+    Banco Ejemplo · Cuenta corriente 12345678 · RUT 76.123.456-7 ·
+    Sebax Store SpA · ventas@ejemplo.cl. Envía el comprobante por este chat.
+
+seguimientos:
+  activo: true
+  # Si un cliente con interés real deja de responder, el agente le escribe
+  # automáticamente después de estas horas (uno por cada intento).
+  horas_inactividad: [24, 72]
+  # Etapas en las que se hace seguimiento automático
+  etapas: ["interesado", "cotizado", "negociacion"]
+
+faq:
+  - p: "¿Tienen tienda física?"
+    r: "Sí, en Av. Ejemplo 123, Santiago, en horario de atención."
+  - p: "¿Venden con factura?"
+    r: "Sí, emitimos factura electrónica. Necesitamos RUT, razón social y giro."
+  - p: "¿Puedo pagar en cuotas?"
+    r: "Sí, con tarjeta de crédito según las cuotas que ofrezca tu banco."
+
+# Reglas adicionales que el agente debe respetar siempre.
+reglas_extra:
+  - "Nunca prometas fechas de entrega exactas; da los rangos de la política de envíos."
+  - "Si preguntan por productos que no están en el catálogo, ofrece la alternativa más parecida o deriva a un humano."

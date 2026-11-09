@@ -1,0 +1,148 @@
+{
+  "id": "AgRecordarPago01",
+  "name": "Agente · 3. Recordatorio de pago pendiente",
+  "active": true,
+  "nodes": [
+    {
+      "id": "ca7fe06d-ee9d-4f5a-89a7-39869ae172a4",
+      "name": "Nota",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -300
+      ],
+      "parameters": {
+        "content": "## Recordatorio de pago pendiente\nCada hora (lun–sáb, 10:00–18:00) busca pedidos **sin pagar hace más de 24 h** y le escribe **una sola vez** al cliente por su canal con el link de pago.\n\nFunciona sin configurar nada más.",
+        "width": 440,
+        "height": 220
+      }
+    },
+    {
+      "id": "1e2fc3de-9070-4db2-80be-db74ab1163f8",
+      "name": "Cada hora en horario hábil",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 10-18 * * 1-6"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "8c06dfb6-c72b-4a69-86fd-ad73850784f4",
+      "name": "Leer pedidos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "url": "={{ $env.AGENTE_URL }}/admin/api/pedidos",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-admin-token",
+              "value": "={{ $env.AGENTE_ADMIN_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "8cfe7bd2-2dc0-4cdb-aa8d-ae1e95baafe9",
+      "name": "Pendientes sin recordar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Pedidos sin pagar entre 24 h y 7 días que aún no recibieron recordatorio.\nconst memoria = $getWorkflowStaticData(\"global\");\nmemoria.recordados = memoria.recordados || {};\nconst ahora = Date.now();\nconst salida = [];\nfor (const { json: p } of $input.all()) {\n  if (p.estado !== \"pendiente_pago\") continue;\n  const horas = (ahora - new Date(p.creado).getTime()) / 3600000;\n  if (horas < 24 || horas > 168 || memoria.recordados[p.id]) continue;\n  memoria.recordados[p.id] = new Date().toISOString();\n  const nombre = (p.nombre || \"\").split(\" \")[0];\n  const pago = p.link_pago ? `Aquí está tu link para pagar: ${p.link_pago}` : \"Si ya hiciste la transferencia, envíame el comprobante por aquí.\";\n  salida.push({ json: {\n    conversacion_id: p.conversacion_id,\n    texto: `Hola${nombre ? \" \" + nombre : \"\"} 👋 Tu pedido #${p.id} sigue reservado, pero aún no registramos el pago. ${pago} ¿Te ayudo con algo para completarlo?`,\n  } });\n}\nreturn salida;"
+      }
+    },
+    {
+      "id": "99e78e8a-5fc2-4fae-b0f7-e7b7b923b873",
+      "name": "Enviar recordatorio al cliente",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.AGENTE_URL }}/admin/api/conversaciones/{{ encodeURIComponent($json.conversacion_id) }}/mensaje",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-admin-token",
+              "value": "={{ $env.AGENTE_ADMIN_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ texto: $json.texto, origen: \"automatizacion\" }) }}",
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Cada hora en horario hábil": {
+      "main": [
+        [
+          {
+            "node": "Leer pedidos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer pedidos": {
+      "main": [
+        [
+          {
+            "node": "Pendientes sin recordar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pendientes sin recordar": {
+      "main": [
+        [
+          {
+            "node": "Enviar recordatorio al cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Santiago",
+    "saveManualExecutions": true
+  },
+  "pinData": {},
+  "tags": []
+}
