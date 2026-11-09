@@ -26,7 +26,25 @@ export function openDb(file) {
   db = new DatabaseSync(file);
   db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
   db.exec(SCHEMA);
+  migrar(db);
   return db;
+}
+
+/** Columnas agregadas después de la primera versión (las bases viejas las reciben solas). */
+function migrar(d) {
+  const nuevas = {
+    prospectos: [
+      ["boceto", "TEXT"], // clave de su página de muestra (/m/<clave>)
+      ["venta_monto", "REAL"], // si se volvió cliente: cuánto se vendió (MXN)
+      ["venta_servicio", "TEXT"],
+      ["venta_fecha", "TEXT"],
+    ],
+  };
+  for (const [tabla, cols] of Object.entries(nuevas)) {
+    const existentes = new Set(d.prepare(`PRAGMA table_info(${tabla})`).all().map((c) => c.name));
+    for (const [col, tipo] of cols) if (!existentes.has(col)) d.exec(`ALTER TABLE ${tabla} ADD COLUMN ${col} ${tipo}`);
+  }
+  d.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_prosp_boceto ON prospectos(boceto)");
 }
 
 export const now = () => new Date().toISOString();

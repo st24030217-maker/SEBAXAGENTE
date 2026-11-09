@@ -6,11 +6,12 @@ import { getDb, now, logEvent } from "../db.js";
 import { localParts } from "../services/calendar.js";
 import { getProspeccion } from "./config.js";
 import { buscarDenue, desdeDenue, medirPagina, buscarCorreoEnWeb, esRedSocial } from "./fuentes.js";
-import { calificar, redactar, pieCorreo } from "./redactar.js";
+import { calificar, redactar, redactarPlantilla, pieCorreo } from "./redactar.js";
+import { bocetosDisponibles } from "./boceto.js";
 import { estadoIA, iaDisponible } from "../ia/proveedor.js";
 
 export const ESTADOS = ["nuevo", "por_revisar", "aprobado", "enviado", "whatsapp", "respondio", "cliente", "descartado", "no_contactar", "fallido"];
-const EDITABLES = ["asunto", "correo", "whatsapp_texto", "notas", "email", "telefono", "estado"];
+const EDITABLES = ["asunto", "correo", "whatsapp_texto", "notas", "email", "telefono", "estado", "venta_monto", "venta_servicio", "venta_fecha"];
 const DIAS = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
 
 const db = () => getDb();
@@ -422,6 +423,20 @@ export function borrarEjemplos() {
 
 // ---------- Resumen para el panel ----------
 
+/** Lo que el agente te ha traído: clientes cerrados y cuánto se vendió (total, este mes y por rubro/ciudad). */
+export function resumenVentas(ahora = new Date()) {
+  const d = db();
+  const tot = d.prepare("SELECT COUNT(*) n, COALESCE(SUM(venta_monto),0) total FROM prospectos WHERE estado = 'cliente'").get();
+  const inicioMes = `${localParts(ahora, getProspeccion().envio.zona_horaria).y}-${String(localParts(ahora, getProspeccion().envio.zona_horaria).m).padStart(2, "0")}-01`;
+  const mes = d.prepare("SELECT COUNT(*) n, COALESCE(SUM(venta_monto),0) total FROM prospectos WHERE estado = 'cliente' AND COALESCE(venta_fecha, actualizado) >= ?").get(inicioMes);
+  const por = (col) =>
+    d.prepare(`SELECT COALESCE(${col}, 'Sin dato') nombre, COUNT(*) n, COALESCE(SUM(venta_monto),0) total FROM prospectos WHERE estado = 'cliente' GROUP BY 1 ORDER BY total DESC, n DESC LIMIT 8`).all();
+  const recientes = d
+    .prepare("SELECT id, nombre, rubro, ciudad, venta_monto, venta_servicio, COALESCE(venta_fecha, actualizado) fecha FROM prospectos WHERE estado = 'cliente' ORDER BY fecha DESC LIMIT 6")
+    .all();
+  return { clientes: tot.n, total: tot.total, mesClientes: mes.n, mesTotal: mes.total, porRubro: por("rubro"), porCiudad: por("ciudad"), recientes };
+}
+
 export function resumenProspeccion() {
   const cfg = getProspeccion();
   const porEstado = Object.fromEntries(db().prepare("SELECT estado, COUNT(*) n FROM prospectos GROUP BY estado").all().map((r) => [r.estado, r.n]));
@@ -437,6 +452,8 @@ export function resumenProspeccion() {
     ciudades: cfg.ciudades.map((c) => c.nombre),
     remitente: cfg.remitente,
     automatico: (({ _sig, ...e }) => e)(estadoAutomatico()),
+    ventas: resumenVentas(),
+    bocetosVistos: db().prepare("SELECT COUNT(DISTINCT json_extract(datos, '$.prospecto')) n FROM eventos WHERE tipo = 'boceto_visto'").get().n,
     config: {
       denue: !!settings.prospeccion.denueToken,
       correo: correoConfigurado(),
@@ -464,10 +481,30 @@ export function recalificarPendientes() {
   return cambiados;
 }
 
+/**
+ * Los mensajes pendientes que salieron de la plantilla (sin boceto) se rehacen para llevar el link a
+ * su muestra. No toca los que tú editaste o redactó la IA (no empiezan como la plantilla).
+ */
+export function ponerBocetoEnPendientes() {
+  if (!bocetosDisponibles()) return 0;
+  const cfg = getProspeccion();
+  const filas = db()
+    .prepare("SELECT * FROM prospectos WHERE estado IN ('por_revisar','aprobado') AND whatsapp_texto LIKE 'Hola, buen día. Soy %' AND whatsapp_texto NOT LIKE '%/m/%'")
+    .all();
+  const upd = db().prepare("UPDATE prospectos SET whatsapp_texto = ?, correo = ? WHERE id = ?");
+  for (const p of filas) {
+    const m = redactarPlantilla(p, cfg);
+    upd.run(m.whatsapp, m.correo, p.id);
+  }
+  if (filas.length) console.log(`[prospeccion] ${filas.length} mensajes pendientes ahora llevan su boceto`);
+  return filas.length;
+}
+
 export function startProspeccion(intervaloMs = 30_000) {
   if (!settings.prospeccion.activo) return null;
   try {
     recalificarPendientes();
+    ponerBocetoEnPendientes();
   } catch (e) {
     console.error("[prospeccion] no se pudo recalcular puntajes:", e.message);
   }

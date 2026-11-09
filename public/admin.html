@@ -170,6 +170,16 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--surface-hover)}
 .stat.dest::before{display:none}
 .stat .mini-ring{position:absolute;right:16px;top:16px}
 .tubo{margin-top:14px}
+.ventas{margin-top:14px}
+.v-total{font-family:var(--font-h);font-size:30px;font-weight:800;letter-spacing:-.02em;margin:4px 0 0}
+.v-rubros{display:grid;gap:8px;margin-top:14px}
+.v-fila{display:grid;grid-template-columns:minmax(0,9fr) minmax(0,8fr) auto;gap:10px;align-items:center;font-size:13px}
+.v-fila span{display:flex;gap:6px;align-items:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.v-fila i{display:block;height:6px;border-radius:99px;background:var(--fg)}
+.v-recientes{display:grid;margin-top:14px;border-top:1px solid var(--line)}
+.v-recientes a{display:grid;grid-template-columns:minmax(0,1fr) auto;padding:9px 0;border-bottom:1px solid var(--line);color:var(--fg);text-decoration:none;font-size:13.5px}
+.v-recientes small{grid-column:1;color:var(--muted);font-size:12px}.v-recientes b{grid-row:1/3;grid-column:2;align-self:center}
+.venta-form{display:none;grid-column:1/-1;gap:2px;padding:14px}.venta-form:not([hidden]){display:grid}
 .piloto{display:flex;gap:14px;align-items:flex-start;margin-top:14px}
 .piloto-ico{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);color:var(--muted);flex:none}
 .piloto-ico.on{background:var(--inv-bg);color:var(--inv-fg);border-color:transparent}
@@ -459,6 +469,24 @@ const P_ESTADO = { nuevo: ["analizando", ""], por_revisar: ["por revisar", "warn
 const TUBO = [["por_revisar", "Por revisar", "var(--n6)"], ["aprobado", "En cola", "var(--n5)"], ["enviado", "Enviados", "var(--n4)"], ["whatsapp", "WhatsApp", "var(--n3)"], ["respondio", "Respondieron", "var(--n2)"], ["cliente", "Clientes", "var(--n1)"]];
 const RUBRO_ICO = { "Restaurantes": "utensils", "Taquerías y comida": "flame", "Barberías": "scissors", "Estéticas y salones": "sparkles", "Tiendas y boutiques": "bag", "Gimnasios": "dumbbell", "Consultorios": "stetho", "Escuelas y academias": "cap", "Cafeterías": "coffee", "Pastelerías y panaderías": "cake", "Dentistas": "stetho", "Veterinarias": "paw", "Lavados de autos": "car", "Florerías": "flower", "Inmobiliarias": "building" };
 const icoRubro = (r) => ico(RUBRO_ICO[r] || "store");
+const pesos = (n) => "$" + Math.round(Number(n) || 0).toLocaleString("es-MX");
+
+// Tarjeta "Lo que te ha traído el agente": ventas cerradas, del mes, por rubro y bocetos vistos.
+function ventasHtml(v, vistos) {
+  if (!v) return "";
+  const vist = `<small class="muted">${vistos || 0} negocio${vistos === 1 ? "" : "s"} ${vistos === 1 ? "abrió" : "abrieron"} su boceto</small>`;
+  if (!v.clientes) {
+    return `<div class="card ventas"><div class="row" style="justify-content:space-between;margin:0"><b style="font-size:13.5px">Lo que te ha traído el agente</b>${vist}</div>
+      <p class="muted" style="margin:8px 0 0;font-size:13px">Cuando cierres una venta, abre el negocio, toca <b>Es cliente</b> y escribe cuánto se vendió. Aquí vas a ver el total, el del mes y qué rubros te dejan más.</p></div>`;
+  }
+  const max = Math.max(1, ...v.porRubro.map((r) => r.total || r.n));
+  return `<div class="card ventas">
+    <div class="row" style="justify-content:space-between;margin:0;align-items:flex-start"><div><b style="font-size:13.5px">Lo que te ha traído el agente</b><div class="v-total">${pesos(v.total)}</div>
+      <small class="muted">${v.clientes} cliente${v.clientes === 1 ? "" : "s"} · ${pesos(v.mesTotal)} este mes</small></div>${vist}</div>
+    <div class="v-rubros">${v.porRubro.map((r) => `<div class="v-fila"><span>${icoRubro(r.nombre)} ${esc(r.nombre)}</span><i style="width:${Math.max(4, ((r.total || r.n) / max) * 100)}%"></i><b>${r.total ? pesos(r.total) : r.n + " cliente" + (r.n === 1 ? "" : "s")}</b></div>`).join("")}</div>
+    ${v.recientes.length ? `<div class="v-recientes">${v.recientes.map((x) => `<a href="#" data-p="${x.id}"><span>${esc(x.nombre)}</span><small>${esc(x.venta_servicio || x.rubro || "")}</small><b>${x.venta_monto ? pesos(x.venta_monto) : "—"}</b></a>`).join("")}</div>` : ""}
+  </div>`;
+}
 const chipPt = (t, c = "") => `<span class="chip ${c}"><i class="pt"></i>${esc(t)}</span>`;
 let pFiltro = store.get("p_filtro") || "por_revisar";
 let pSel = { rubros: new Set(), ciudades: new Set() };
@@ -546,7 +574,7 @@ async function vistaProspeccion() {
   <section class="hero">
     <div><span class="hero-tag"><span class="dot"></span>Prospección activa</span><h1>${saludo()}, <span class="text-gradient">${esc(apodo)}</span>.</h1>
       <p>${pendientes ? `Tienes <b>${pendientes}</b> negocio${pendientes === 1 ? "" : "s"} esperando tu revisión.` : "Todo al día. Busca nuevos clientes cuando quieras."}</p></div>
-    <div class="estado-cfg">${ok(c.denue, "INEGI", "sin INEGI")}${ok(wa.estado === "conectado", "WhatsApp", "WhatsApp sin conectar")}${c.ia?.activa ? chipPt((c.ia.activa === "gemini" ? "Gemini" : "Claude") + " activo", "ok") : chipPt("Plantillas", "warn")}</div>
+    <div class="estado-cfg">${ok(c.denue, "INEGI", "sin INEGI")}${ok(wa.estado === "conectado", "WhatsApp", "WhatsApp sin conectar")}${s.calendario ? chipPt("Calendar", "ok") : ""}${c.ia?.activa ? chipPt((c.ia.activa === "gemini" ? "Gemini" : "Claude") + " activo", "ok") : chipPt("Plantillas", "warn")}</div>
   </section>
   ${!c.denue ? `<div class="aviso">${ico("alert")}<div>Falta el <b>DENUE_TOKEN</b> en <code>.env</code> para buscar negocios reales.</div></div>` : ""}
   ${wa.estado !== "conectado" ? waHtml(wa) : ""}
@@ -557,6 +585,7 @@ async function vistaProspeccion() {
     <div class="card stat"><span>Respondieron</span><b>${(n.respondio || 0) + (n.cliente || 0)}</b><small>${n.cliente || 0} ya son clientes</small></div>
   </div>
   ${wa.estado === "conectado" ? waHtml(wa) : ""}
+  ${ventasHtml(s.ventas, s.bocetosVistos)}
   ${pilotoHtml(s.automatico)}
   ${totalTubo ? `<div class="card tubo"><div class="row" style="justify-content:space-between;margin:0 0 10px"><b style="font-size:13.5px">Tu embudo</b><small class="muted">${totalTubo} negocios en proceso</small></div>
     <div class="tubo-bar">${TUBO.filter(([k]) => n[k]).map(([k, , col]) => `<i style="width:${(n[k] / totalTubo) * 100}%;background:${col}" title="${k}"></i>`).join("")}</div>
@@ -602,6 +631,7 @@ async function vistaProspeccion() {
     if (!confirm("¿Aprobar los 10 negocios con mejor puntaje? Saldrán por WhatsApp poco a poco, dentro del horario y del límite diario.")) return;
     const r = await post("/prospeccion/aprobar-lote", { cantidad: 10 }); toast(`${r.aprobados} negocios en cola de envío`); vistaProspeccion();
   });
+  document.querySelectorAll(".v-recientes a").forEach((a) => (a.onclick = (e) => { e.preventDefault(); abrirProspecto(a.dataset.p); }));
   $("#wa-prueba") && ($("#wa-prueba").onclick = async (e) => { e.preventDefault(); try { const r = await post("/whatsapp/aviso-prueba"); toast(`Aviso enviado a tu WhatsApp (${r.numero})`); } catch (err) { toast(err.message || "No se pudo mandar el aviso"); } });
   $("#wa-off") && ($("#wa-off").onclick = async (e) => { e.preventDefault(); if (!confirm("¿Desvincular el chip de WhatsApp del agente?")) return; await post("/whatsapp/desconectar"); toast("Chip desvinculado"); setTimeout(vistaProspeccion, 1500); });
   $("#wa-cod") && ($("#wa-cod").onclick = async () => {
@@ -675,6 +705,8 @@ async function abrirProspecto(id) {
       <div>${ico("pin")}<span>${esc([p.direccion, p.colonia, p.ciudad].filter(Boolean).join(", ")) || "Sin dirección"}</span></div>
       ${p.empleados ? `<div>${ico("people")}<span>${esc(p.empleados)}</span></div>` : ""}
       <div>${ico("globe")}<span>${p.sitio_web ? `<a href="${esc(p.sitio_web)}" target="_blank" rel="noopener">${esc(p.sitio_web)}</a>${velocidad}` : "Sin página web"}</span></div>
+      ${p.boceto_url ? `<div>${ico("star")}<span><a href="${esc(p.boceto_url)}" target="_blank" rel="noopener">Ver su boceto</a> · ${p.boceto_vistas ? `<b>lo abrió ${p.boceto_vistas} ${p.boceto_vistas === 1 ? "vez" : "veces"}</b>` : "aún no lo abre"}</span></div>` : ""}
+      ${p.estado === "cliente" ? `<div>${ico("check")}<span>Venta: <b>${p.venta_monto ? pesos(p.venta_monto) : "sin monto"}</b>${p.venta_servicio ? ` · ${esc(p.venta_servicio)}` : ""}</span></div>` : ""}
     </div>
     <div class="razones">${chip(et, cl)}${raz.map((r) => chip(r)).join("")}</div>
     ${ejemplo ? `<div class="aviso" style="margin:14px 0 0">${ico("flask")}<div>Es un negocio de <b>ejemplo</b>: puedes probar todo, pero nunca se le envía nada.</div></div>` : ""}
@@ -702,7 +734,14 @@ async function abrirProspecto(id) {
       ${p.estado === "aprobado" ? `<button class="b full" id="desap">${ico("undo")} Sacar de la cola de envío</button>` : ""}
       ${p.telefono && p.estado !== "no_contactar" ? `<a class="b full" id="wa" href="${waLink(p.telefono, p.whatsapp_texto)}" target="_blank" rel="noopener">${ico("phone")} Enviar yo desde mi celular</a>` : ""}
       <button class="b" id="resp">${ico("hand")} Respondió</button>
-      <button class="b" id="cli">${ico("star")} Es cliente</button>
+      <button class="b" id="cli">${ico("star")} ${p.estado === "cliente" ? "Editar venta" : "Es cliente"}</button>
+      <div id="venta" class="card venta-form" hidden>
+        <b>Registrar la venta</b>
+        <label>¿Cuánto se vendió? (pesos)</label><input id="vm" inputmode="decimal" placeholder="Ej. 4500" value="${p.venta_monto ?? ""}">
+        <label>¿Qué se vendió?</label><input id="vs" list="servicios-lista" placeholder="Ej. Menú digital" value="${esc(p.venta_servicio || "")}">
+        <datalist id="servicios-lista">${["Menú digital", "Página web", "App instalable (PWA)", "Tarjeta de fidelidad", "Agente de IA para WhatsApp", "Sistema de citas", "Tienda en línea / catálogo", "Sistema a la medida", "Rediseño / SEO"].map((s) => `<option value="${s}">`).join("")}</datalist>
+        <button class="b p full" id="vok">${ico("check")} Guardar venta</button>
+      </div>
       <button class="b" id="re">${ico("refresh")} Redactar otra vez</button>
       <button class="b" id="gu">${ico("save")} Guardar</button>
       <button class="b ghost full peligro" id="desc">${ico("trash")} Descartar</button>
@@ -734,7 +773,12 @@ async function abrirProspecto(id) {
     b.disabled = false; b.innerHTML = `${ico("refresh")} Redactar otra vez`; toast("Mensaje nuevo listo");
   });
   accion("#resp", async () => { await guardar({ estado: "respondio" }); toast("Marcado como respondió"); cerrar(); });
-  accion("#cli", async () => { await guardar({ estado: "cliente" }); toast("Nuevo cliente registrado"); cerrar(); });
+  accion("#cli", async () => { const v = $("#venta", el); v.hidden = !v.hidden; if (!v.hidden) { $("#vm", el).focus(); v.scrollIntoView({ behavior: "smooth", block: "center" }); } });
+  accion("#vok", async () => {
+    const monto = Number(String($("#vm", el).value).replace(/[^\d.]/g, "")) || null;
+    await guardar({ estado: "cliente", venta_monto: monto, venta_servicio: $("#vs", el).value.trim() || null, venta_fecha: p.venta_fecha || new Date().toISOString() });
+    toast(monto ? `Venta registrada: ${pesos(monto)}` : "Cliente registrado"); cerrar();
+  });
   accion("#desc", async () => { await guardar({ estado: "descartado" }); toast("Descartado"); cerrar(); });
 }
 

@@ -2,7 +2,8 @@
 // define qué hacen y valida TODO del lado del servidor (precios, descuentos, stock,
 // horarios). El agente nunca puede saltarse estas reglas, aunque un cliente se lo pida.
 import { getDb, getLead, upsertLead, logEvent, setBotActive, now } from "../db.js";
-import { availableSlots, bookAppointment, formatLocal } from "../services/calendar.js";
+import { availableSlots, bookAppointment, formatLocal, prepararDia } from "../services/calendar.js";
+import { gcalConfigurado, crearEventoGoogle } from "../services/gcal.js";
 import { createPaymentLink } from "../services/payments.js";
 import { notifyOwner } from "../services/notify.js";
 import { formatMoney } from "./prompt.js";
@@ -316,14 +317,17 @@ const HANDLERS = {
     return { pedidos, cantidad: pedidos.length };
   },
 
-  ver_horarios_disponibles(input, { negocio }) {
+  async ver_horarios_disponibles(input, { negocio }) {
     if (!negocio.citas?.activo) throw new Error("Las citas no están habilitadas");
+    await prepararDia(str(input.fecha), negocio);
     const r = availableSlots(str(input.fecha), negocio);
     return { fecha: r.fecha, dia: r.dia, horarios_libres: r.slots.map((s) => s.hora), motivo: r.motivo };
   },
 
-  agendar_cita(input, { convId, negocio }) {
+  async agendar_cita(input, { convId, negocio }) {
     if (!negocio.citas?.activo) throw new Error("Las citas no están habilitadas");
+    // Se revisa tu Google Calendar justo antes, para no encimar la cita con algo que ya tengas.
+    await prepararDia(str(input.fecha), negocio);
     const r = bookAppointment(
       { convId, fecha: str(input.fecha), hora: str(input.hora), tipo: str(input.tipo), notas: str(input.notas) },
       negocio
@@ -332,11 +336,27 @@ const HANDLERS = {
       logEvent("cita", convId, r);
       const lead = getLead(convId);
       const quien = [lead?.nombre, lead?.empresa].filter(Boolean).join(" · ") || convId;
+      // Se anota en tu Google Calendar. Si falla, la cita sigue agendada y el aviso te lo dice.
+      let enCalendario = false;
+      if (gcalConfigurado()) {
+        try {
+          await crearEventoGoogle({
+            inicio: r.inicio,
+            fin: r.fin,
+            zona: negocio.negocio.zona_horaria,
+            titulo: `${input.tipo || "Cita"} · ${quien}`,
+            descripcion: [lead?.telefono && `Tel. ${lead.telefono}`, lead?.email, lead?.necesidad, input.notas && `Notas: ${input.notas}`, "Agendada por tu agente de ventas."].filter(Boolean).join("\n"),
+          });
+          enCalendario = true;
+        } catch (e) {
+          console.error("[calendar] no se pudo anotar en Google Calendar:", e.message);
+        }
+      }
       notifyOwner(
         "cita",
         `Cita agendada: ${r.descripcion} · ${input.tipo || "reunión"} · ${quien}${lead?.telefono ? ` · tel. ${lead.telefono}` : ""}${lead?.email ? ` · ${lead.email}` : ""}${input.notas ? `
 Notas: ${input.notas}` : ""}`,
-        { ...r, tipo: input.tipo || "reunión", notas: input.notas || "", lead }
+        { ...r, tipo: input.tipo || "reunión", notas: input.notas || "", lead, enCalendario, gcal: gcalConfigurado() }
       );
     }
     return r;

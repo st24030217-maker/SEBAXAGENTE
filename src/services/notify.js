@@ -12,8 +12,8 @@ const ICONOS = {
 };
 
 const AVISOS_CORREO = ["lead_nuevo", "cita", "derivacion", "error", "pago", "pedido"];
-const AVISOS_WA = ["lead_nuevo", "cita", "derivacion", "error", "pago", "pedido"];
-const ASUNTOS = { lead_nuevo: "Respuesta nueva", cita: "Cita agendada", derivacion: "Te necesita", error: "Algo falló", pago: "Pago", pedido: "Pedido" };
+const AVISOS_WA = ["lead_nuevo", "cita", "derivacion", "error", "pago", "pedido", "boceto"];
+const ASUNTOS = { lead_nuevo: "Respuesta nueva", cita: "Cita agendada", derivacion: "Te necesita", error: "Algo falló", pago: "Pago", pedido: "Pedido", boceto: "Abrió su muestra" };
 
 // Los errores se avisan una sola vez cada 30 min (si algo falla en bucle, no te llena el WhatsApp).
 const ultimosErrores = new Map();
@@ -57,7 +57,7 @@ export async function notifyOwner(tipo, texto, datos = {}) {
   if (AVISOS_WA.includes(tipo) && !repetido(tipo, texto)) {
     tareas.push(
       import("../channels/wa-web.js").then(({ avisarDueno }) =>
-        avisarDueno(`*Agente Sebax · ${ASUNTOS[tipo] || tipo}*\n\n${texto}${tipo === "cita" ? "\n\nAgrégala a tu calendario y confírmale al cliente un día antes." : ""}\n\nPanel: ${settings.publicUrl}/admin`)
+        avisarDueno(`*Agente Sebax · ${ASUNTOS[tipo] || tipo}*\n\n${texto}${tipo === "cita" ? (datos.enCalendario ? "\n\nYa quedó en tu Google Calendar." : datos.gcal ? "\n\nNo se pudo anotar en tu Google Calendar: agrégala a mano." : "\n\nAgrégala a tu calendario y confírmale al cliente un día antes.") : ""}\n\nPanel: ${settings.publicUrl}/admin`)
       ).then((ok) => {
         if (!ok) console.log(`[aviso] ${tipo}: ${texto}`);
       })

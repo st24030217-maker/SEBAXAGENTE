@@ -17,6 +17,8 @@ import { startEmail } from "./channels/email.js";
 import { startWaWeb, detenerWa } from "./channels/wa-web.js";
 import { verificarClaude } from "./ia/proveedor.js";
 import { restaurarDesdeNube, startNube, startDespierto, tomarTurno, antesDeApagar } from "./services/nube.js";
+import { buscarPorClave, registrarVisita, renderBoceto, bocetoNoEncontrado } from "./prospeccion/boceto.js";
+import { notifyOwner } from "./services/notify.js";
 
 // Valida configuración al arrancar (falla rápido si negocio.yaml tiene errores).
 const negocio = getNegocio();
@@ -116,6 +118,18 @@ app.get("/baja/:token", (req, res) => {
 <title>Baja de correos</title><style>body{font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;margin:0;background:#f6f7f9;color:#1d2433}
 main{background:#fff;padding:32px;border-radius:16px;max-width:420px;text-align:center;box-shadow:0 4px 24px #0001;margin:16px}</style></head>
 <body><main><h1>Baja de correos</h1><p>${msg}</p></main></body></html>`);
+});
+
+// Bocetos: la muestra que se le manda a cada negocio. La primera vez que la abre, te avisa.
+app.get("/m/:clave", (req, res) => {
+  const p = buscarPorClave(req.params.clave);
+  res.set("X-Robots-Tag", "noindex, nofollow");
+  if (!p || p.estado === "no_contactar") return res.status(404).send(bocetoNoEncontrado());
+  const primera = registrarVisita(p, { userAgent: req.get("user-agent") || "", tuyo: req.query.yo === "1" });
+  if (primera) {
+    notifyOwner("boceto", `${p.nombre} (${[p.rubro, p.ciudad].filter(Boolean).join(", ")}) acaba de abrir su muestra. Buen momento: si contesta, el agente sigue la plática.${p.telefono ? `\nTel. ${p.telefono}` : ""}`, { prospecto: p.id });
+  }
+  res.send(renderBoceto(p));
 });
 
 // La dirección principal abre directo el panel del agente.

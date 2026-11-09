@@ -1,6 +1,21 @@
 // Agenda de citas: calcula horarios libres según el horario del negocio,
 // en la zona horaria del negocio, sin librerías externas.
 import { getDb } from "../db.js";
+import { ocupadoGoogle, refrescarOcupado } from "./gcal.js";
+
+/**
+ * Antes de calcular horarios: pregunta a Google Calendar qué tienes ocupado ese día.
+ * Si Google falla, se sigue solo con las citas del agente (y se avisa en consola).
+ */
+export async function prepararDia(fecha, negocio) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(fecha))) return;
+  const tz = negocio.negocio.zona_horaria;
+  try {
+    await refrescarOcupado(fecha, zonedToUtc(fecha, "00:00", tz).toISOString(), zonedToUtc(fecha, "23:59", tz).toISOString());
+  } catch (e) {
+    console.error("[calendar] no se pudo consultar Google Calendar:", e.message);
+  }
+}
 
 const DIAS = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
 
@@ -99,7 +114,9 @@ export function availableSlots(fecha, negocio, ahora = new Date()) {
   const ocupadas = getDb()
     .prepare("SELECT inicio, fin FROM citas WHERE estado = 'confirmada' AND inicio < ? AND fin > ?")
     .all(zonedToUtc(fecha, "23:59", tz).toISOString(), zonedToUtc(fecha, "00:00", tz).toISOString())
-    .map((c) => [new Date(c.inicio).getTime(), new Date(c.fin).getTime()]);
+    .map((c) => [new Date(c.inicio).getTime(), new Date(c.fin).getTime()])
+    // Lo que ya tienes en tu Google Calendar (si está conectado) también cuenta como ocupado.
+    .concat(ocupadoGoogle(fecha));
 
   const slots = [];
   for (let m = toMin(rango.desde); m + duracion <= toMin(rango.hasta); m += duracion) {

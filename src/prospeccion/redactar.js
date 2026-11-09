@@ -3,6 +3,10 @@ import { generarTexto } from "../ia/texto.js";
 import { iaDisponible } from "../ia/proveedor.js";
 import { settings } from "../config.js";
 import { esRedSocial } from "./fuentes.js";
+import { bocetosDisponibles, urlBoceto } from "./boceto.js";
+
+/** Link a la muestra del negocio (solo si el agente tiene dirección pública y el prospecto ya está guardado). */
+const bocetoDe = (p) => (bocetosDisponibles() && p?.id ? urlBoceto(p) : null);
 
 // Nombre histórico: indica si hay alguna IA (Claude o Gemini) para redactar y conversar.
 export const claudeDisponible = () => iaDisponible();
@@ -92,6 +96,7 @@ export function redactarPlantilla(p, cfg, { seguimiento = false } = {}) {
   const yo = primerNombre(cfg);
   const lugar = p.ciudad || "La Laguna";
   const local = esLocal(p, cfg);
+  const boceto = seguimiento ? null : bocetoDe(p);
   // Con negocios de La Laguna se presenta como alguien de la zona; con los de otras ciudades, a distancia.
   const presentacion = local ? `desarrollador web de ${cfg.remitente.ciudad}` : `de ${cfg.remitente.empresa}, desarrollo web y apps`;
   const alcance = local ? "para negocios de La Laguna" : "para negocios de todo México, a distancia (todo por videollamada y WhatsApp)";
@@ -104,14 +109,14 @@ export function redactarPlantilla(p, cfg, { seguimiento = false } = {}) {
   }
   return {
     asunto: web === "sin_web" || web === "solo_redes" ? `${p.nombre} en internet` : `Idea para la página de ${p.nombre}`,
-    correo: `Hola, equipo de ${p.nombre}\n\nSoy ${yo}, ${local ? `desarrollador web aquí en ${lugar}` : presentacion}. ${gancho(p, web)}\n\nHago ${r.servicio} ${alcance}${r.proyecto ? `; por ejemplo, ${r.proyecto}` : ""}. Puedes ver mis trabajos aquí: ${cfg.remitente.portafolio}\n\n¿Te late que te muestre en 10 minutos cómo se vería para ${p.nombre}? Sin compromiso.`,
+    correo: `Hola, equipo de ${p.nombre}\n\nSoy ${yo}, ${local ? `desarrollador web aquí en ${lugar}` : presentacion}. ${gancho(p, web)}\n\nHago ${r.servicio} ${alcance}${r.proyecto ? `; por ejemplo, ${r.proyecto}` : ""}. ${boceto ? `Te preparé una muestra de cómo se vería para ${p.nombre}: ${boceto}` : `Puedes ver mis trabajos aquí: ${cfg.remitente.portafolio}`}\n\n¿Te late que lo platiquemos 10 minutos? Sin compromiso.`,
     whatsapp: `Hola, buen día. Soy ${yo}, ${presentacion}.
 
 ${gancho(p, web)}
 
-Me dedico a hacer ${r.servicio} ${alcance}. Aquí puedes ver algunos trabajos: ${cfg.remitente.portafolio}
+Me dedico a hacer ${r.servicio} ${alcance}. ${boceto ? `Les preparé una muestra de cómo se vería para ${p.nombre}:\n${boceto}` : `Aquí puedes ver algunos trabajos: ${cfg.remitente.portafolio}`}
 
-¿Te gustaría que te muestre una idea para ${p.nombre}?`,
+${boceto ? "¿Qué les parece?" : `¿Te gustaría que te muestre una idea para ${p.nombre}?`}`,
   };
 }
 
@@ -152,7 +157,7 @@ ${JSON.stringify(datos, null, 2)}
 Reglas de estilo:
 ${cfg.estilo.map((e) => `- ${e}`).join("\n")}
 - Escribe en español de México, natural, como persona y no como empresa.
-- Incluye el link del portafolio una sola vez: ${cfg.remitente.portafolio}
+${bocetoDe(p) ? `- Ya le preparaste una página de muestra con su nombre y dirección. Incluye este link una sola vez y preséntalo como "una muestra de cómo se vería para ${p.nombre}": ${bocetoDe(p)} (no pongas el link del portafolio).` : `- Incluye el link del portafolio una sola vez: ${cfg.remitente.portafolio}`}
 - No pongas firma ni despedida con tus datos (se agrega sola). No pongas enlaces para darse de baja (se agregan solos).
 - Termina con una pregunta fácil de responder.${anterior}
 

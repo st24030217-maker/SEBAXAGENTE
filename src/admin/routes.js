@@ -13,6 +13,8 @@ import { ETAPAS } from "../agent/tools.js";
 import { sendToChannel } from "../channels/index.js";
 import { setOrderStatus } from "../services/orders.js";
 import { reloadProspeccion, getProspeccion } from "../prospeccion/config.js";
+import { urlBoceto } from "../prospeccion/boceto.js";
+import { probarGcal, gcalConfigurado } from "../services/gcal.js";
 import { estadoWa, desconectarWa, enviadosWaHoy, limiteWaHoy, pedirCodigoVinculacion, avisarDueno, numeroDueno } from "../channels/wa-web.js";
 import {
   ESTADOS as ESTADOS_PROSPECTO,
@@ -325,13 +327,21 @@ export function adminRouter() {
   r.get("/prospeccion", wrap(async (_req, res) => {
     const wa = await estadoWa();
     const lim = limiteWaHoy();
-    res.json({ ...resumenProspeccion(), whatsapp: { ...wa, qr: undefined, enviadosHoy: enviadosWaHoy(), limite: lim.limite, calentamiento: lim } });
+    res.json({ ...resumenProspeccion(), calendario: gcalConfigurado(), whatsapp: { ...wa, qr: undefined, enviadosHoy: enviadosWaHoy(), limite: lim.limite, calentamiento: lim } });
   }));
 
   // WhatsApp (chip aparte): estado y QR para vincular.
   r.get("/whatsapp", wrap(async (_req, res) => res.json(await estadoWa())));
   r.post("/whatsapp/codigo", wrap(async (req, res) => res.json(await pedirCodigoVinculacion(req.body?.numero || undefined))));
   r.post("/whatsapp/desconectar", wrap(async (_req, res) => { await desconectarWa(); res.json({ ok: true }); }));
+  // Comprueba la conexión con tu Google Calendar (lee tus horas ocupadas de los próximos 7 días).
+  r.get("/calendario/prueba", wrap(async (_req, res) => {
+    try {
+      res.json(await probarGcal());
+    } catch (e) {
+      res.status(502).json({ ok: false, error: e.message });
+    }
+  }));
   // Manda un aviso de prueba a tu WhatsApp personal, para comprobar que te llegan.
   r.post("/whatsapp/aviso-prueba", wrap(async (_req, res) => {
     const ok = await avisarDueno(`*Agente Sebax · Aviso de prueba*\n\nAsí te van a llegar los avisos: cuando un negocio conteste, cuando se agende una cita o cuando alguien pida hablar contigo.\n\nPanel: ${settings.publicUrl}/admin`);
@@ -379,7 +389,9 @@ export function adminRouter() {
   r.get("/prospectos/:id", wrap((req, res) => {
     const p = getProspecto(req.params.id);
     if (!p) return res.status(404).json({ error: "No existe" });
-    res.json(p);
+    const vistas = db().prepare("SELECT COUNT(*) n FROM eventos WHERE tipo = 'boceto_visto' AND json_extract(datos, '$.prospecto') = ?").get(p.id).n;
+    // Desde el panel se abre con ?yo=1 para que tus propias vistas no cuenten como del negocio.
+    res.json({ ...p, boceto_url: `${urlBoceto(p)}?yo=1`, boceto_vistas: vistas });
   }));
 
   r.patch("/prospectos/:id", wrap((req, res) => {
