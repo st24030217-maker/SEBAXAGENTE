@@ -288,6 +288,8 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--surface-hover)}
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} }, del(k) { try { localStorage.removeItem(k); } catch {} } };
+// Enlace mágico: /admin#clave=XXXX entra solo, guarda la clave en este navegador y la borra de la barra de direcciones.
+(() => { const m = location.hash.match(/clave=([^&]+)/); if (m) { store.set("admin_token", decodeURIComponent(m[1])); history.replaceState(null, "", location.pathname); } })();
 let token = store.get("admin_token") || "";
 let tab = store.get("admin_tab") || "prospeccion";
 let moneda = "CLP";
