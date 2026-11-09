@@ -13,7 +13,7 @@ import { ETAPAS } from "../agent/tools.js";
 import { sendToChannel } from "../channels/index.js";
 import { setOrderStatus } from "../services/orders.js";
 import { reloadProspeccion, getProspeccion } from "../prospeccion/config.js";
-import { estadoWa, desconectarWa, enviadosWaHoy, limiteWaHoy, pedirCodigoVinculacion } from "../channels/wa-web.js";
+import { estadoWa, desconectarWa, enviadosWaHoy, limiteWaHoy, pedirCodigoVinculacion, avisarDueno, numeroDueno } from "../channels/wa-web.js";
 import {
   ESTADOS as ESTADOS_PROSPECTO,
   getProspecto,
@@ -332,6 +332,12 @@ export function adminRouter() {
   r.get("/whatsapp", wrap(async (_req, res) => res.json(await estadoWa())));
   r.post("/whatsapp/codigo", wrap(async (req, res) => res.json(await pedirCodigoVinculacion(req.body?.numero || undefined))));
   r.post("/whatsapp/desconectar", wrap(async (_req, res) => { await desconectarWa(); res.json({ ok: true }); }));
+  // Manda un aviso de prueba a tu WhatsApp personal, para comprobar que te llegan.
+  r.post("/whatsapp/aviso-prueba", wrap(async (_req, res) => {
+    const ok = await avisarDueno(`*Agente Sebax · Aviso de prueba*\n\nAsí te van a llegar los avisos: cuando un negocio conteste, cuando se agende una cita o cuando alguien pida hablar contigo.\n\nPanel: ${settings.publicUrl}/admin`);
+    if (!ok) return res.status(409).json({ error: "No se pudo: revisa que el chip esté conectado y que tu número personal sea distinto al del chip." });
+    res.json({ ok: true, numero: numeroDueno() });
+  }));
 
   // Aprueba de golpe los N mejores "por revisar" que tengan teléfono (o correo).
   r.post("/prospeccion/aprobar-lote", wrap((req, res) => {
