@@ -317,6 +317,11 @@ const post = (p, body) => api(p, { method: "POST", body: JSON.stringify(body || 
 
 // ---------- Íconos (trazos estilo Lucide) ----------
 const ICONOS = {
+  coffee: '<path d="M10 2v2"/><path d="M14 2v2"/><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/><path d="M6 2v2"/>',
+  cake: '<path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8"/><path d="M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1"/><path d="M2 21h20"/><path d="M7 8v3"/><path d="M12 8v3"/><path d="M17 8v3"/><path d="M7 4h.01"/><path d="M12 4h.01"/><path d="M17 4h.01"/>',
+  car: '<path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/>',
+  paw: '<circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="20" cy="16" r="2"/><path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z"/>',
+  flower: '<circle cx="12" cy="12" r="3"/><path d="M12 16.5A4.5 4.5 0 1 1 7.5 12 4.5 4.5 0 1 1 12 7.5a4.5 4.5 0 1 1 4.5 4.5 4.5 4.5 0 1 1-4.5 4.5"/><path d="M12 7.5V9"/><path d="M7.5 12H9"/><path d="M16.5 12H15"/><path d="M12 16.5V15"/><path d="m8 8 1.88 1.88"/><path d="M14.12 9.88 16 8"/><path d="m8 16 1.88-1.88"/><path d="M14.12 14.12 16 16"/>',
   target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
   users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
   msg: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
@@ -452,7 +457,7 @@ function menuMas() {
 const P_FILTROS = { por_revisar: "Por revisar", aprobado: "En cola", enviado: "Enviados", whatsapp: "WhatsApp", respondio: "Respondieron", cliente: "Clientes", nuevo: "Analizando", fallido: "Fallidos", descartado: "Descartados", no_contactar: "Bajas", todos: "Todos" };
 const P_ESTADO = { nuevo: ["analizando", ""], por_revisar: ["por revisar", "warn"], aprobado: ["en cola", ""], enviado: ["enviado", "ok"], whatsapp: ["WhatsApp", "ok"], respondio: ["respondió", "ok"], cliente: ["cliente", "ok"], descartado: ["descartado", ""], no_contactar: ["pidió baja", "bad"], fallido: ["falló", "bad"] };
 const TUBO = [["por_revisar", "Por revisar", "var(--n6)"], ["aprobado", "En cola", "var(--n5)"], ["enviado", "Enviados", "var(--n4)"], ["whatsapp", "WhatsApp", "var(--n3)"], ["respondio", "Respondieron", "var(--n2)"], ["cliente", "Clientes", "var(--n1)"]];
-const RUBRO_ICO = { "Restaurantes": "utensils", "Taquerías y comida": "flame", "Barberías": "scissors", "Estéticas y salones": "sparkles", "Tiendas y boutiques": "bag", "Gimnasios": "dumbbell", "Consultorios": "stetho", "Escuelas y academias": "cap" };
+const RUBRO_ICO = { "Restaurantes": "utensils", "Taquerías y comida": "flame", "Barberías": "scissors", "Estéticas y salones": "sparkles", "Tiendas y boutiques": "bag", "Gimnasios": "dumbbell", "Consultorios": "stetho", "Escuelas y academias": "cap", "Cafeterías": "coffee", "Pastelerías y panaderías": "cake", "Dentistas": "stetho", "Veterinarias": "paw", "Lavados de autos": "car", "Florerías": "flower", "Inmobiliarias": "building" };
 const icoRubro = (r) => ico(RUBRO_ICO[r] || "store");
 const chipPt = (t, c = "") => `<span class="chip ${c}"><i class="pt"></i>${esc(t)}</span>`;
 let pFiltro = store.get("p_filtro") || "por_revisar";
@@ -486,7 +491,15 @@ function pilotoHtml(a) {
   const aprob = a.aprobarDesde ? `aprueba solos los de puntaje ${a.aprobarDesde}+` : "tú apruebas cada correo";
   return `<div class="card piloto"><div class="piloto-ico ${activo ? "on" : ""}">${ico("refresh")}</div>
     <div style="min-width:0;flex:1"><div class="row" style="margin:0;gap:8px"><b class="piloto-t">Piloto automático</b>${chipPt(estado, activo ? "ok" : a.activa ? "warn" : "")}</div>
-    <p>${detalle}</p><small>Busca cada ${a.cadaHoras} h rotando rubros y ciudades · ${aprob}. ${ultimo}</small></div></div>`;
+    <p>${detalle}</p><small>Busca lo que hace falta (el rubro con menos negocios listos, primero en La Laguna), máximo cada ${a.cadaHoras} h · ${aprob}. ${ultimo}</small></div></div>`;
+}
+
+function calentamientoTxt(c) {
+  if (!c) return "";
+  if (c.frenado) return `Calentamiento frenado: ${c.bajas7} de ${c.enviados7} pidieron BAJA esta semana, así que se queda en ${c.base} al día.`;
+  if (c.paso > 0 && c.limite < c.maximo) return `Calentamiento del chip: sube ${c.paso} por semana hasta ${c.maximo} al día.`;
+  if (c.paso > 0) return `Chip calentado: ya está en su máximo de ${c.maximo} al día.`;
+  return "";
 }
 
 let waInfo = null;
@@ -497,7 +510,7 @@ function waHtml(w) {
     return `<div class="card piloto"><div class="piloto-ico on">${WA_ICO}</div><div style="min-width:0;flex:1">
       <div class="row" style="margin:0;gap:8px"><b class="piloto-t">WhatsApp conectado</b>${chipPt(w.numero ? "+52 " + w.numero : "chip", "ok")}</div>
       <p>Hoy van <b>${w.enviadosHoy}</b> de ${w.limite} mensajes de primer contacto. Si alguien responde, el agente conversa y agenda solo.</p>
-      <small>Los mensajes salen espaciados al azar y solo en horario laboral, para cuidar el chip. <a href="#" id="wa-off">Desvincular</a></small></div></div>`;
+      <small>${calentamientoTxt(w.calentamiento)} Los mensajes salen espaciados al azar, solo en horario laboral y alternando rubros. <a href="#" id="wa-off">Desvincular</a></small></div></div>`;
   }
   return `<div class="card piloto" id="wa-card"><div class="piloto-ico">${WA_ICO}</div><div style="min-width:0;flex:1">
     <div class="row" style="margin:0;gap:8px"><b class="piloto-t">Conecta tu chip de WhatsApp</b>${chipPt(w.estado === "esperando_qr" ? "Esperando QR" : "Conectando", "warn")}</div>
@@ -555,7 +568,7 @@ async function vistaProspeccion() {
     <span class="etq">Ciudades</span>
     <div class="toggles" id="tg-c">${s.ciudades.map((r, i) => `<button data-i="${i}" class="${pSel.ciudades.has(i) ? "on" : ""}">${ico("pin")} ${esc(r)}</button>`).join("")}</div>
     <button class="b p btn-big" id="buscar" ${c.denue ? "" : "disabled"}>${ico("search")} <span>Buscar negocios</span></button>
-    <p class="muted" style="font-size:12px;margin:8px 0 0;text-align:center">Si no eliges nada, busca en todos los rubros y ciudades.</p>
+    <p class="muted" style="font-size:12px;margin:8px 0 0;text-align:center">Si no eliges rubro, busca en todos. Si no eliges ciudad, busca solo en La Laguna.</p>
     <p id="bmsg" style="margin:10px 0 0;font-size:13.5px"></p>
     <div class="extras">
       ${c.correo ? `<button class="b" id="prueba">${ico("send")} Correo de prueba</button>` : ""}

@@ -12,78 +12,123 @@ remitente:
   ciudad: "Lerdo, Durango"
   whatsapp: "+52 871 916 4677"
   portafolio: "https://portafolio-salinas-serrano-sebastia.vercel.app"
-  # Qué haces, en una frase. Claude la usa para redactar.
+  # Qué haces, en una frase. La IA la usa para redactar.
   propuesta: >
-    Desarrollo páginas web, apps instalables (PWA), sistemas a la medida,
-    tiendas en línea y menús digitales para negocios de la Comarca Lagunera,
-    con atención en persona en Torreón, Gómez Palacio y Lerdo.
+    Hago menús digitales, páginas web, apps instalables, tarjetas de fidelidad digitales,
+    agentes de IA que contestan WhatsApp y agendan solos, tiendas en línea y sistemas a la medida.
+    Atiendo en persona en Torreón, Gómez Palacio y Lerdo, y a distancia (videollamada) en todo México.
 
-# Zonas donde buscar (centro de cada ciudad). El DENUE busca en un radio de hasta 5 km.
+# Zonas donde buscar. El DENUE busca en un radio de hasta 5 km alrededor de cada punto.
+# local: true  = La Laguna: se ofrece visita en persona y tienen prioridad (+1 de puntaje).
+# local: false = otra ciudad: se trabaja a distancia; solo se les escribe solo a los negocios
+#                más grandes o mejor calificados (los chicos se quedan para que tú decidas).
 ciudades:
-  - nombre: "Torreón"
-    lat: 25.5428
-    lon: -103.4068
-  - nombre: "Gómez Palacio"
-    lat: 25.5611
-    lon: -103.4983
-  - nombre: "Lerdo"
-    lat: 25.5376
-    lon: -103.5245
+  - { nombre: "Torreón", lat: 25.5428, lon: -103.4068, local: true }
+  - { nombre: "Gómez Palacio", lat: 25.5611, lon: -103.4983, local: true }
+  - { nombre: "Lerdo", lat: 25.5376, lon: -103.5245, local: true }
+  - { nombre: "Durango", lat: 24.0277, lon: -104.6532, local: false }
+  - { nombre: "Saltillo", lat: 25.4232, lon: -101.0053, local: false }
+  - { nombre: "Monterrey", lat: 25.6866, lon: -100.3161, local: false }
+  - { nombre: "San Pedro Garza García", lat: 25.6573, lon: -100.4020, local: false }
+  - { nombre: "Chihuahua", lat: 28.6353, lon: -106.0889, local: false }
+  - { nombre: "Zacatecas", lat: 22.7709, lon: -102.5833, local: false }
+  - { nombre: "Aguascalientes", lat: 21.8818, lon: -102.2916, local: false }
+  - { nombre: "Querétaro", lat: 20.5888, lon: -100.3899, local: false }
+  - { nombre: "Guadalajara", lat: 20.6767, lon: -103.3475, local: false }
+  - { nombre: "CDMX (Roma-Condesa)", lat: 19.4150, lon: -99.1650, local: false }
 
 radio_metros: 5000
 
 # Rubros a buscar. "palabras" es lo que se busca en el DENUE (sin acentos).
+# "servicio" es lo que se le ofrece (empieza con un/una: se lee "Me dedico a hacer ...").
 # "proyecto" es el trabajo de tu portafolio que se menciona como ejemplo.
 rubros:
   - nombre: "Restaurantes"
     palabras: "restaurante"
-    servicio: "un menú digital con pedidos por WhatsApp"
+    servicio: "menús digitales con pedidos por WhatsApp y asistentes de IA que toman pedidos solos"
     proyecto: "Los Compadres (menú digital) y KB Huates (app de pedidos)"
   - nombre: "Taquerías y comida"
     palabras: "tacos"
-    servicio: "un menú digital con pedidos por WhatsApp"
+    servicio: "menús digitales con pedidos por WhatsApp y tarjetas de cliente frecuente"
     proyecto: "KB Huates (app de pedidos por WhatsApp)"
+  - nombre: "Cafeterías"
+    palabras: "cafeteria"
+    servicio: "tarjetas de fidelidad digitales (las de juntar sellos, pero en el celular) y menús digitales"
+    proyecto: "tarjeta de lealtad con Wallet y Los Compadres (menú digital)"
+  - nombre: "Pastelerías y panaderías"
+    palabras: "pasteleria"
+    servicio: "catálogos de pasteles con pedidos por WhatsApp y tarjetas de cliente frecuente"
+    proyecto: "Milea Studio (catálogo con cotizaciones) y KB Huates (pedidos por WhatsApp)"
   - nombre: "Barberías"
     palabras: "barberia"
-    servicio: "una app para agendar citas con pago en línea y recordatorios"
+    servicio: "apps para agendar citas con recordatorios y tarjetas de fidelidad"
     proyecto: "Barbería Vázquez (reservas con pago y avisos)"
   - nombre: "Estéticas y salones"
     palabras: "estetica"
-    servicio: "una app para agendar citas con pago en línea y recordatorios"
+    servicio: "apps para agendar citas con recordatorios y tarjetas de fidelidad"
     proyecto: "Barbería Vázquez (reservas con pago y avisos)"
-  - nombre: "Tiendas y boutiques"
-    palabras: "boutique"
-    servicio: "un catálogo en línea o una tienda con pagos"
-    proyecto: "Milea Studio (catálogo con búsqueda y cotizaciones)"
-  - nombre: "Gimnasios"
-    palabras: "gimnasio"
-    servicio: "un sistema de membresías con tarjeta de lealtad"
-    proyecto: "simulador de tarjeta de lealtad con Wallet"
+  - nombre: "Dentistas"
+    palabras: "dental"
+    servicio: "páginas con agenda en línea y asistentes de IA que contestan WhatsApp y agendan citas solos"
+    proyecto: "Barbería Vázquez (sistema de reservas con recordatorios)"
   - nombre: "Consultorios"
     palabras: "consultorio"
-    servicio: "una página web con agenda de citas en línea"
+    servicio: "páginas web con agenda de citas en línea"
     proyecto: "Barbería Vázquez (sistema de reservas)"
+  - nombre: "Veterinarias"
+    palabras: "veterinaria"
+    servicio: "apps para agendar citas con recordatorios de vacunas y tarjetas de cliente frecuente"
+    proyecto: "Barbería Vázquez (reservas con recordatorios)"
+  - nombre: "Gimnasios"
+    palabras: "gimnasio"
+    servicio: "sistemas de membresías con tarjeta de fidelidad en el celular"
+    proyecto: "tarjeta de lealtad con Wallet"
+  - nombre: "Lavados de autos"
+    palabras: "lavado"
+    servicio: "tarjetas de fidelidad digitales (tipo el quinto lavado gratis) y reservas por WhatsApp"
+    proyecto: "tarjeta de lealtad con Wallet"
+  - nombre: "Tiendas y boutiques"
+    palabras: "boutique"
+    servicio: "catálogos en línea y tiendas con pagos"
+    proyecto: "Milea Studio (catálogo con búsqueda y cotizaciones)"
+  - nombre: "Florerías"
+    palabras: "floreria"
+    servicio: "catálogos en línea con pedidos por WhatsApp"
+    proyecto: "Milea Studio (catálogo con búsqueda y cotizaciones)"
+  - nombre: "Inmobiliarias"
+    palabras: "inmobiliaria"
+    servicio: "páginas con catálogo de propiedades y asistentes de IA que atienden a los interesados a cualquier hora"
+    proyecto: "Milea Studio (catálogo con búsqueda)"
   - nombre: "Escuelas y academias"
     palabras: "escuela"
-    servicio: "una plataforma web con registro de alumnos y buen posicionamiento en Google"
+    servicio: "plataformas web con registro de alumnos y buen posicionamiento en Google"
     proyecto: "EPAD USICAMM 2026 (plataforma educativa)"
 
 # Piloto automático: el agente busca negocios nuevos solo, sin que le des a Buscar.
 automatico:
   buscar: true
-  # Cada cuántas horas busca la siguiente combinación rubro + ciudad (va rotando por todas).
+  # Busca solo lo que hace falta: el rubro con menos negocios listos para escribirles,
+  # primero en La Laguna y luego en las demás ciudades. Como máximo una búsqueda cada N horas.
   cada_horas: 3
-  # Si ya tienes muchos pendientes por revisar, deja de buscar hasta que avances.
-  maximo_por_revisar: 150
+  # Cuántos negocios listos quiere tener de cada rubro. Si un rubro ya tiene estos, no busca más de él.
+  listos_por_rubro: 40
+  # Negocios nuevos que guarda como máximo por búsqueda (Monterrey solo de restaurantes trae miles).
+  maximo_por_busqueda: 80
+  # Una misma combinación rubro + ciudad no se vuelve a buscar antes de estos días.
+  repetir_busqueda_dias: 14
+  # Tope de seguridad: con tantos pendientes por revisar ya no busca nada.
+  maximo_por_revisar: 4000
   # Envío automático: el agente elige y le escribe solo a los negocios con este puntaje o más,
   # sin pasar por tu revisión (respetando el límite diario y el horario). 0 = tú apruebas cada uno.
   aprobar_solos_desde_puntaje: 6
 
 envio:
   # --- WhatsApp (chip aparte) ---
-  # Mensajes de primer contacto por día. Empieza bajo la primera semana (10-15)
-  # para que WhatsApp no marque el chip como spam; después puedes subir poco a poco.
+  # Calentamiento del chip: empieza con este límite diario de primeros mensajes y sube solo
+  # cada semana hasta el máximo. Si en la última semana muchos piden BAJA, vuelve al inicial.
   whatsapp_limite_diario: 12
+  whatsapp_subir_por_semana: 3
+  whatsapp_limite_maximo: 25
   # Pausa al azar entre un mensaje y otro (minutos), para que se vea natural.
   whatsapp_minutos_min: 7
   whatsapp_minutos_max: 16
@@ -103,7 +148,7 @@ envio:
 
 # Cómo debe sonar el mensaje. Claude respeta estas reglas al redactar.
 estilo:
-  - "Habla de tú, cercano y profesional, como alguien de La Laguna que conoce la zona."
+  - "Habla de tú, cercano y profesional. Con negocios de La Laguna, como alguien de la zona; con los de otras ciudades, aclara que trabajas a distancia."
   - "Máximo 110 palabras en el correo y 60 en WhatsApp."
   - "Menciona algo concreto del negocio (su giro, su colonia, si no tiene página o si su página es lenta)."
   - "Nada de promesas exageradas ni presión. Ofrece una llamada corta o mostrar un ejemplo."

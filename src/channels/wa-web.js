@@ -259,6 +259,26 @@ export function enviadosWaHoy(ahora = new Date()) {
   return db().prepare("SELECT COUNT(*) n FROM eventos WHERE tipo = 'prospecto_whatsapp' AND creado >= ?").get(desde).n;
 }
 
+/**
+ * Límite de hoy con calentamiento: arranca en whatsapp_limite_diario y sube whatsapp_subir_por_semana
+ * cada semana desde el primer envío, hasta whatsapp_limite_maximo. Si en los últimos 7 días al menos
+ * el 15 % de los contactados pidió BAJA, se frena en el límite inicial (señal de que molesta).
+ */
+export function limiteWaHoy(ahora = new Date()) {
+  const e = getProspeccion().envio;
+  const base = Number(e.whatsapp_limite_diario) || 0;
+  const paso = Number(e.whatsapp_subir_por_semana) || 0;
+  const maximo = Math.max(base, Number(e.whatsapp_limite_maximo) || base);
+  const primero = db().prepare("SELECT MIN(creado) t FROM eventos WHERE tipo = 'prospecto_whatsapp'").get().t;
+  const semanas = primero ? Math.max(0, Math.floor((ahora - new Date(primero)) / (7 * 86400_000))) : 0;
+  const hace7 = new Date(ahora.getTime() - 7 * 86400_000).toISOString();
+  const enviados7 = db().prepare("SELECT COUNT(*) n FROM eventos WHERE tipo = 'prospecto_whatsapp' AND creado >= ?").get(hace7).n;
+  const bajas7 = db().prepare("SELECT COUNT(*) n FROM eventos WHERE tipo = 'prospecto_baja' AND creado >= ?").get(hace7).n;
+  const frenado = enviados7 >= 10 && bajas7 / enviados7 >= 0.15;
+  const limite = frenado ? base : Math.min(maximo, base + semanas * paso);
+  return { limite, base, maximo, paso, semanas, frenado, bajas7, enviados7 };
+}
+
 let enviando = false;
 let proximoEnvio = 0;
 
@@ -271,7 +291,7 @@ export async function enviarSiguienteWa(ahora = new Date()) {
   // La pausa mínima se respeta aunque el agente se haya reiniciado (se mide desde el último envío guardado).
   const ultimo = db().prepare("SELECT MAX(creado) t FROM eventos WHERE tipo = 'prospecto_whatsapp'").get().t;
   if (ultimo && Date.now() - new Date(ultimo).getTime() < e.whatsapp_minutos_min * 60_000) return null;
-  if (enviadosWaHoy(ahora) >= e.whatsapp_limite_diario) return null;
+  if (enviadosWaHoy(ahora) >= limiteWaHoy(ahora).limite) return null;
   enviando = true;
   try {
     // Hasta 3 intentos por vuelta: los teléfonos fijos sin WhatsApp se saltan sin gastar el turno.
@@ -282,8 +302,15 @@ export async function enviarSiguienteWa(ahora = new Date()) {
       // Modo automático: si no hay nada aprobado, el agente elige solo al mejor prospecto pendiente.
       const umbral = Number(cfg.automatico.aprobar_solos_desde_puntaje || 0);
       if (!p && umbral > 0) {
+        // Va alternando rubros: primero el rubro al que hace más tiempo no se le escribe (o nunca),
+        // y dentro de él, el de mejor puntaje. Así no le escribe solo a restaurantes.
         p = db()
-          .prepare("SELECT * FROM prospectos WHERE estado = 'por_revisar' AND puntaje >= ? AND IFNULL(telefono,'') != '' AND IFNULL(whatsapp_texto,'') != '' AND fuente != 'ejemplo' ORDER BY puntaje DESC, id LIMIT 1")
+          .prepare(
+            `SELECT p.* FROM prospectos p
+             LEFT JOIN (SELECT rubro, MAX(ultimo_envio) u FROM prospectos WHERE envios > 0 GROUP BY rubro) s ON s.rubro = p.rubro
+             WHERE p.estado = 'por_revisar' AND p.puntaje >= ? AND IFNULL(p.telefono,'') != '' AND IFNULL(p.whatsapp_texto,'') != '' AND p.fuente != 'ejemplo'
+             ORDER BY IFNULL(s.u, '') ASC, p.puntaje DESC, p.id LIMIT 1`
+          )
           .get(umbral);
         if (p) {
           db().prepare("UPDATE prospectos SET estado = 'aprobado', notas = TRIM(COALESCE(notas,'') || char(10) || 'Aprobado automáticamente por puntaje') WHERE id = ?").run(p.id);

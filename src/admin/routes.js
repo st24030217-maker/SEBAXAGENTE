@@ -13,7 +13,7 @@ import { ETAPAS } from "../agent/tools.js";
 import { sendToChannel } from "../channels/index.js";
 import { setOrderStatus } from "../services/orders.js";
 import { reloadProspeccion, getProspeccion } from "../prospeccion/config.js";
-import { estadoWa, desconectarWa, enviadosWaHoy, pedirCodigoVinculacion } from "../channels/wa-web.js";
+import { estadoWa, desconectarWa, enviadosWaHoy, limiteWaHoy, pedirCodigoVinculacion } from "../channels/wa-web.js";
 import {
   ESTADOS as ESTADOS_PROSPECTO,
   getProspecto,
@@ -324,7 +324,8 @@ export function adminRouter() {
 
   r.get("/prospeccion", wrap(async (_req, res) => {
     const wa = await estadoWa();
-    res.json({ ...resumenProspeccion(), whatsapp: { ...wa, qr: undefined, enviadosHoy: enviadosWaHoy(), limite: getProspeccion().envio.whatsapp_limite_diario } });
+    const lim = limiteWaHoy();
+    res.json({ ...resumenProspeccion(), whatsapp: { ...wa, qr: undefined, enviadosHoy: enviadosWaHoy(), limite: lim.limite, calentamiento: lim } });
   }));
 
   // WhatsApp (chip aparte): estado y QR para vincular.

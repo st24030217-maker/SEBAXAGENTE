@@ -50,7 +50,9 @@ export function actualizarProspecto(id, campos) {
 export async function buscarProspectos({ rubros = [], ciudades = [] } = {}) {
   const cfg = getProspeccion();
   const rs = rubros.length ? rubros.map((i) => cfg.rubros[i]).filter(Boolean) : cfg.rubros;
-  const cs = ciudades.length ? ciudades.map((i) => cfg.ciudades[i]).filter(Boolean) : cfg.ciudades;
+  // Sin ciudades elegidas se busca solo en la zona propia (La Laguna): las demás son muchas y enormes.
+  const cs = ciudades.length ? ciudades.map((i) => cfg.ciudades[i]).filter(Boolean) : cfg.ciudades.filter((c) => c.local);
+  const tope = Number(cfg.automatico.maximo_por_busqueda) || Infinity;
   let encontrados = 0;
   let nuevos = 0;
   let sinContacto = 0;
@@ -60,6 +62,7 @@ export async function buscarProspectos({ rubros = [], ciudades = [] } = {}) {
       try {
         const regs = await buscarDenue({ palabras: rubro.palabras, lat: ciudad.lat, lon: ciudad.lon, radio: cfg.radio_metros });
         encontrados += regs.length;
+        const candidatos = [];
         for (const reg of regs) {
           const p = desdeDenue(reg, ciudad, rubro);
           // Muchos registros del DENUE no traen teléfono, correo ni web: no hay cómo contactarlos.
@@ -68,7 +71,18 @@ export async function buscarProspectos({ rubros = [], ciudades = [] } = {}) {
             continue;
           }
           if (/sin nombre/i.test(p.nombre)) p.nombre = `${rubro.nombre.replace(/s$/, "")} en ${p.colonia || ciudad.nombre}`;
-          if (guardarProspecto(p)) nuevos++;
+          candidatos.push([calificar(p, cfg).puntaje, p]);
+        }
+        // En ciudades grandes salen miles: se guardan primero los más prometedores, hasta el tope.
+        // Los demás se quedan para la próxima vuelta de esta misma búsqueda.
+        candidatos.sort((a, b) => b[0] - a[0]);
+        let deEsta = 0;
+        for (const [, p] of candidatos) {
+          if (deEsta >= tope) break;
+          if (guardarProspecto(p)) {
+            nuevos++;
+            deEsta++;
+          }
         }
       } catch (e) {
         errores.push(`${rubro.nombre} en ${ciudad.nombre}: ${e.message}`);
@@ -110,7 +124,7 @@ export async function analizarProspecto(id, { forzarMedicion = false } = {}) {
     d.prepare("UPDATE prospectos SET web_puntaje = ?, web_detalle = ? WHERE id = ?").run(detalle.puntaje ?? null, JSON.stringify(detalle), p.id);
     p = getProspecto(id);
   }
-  const { puntaje, razones } = calificar(p);
+  const { puntaje, razones } = calificar(p, cfg);
   // Con Gemini gratis, el análisis masivo usa plantillas para no gastar la cuota diaria:
   // la IA se reserva para conversar con quien responde y para "Redactar otra vez".
   const msg = await redactar(p, cfg, { ia: estadoIA().activa !== "gemini" });
@@ -131,35 +145,78 @@ export async function analizarProspecto(id, { forzarMedicion = false } = {}) {
 
 // ---------- Búsqueda automática ----------
 
-/** Combinaciones rubro × ciudad en el orden en que el piloto automático las recorre. */
-function combinaciones(cfg) {
-  const out = [];
-  for (let r = 0; r < cfg.rubros.length; r++) for (let c = 0; c < cfg.ciudades.length; c++) out.push([r, c]);
-  return out;
+/**
+ * Negocios "listos" por rubro: a los que el agente ya puede escribirles (aprobados, o pendientes con
+ * puntaje suficiente y teléfono) más los nuevos que aún se están analizando.
+ */
+export function listosPorRubro() {
+  const umbral = Number(getProspeccion().automatico.aprobar_solos_desde_puntaje || 0);
+  const filas = db()
+    .prepare(
+      `SELECT rubro, COUNT(*) n FROM prospectos WHERE fuente != 'ejemplo' AND (
+         estado IN ('aprobado', 'nuevo')
+         OR (estado = 'por_revisar' AND puntaje >= ? AND (? = 0 OR IFNULL(telefono,'') != ''))
+       ) GROUP BY rubro`
+    )
+    .all(umbral, umbral);
+  return Object.fromEntries(filas.map((f) => [f.rubro, f.n]));
+}
+
+/**
+ * Elige la siguiente búsqueda: el rubro con menos negocios listos (por debajo de la meta), en la primera
+ * ciudad que no se haya buscado hace poco, empezando por La Laguna. null = no hace falta buscar.
+ */
+function siguienteBusqueda(cfg, ahora) {
+  const a = cfg.automatico;
+  const listos = listosPorRubro();
+  const desde = new Date(ahora.getTime() - Number(a.repetir_busqueda_dias || 14) * 86400_000).toISOString();
+  const recientes = new Set(
+    db()
+      .prepare("SELECT datos FROM eventos WHERE tipo = 'prospeccion_auto' AND creado >= ?")
+      .all(desde)
+      .map((e) => {
+        try {
+          const d = JSON.parse(e.datos || "{}");
+          return `${d.rubro}|${d.ciudad}`;
+        } catch {
+          return "";
+        }
+      })
+  );
+  const ciudades = [...cfg.ciudades.map((c, i) => [c, i]).filter(([c]) => c.local), ...cfg.ciudades.map((c, i) => [c, i]).filter(([c]) => !c.local)];
+  const rubros = cfg.rubros
+    .map((r, i) => [r, i, listos[r.nombre] || 0])
+    .filter(([, , n]) => n < Number(a.listos_por_rubro || 40))
+    .sort((x, y) => x[2] - y[2] || x[1] - y[1]);
+  for (const [r, ri, n] of rubros) {
+    for (const [c, ci] of ciudades) {
+      if (!recientes.has(`${r.nombre}|${c.nombre}`)) return { ri, ci, rubro: r.nombre, ciudad: c.nombre, listos: n };
+    }
+  }
+  return null;
 }
 
 export function estadoAutomatico(ahora = new Date()) {
   const cfg = getProspeccion();
   const a = cfg.automatico;
   const ultimo = db().prepare("SELECT creado, datos FROM eventos WHERE tipo = 'prospeccion_auto' ORDER BY id DESC LIMIT 1").get();
-  const vueltas = db().prepare("SELECT COUNT(*) n FROM eventos WHERE tipo = 'prospeccion_auto'").get().n;
   const pendientes = db().prepare("SELECT COUNT(*) n FROM prospectos WHERE estado IN ('nuevo','por_revisar')").get().n;
-  const combos = combinaciones(cfg);
-  const [ri, ci] = combos[vueltas % combos.length];
+  const sig = siguienteBusqueda(cfg, ahora);
   const proxima = ultimo ? new Date(new Date(ultimo.creado).getTime() + a.cada_horas * 3600_000) : ahora;
   let motivo = null;
   if (!a.buscar) motivo = "apagada";
   else if (!settings.prospeccion.denueToken) motivo = "falta DENUE_TOKEN";
   else if (pendientes >= a.maximo_por_revisar) motivo = `pausada: tienes ${pendientes} por revisar (máx. ${a.maximo_por_revisar})`;
+  else if (!sig) motivo = `en espera: todos los rubros tienen ${a.listos_por_rubro} o más negocios listos (o ya se buscaron hace poco)`;
   return {
     activa: !!a.buscar,
     cadaHoras: a.cada_horas,
     aprobarDesde: Number(a.aprobar_solos_desde_puntaje || 0),
     proxima: proxima.toISOString(),
-    siguiente: `${cfg.rubros[ri].nombre} en ${cfg.ciudades[ci].nombre}`,
+    siguiente: sig ? `${sig.rubro} en ${sig.ciudad}` : null,
     ultimo: ultimo ? { fecha: ultimo.creado, ...JSON.parse(ultimo.datos || "{}") } : null,
     motivo,
-    _combo: [ri, ci],
+    _sig: sig,
   };
 }
 
@@ -167,13 +224,14 @@ export function estadoAutomatico(ahora = new Date()) {
 export async function busquedaAutomatica(ahora = new Date()) {
   const e = estadoAutomatico(ahora);
   if (e.motivo || new Date(e.proxima) > ahora) return null;
-  const [ri, ci] = e._combo;
+  const { ri, ci, rubro, ciudad } = e._sig;
+  const base = { busqueda: e.siguiente, rubro, ciudad };
   // Se registra antes de buscar: si el INEGI falla, no se reintenta en bucle cada 30 s.
   const ev = db()
     .prepare("INSERT INTO eventos (tipo, conversacion_id, datos, creado) VALUES ('prospeccion_auto', NULL, ?, ?)")
-    .run(JSON.stringify({ busqueda: e.siguiente }), ahora.toISOString());
+    .run(JSON.stringify(base), ahora.toISOString());
   const r = await buscarProspectos({ rubros: [ri], ciudades: [ci] });
-  db().prepare("UPDATE eventos SET datos = ? WHERE id = ?").run(JSON.stringify({ busqueda: e.siguiente, nuevos: r.nuevos, encontrados: r.encontrados, errores: r.errores.length }), ev.lastInsertRowid);
+  db().prepare("UPDATE eventos SET datos = ? WHERE id = ?").run(JSON.stringify({ ...base, nuevos: r.nuevos, encontrados: r.encontrados, errores: r.errores.length }), ev.lastInsertRowid);
   console.log(`[prospeccion] búsqueda automática: ${e.siguiente} → ${r.nuevos} nuevos`);
   return r;
 }
@@ -370,7 +428,7 @@ export function resumenProspeccion() {
     rubros: cfg.rubros.map((r) => r.nombre),
     ciudades: cfg.ciudades.map((c) => c.nombre),
     remitente: cfg.remitente,
-    automatico: (({ _combo, ...e }) => e)(estadoAutomatico()),
+    automatico: (({ _sig, ...e }) => e)(estadoAutomatico()),
     config: {
       denue: !!settings.prospeccion.denueToken,
       correo: correoConfigurado(),
@@ -384,8 +442,27 @@ export function resumenProspeccion() {
 
 // ---------- Arranque ----------
 
+/** Vuelve a calcular el puntaje de los pendientes (al cambiar las reglas o las ciudades de la config). */
+export function recalificarPendientes() {
+  const cfg = getProspeccion();
+  const upd = db().prepare("UPDATE prospectos SET puntaje = ?, razones = ? WHERE id = ?");
+  let cambiados = 0;
+  for (const p of db().prepare("SELECT * FROM prospectos WHERE estado = 'por_revisar'").all()) {
+    const { puntaje, razones } = calificar(p, cfg);
+    if (puntaje !== p.puntaje) cambiados++;
+    upd.run(puntaje, JSON.stringify(razones), p.id);
+  }
+  if (cambiados) console.log(`[prospeccion] puntaje recalculado: ${cambiados} pendientes cambiaron`);
+  return cambiados;
+}
+
 export function startProspeccion(intervaloMs = 30_000) {
   if (!settings.prospeccion.activo) return null;
+  try {
+    recalificarPendientes();
+  } catch (e) {
+    console.error("[prospeccion] no se pudo recalcular puntajes:", e.message);
+  }
   let corriendo = false;
   const tick = async () => {
     if (corriendo) return;

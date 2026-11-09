@@ -29,7 +29,9 @@ services:
         sync: false          # si le cargas saldo a Claude, se usa primero
       # --- Fijas ---
       - key: ADMIN_SIN_TOKEN_EN_RED_LOCAL
-        value: "false"       # en internet el panel SIEMPRE pide contraseña
+        value: "false"
+      - key: ADMIN_ABIERTO
+        value: "true"        # el panel abre sin contraseña (salvo respaldo, restaurar y desvincular WhatsApp)
       - key: IA_PROVEEDOR
         value: auto
       - key: GEMINI_MODELO
