@@ -15,7 +15,7 @@ import { setOrderStatus } from "../services/orders.js";
 import { reloadProspeccion, getProspeccion } from "../prospeccion/config.js";
 import { urlBoceto } from "../prospeccion/boceto.js";
 import { probarGcal, gcalConfigurado } from "../services/gcal.js";
-import { estadoWa, desconectarWa, enviadosWaHoy, limiteWaHoy, pedirCodigoVinculacion, avisarDueno, numeroDueno, videoPresentacion } from "../channels/wa-web.js";
+import { estadoWa, desconectarWa, enviadosWaHoy, limiteWaHoy, pedirCodigoVinculacion, avisarDueno, numeroDueno, videoPresentacion, probarPrimerMensaje } from "../channels/wa-web.js";
 import {
   ESTADOS as ESTADOS_PROSPECTO,
   getProspecto,
@@ -342,6 +342,8 @@ export function adminRouter() {
       res.status(502).json({ ok: false, error: e.message });
     }
   }));
+  // Te manda el primer mensaje (video + texto) como lo recibiría un negocio.
+  r.post("/whatsapp/primer-mensaje-prueba", wrap(async (_req, res) => res.json(await probarPrimerMensaje())));
   // Manda un aviso de prueba a tu WhatsApp personal, para comprobar que te llegan.
   r.post("/whatsapp/aviso-prueba", wrap(async (_req, res) => {
     const ok = await avisarDueno(`*Agente Sebax · Aviso de prueba*\n\nAsí te van a llegar los avisos: cuando un negocio conteste, cuando se agende una cita o cuando alguien pida hablar contigo.\n\nPanel: ${settings.publicUrl}/admin`);

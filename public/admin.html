@@ -538,7 +538,7 @@ function waHtml(w) {
     return `<div class="card piloto"><div class="piloto-ico on">${WA_ICO}</div><div style="min-width:0;flex:1">
       <div class="row" style="margin:0;gap:8px"><b class="piloto-t">WhatsApp conectado</b>${chipPt(w.numero ? "+52 " + w.numero : "chip", "ok")}</div>
       <p>Hoy van <b>${w.enviadosHoy}</b> de ${w.limite} mensajes de primer contacto${w.video ? ", con tu video de presentación" : ""}. Si alguien responde, el agente conversa y agenda solo.</p>
-      <small>${calentamientoTxt(w.calentamiento)} Los mensajes salen espaciados al azar, solo en horario laboral y alternando rubros. Los avisos te llegan a tu WhatsApp personal. <a href="#" id="wa-prueba">Mandarme un aviso de prueba</a> · <a href="#" id="wa-off">Desvincular</a></small></div></div>`;
+      <small>${calentamientoTxt(w.calentamiento)} Los mensajes salen espaciados al azar, solo en horario laboral y alternando rubros. Los avisos te llegan a tu WhatsApp personal. <a href="#" id="wa-prueba">Mandarme un aviso de prueba</a> · <a href="#" id="wa-primero">Ver cómo llega el primer mensaje</a> · <a href="#" id="wa-off">Desvincular</a></small></div></div>`;
   }
   return `<div class="card piloto" id="wa-card"><div class="piloto-ico">${WA_ICO}</div><div style="min-width:0;flex:1">
     <div class="row" style="margin:0;gap:8px"><b class="piloto-t">Conecta tu chip de WhatsApp</b>${chipPt(w.estado === "esperando_qr" ? "Esperando QR" : "Conectando", "warn")}</div>
@@ -633,6 +633,7 @@ async function vistaProspeccion() {
     const r = await post("/prospeccion/aprobar-lote", { cantidad: 10 }); toast(`${r.aprobados} negocios en cola de envío`); vistaProspeccion();
   });
   document.querySelectorAll(".v-recientes a").forEach((a) => (a.onclick = (e) => { e.preventDefault(); abrirProspecto(a.dataset.p); }));
+  $("#wa-primero") && ($("#wa-primero").onclick = async (e) => { e.preventDefault(); try { toast("Enviando a tu WhatsApp…"); const r = await post("/whatsapp/primer-mensaje-prueba"); toast(`Te llegó el mensaje de ${r.negocio}${r.video ? " con el video" : ""}`); } catch (err) { toast(err.message || "No se pudo enviar"); } });
   $("#wa-prueba") && ($("#wa-prueba").onclick = async (e) => { e.preventDefault(); try { const r = await post("/whatsapp/aviso-prueba"); toast(`Aviso enviado a tu WhatsApp (${r.numero})`); } catch (err) { toast(err.message || "No se pudo mandar el aviso"); } });
   $("#wa-off") && ($("#wa-off").onclick = async (e) => { e.preventDefault(); if (!confirm("¿Desvincular el chip de WhatsApp del agente?")) return; await post("/whatsapp/desconectar"); toast("Chip desvinculado"); setTimeout(vistaProspeccion, 1500); });
   $("#wa-cod") && ($("#wa-cod").onclick = async () => {

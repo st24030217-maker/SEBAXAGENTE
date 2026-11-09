@@ -220,6 +220,24 @@ export async function avisarDueno(texto) {
   }
 }
 
+/**
+ * Te manda a TI el primer mensaje tal como lo recibiría un negocio (video + texto del siguiente en la
+ * fila), para que veas cómo llega. No cuenta en el límite diario ni marca al negocio como contactado.
+ */
+export async function probarPrimerMensaje() {
+  const tel = numeroDueno();
+  if (!tel || !waConectado() || tel === numero) throw new Error("El chip no está conectado o tu número es el mismo que el del chip");
+  const p =
+    db().prepare("SELECT * FROM prospectos WHERE estado = 'aprobado' AND IFNULL(whatsapp_texto,'') != '' ORDER BY puntaje DESC, id LIMIT 1").get() ||
+    db().prepare("SELECT * FROM prospectos WHERE estado = 'por_revisar' AND IFNULL(whatsapp_texto,'') != '' ORDER BY puntaje DESC, id LIMIT 1").get();
+  if (!p) throw new Error("No hay ningún negocio con mensaje listo");
+  jidDueno ||= await resolverJid(tel);
+  const video = videoPresentacion();
+  if (video) await enviarVideo(jidDueno, video, p.whatsapp_texto);
+  else await enviarTexto(jidDueno, p.whatsapp_texto);
+  return { negocio: p.nombre, video: !!video, numero: tel };
+}
+
 /** Lógica de un mensaje entrante (separada de la conexión para poder probarla). */
 export async function procesarMensaje({ id, jid, texto, nombre }, enviar = enviarTexto) {
   const tel = /^\d{10}$/.test(id) ? id : null;

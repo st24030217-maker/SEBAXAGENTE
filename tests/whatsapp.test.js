@@ -1,5 +1,5 @@
 // Tests del canal de WhatsApp con chip (no se conecta a WhatsApp ni a ninguna IA):  npm test
-import { test, before } from "node:test";
+import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 
 process.env.DB_PATH = ":memory:";
@@ -96,6 +96,12 @@ test("sin video cargado, el agente no intenta mandarlo y el primer mensaje sigue
   const { videoPresentacion } = await import("../src/channels/wa-web.js");
   const { executeTool } = await import("../src/agent/tools.js");
   const { getNegocio } = await import("../src/config.js");
+  const { getProspeccion } = await import("../src/prospeccion/config.js");
+  const envio = getProspeccion().envio;
+  const original = envio.video_presentacion;
+  assert.match(String(videoPresentacion()), /presentacion\.mp4$/, "el video del repo se reconoce");
+  envio.video_presentacion = "public/no-existe.mp4";
+  after(() => (envio.video_presentacion = original));
   assert.equal(videoPresentacion(), null);
   const conv = { id: "wa:8711111111", canal: "wa", externo_id: "8711111111" };
   const r = await executeTool("enviar_video_presentacion", {}, { convId: conv.id, canal: "wa", conv, negocio: getNegocio() });
