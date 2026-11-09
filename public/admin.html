@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
 <title>Agente Sebax</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -302,6 +303,11 @@ const chip = (t, c = "") => `<span class="chip ${c}">${esc(t)}</span>`;
 
 async function api(path, opts = {}) {
   const res = await fetch("/admin/api" + path, { ...opts, headers: { "Content-Type": "application/json", "x-admin-token": token, ...(opts.headers || {}) } });
+  if (res.status === 401 && sinToken) {
+    const clave = prompt("Esta acción es delicada y pide la contraseña del panel (ADMIN_TOKEN):");
+    if (clave) { token = clave.trim(); store.set("admin_token", token); return api(path, opts); }
+    throw new Error("Se necesita la contraseña para esta acción");
+  }
   if (res.status === 401) { store.del("admin_token"); token = ""; sinToken = false; login(); throw new Error("No autorizado"); }
   const d = await res.json();
   if (!res.ok) throw new Error(d.error || "Error");
@@ -416,7 +422,7 @@ function render() {
   $("#app").innerHTML = `<div class="fondo"><div class="grid-bg"></div><div class="glow g1"></div><div class="glow g2"></div></div><div class="shell">
     <aside class="side"><div>${MARCA}<span class="brand-sub">Agente de ventas</span></div>
       <nav>${NAV.map(boton).join("")}</nav>
-      <div class="side-foot">${sinToken ? `<span class="estado-red"><span class="dot"></span>Red de casa</span>` : `<button class="b ghost" id="salir">Cerrar sesión</button>`}${botonTema()}</div></aside>
+      <div class="side-foot">${sinToken ? `<span class="estado-red"><span class="dot"></span>Conectado</span>` : `<button class="b ghost" id="salir">Cerrar sesión</button>`}${botonTema()}</div></aside>
     <div class="content"><div class="topbar">${MARCA}${botonTema()}</div><main id="main">${skeleton()}</main></div>
     <nav class="tabbar">${NAV.filter(([k]) => NAV_MOVIL.includes(k)).map(boton).join("")}<button id="mas" class="${NAV_MOVIL.includes(tab) ? "" : "on"}">${ico("grid")}<span>Más</span></button></nav>
   </div>`;
@@ -810,7 +816,8 @@ const VIEWS = {
       <div class="row" style="margin:12px 0 0"><button class="b p" id="resp-dl">${ico("save")} Descargar respaldo</button>
       <label class="b" style="margin:0">${ico("undo")} Restaurar respaldo<input type="file" id="resp-up" accept=".db" hidden></label></div><p id="resp-msg" class="muted"></p></div></div>`;
     $("#resp-dl").onclick = async () => {
-      const r = await fetch("/admin/api/respaldo", { headers: { "x-admin-token": token } });
+      let r = await fetch("/admin/api/respaldo", { headers: { "x-admin-token": token } });
+      if (r.status === 401) { const c = prompt("Descargar todos los datos pide la contraseña del panel:"); if (!c) return; token = c.trim(); store.set("admin_token", token); r = await fetch("/admin/api/respaldo", { headers: { "x-admin-token": token } }); }
       if (!r.ok) return toast("No se pudo descargar el respaldo", "bad");
       const a = document.createElement("a"); a.href = URL.createObjectURL(await r.blob()); a.download = `agente-respaldo-${new Date().toISOString().slice(0, 10)}.db`; a.click();
     };
@@ -819,6 +826,7 @@ const VIEWS = {
       if (!confirm(`¿Reemplazar TODOS los datos de este agente con "${f.name}"? Los datos actuales se guardan aparte por seguridad.`)) return;
       $("#resp-msg").textContent = "Subiendo…";
       try {
+        if (sinToken && !store.get("admin_token")) { const c = prompt("Reemplazar los datos pide la contraseña del panel:"); if (!c) return; token = c.trim(); store.set("admin_token", token); }
         const r = await fetch("/admin/api/restaurar", { method: "POST", headers: { "x-admin-token": token, "Content-Type": "application/octet-stream" }, body: f });
         const d = await r.json(); if (!r.ok) throw new Error(d.error);
         $("#resp-msg").textContent = d.mensaje; setTimeout(() => location.reload(), 15000);

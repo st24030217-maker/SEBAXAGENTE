@@ -45,8 +45,14 @@ export function esRedLocal(req) {
   return IP_LOCAL.test(req.socket?.remoteAddress || "");
 }
 
+// Panel abierto (ADMIN_ABIERTO=true): se entra sin contraseña desde cualquier lugar.
+// Aun así, estas acciones delicadas siempre la piden: reemplazar o descargar todos los datos y desvincular WhatsApp.
+const SIEMPRE_CON_CLAVE = ["/respaldo", "/restaurar", "/whatsapp/desconectar", "/whatsapp/codigo"];
+const panelAbierto = () => /^(1|true|si|sí|yes)$/i.test(process.env.ADMIN_ABIERTO || "");
+
 function auth(req, res, next) {
   if (esRedLocal(req)) return next();
+  if (panelAbierto() && !SIEMPRE_CON_CLAVE.includes(req.path)) return next();
   const token = req.get("x-admin-token") || "";
   const esperado = settings.adminToken;
   const ok =
