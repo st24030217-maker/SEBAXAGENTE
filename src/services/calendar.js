@@ -70,7 +70,7 @@ export function localDateString(date, tz) {
 
 export function formatLocal(dateOrIso, tz, opts = {}) {
   const date = typeof dateOrIso === "string" ? new Date(dateOrIso) : dateOrIso;
-  return new Intl.DateTimeFormat("es-CL", {
+  return new Intl.DateTimeFormat("es-MX", {
     timeZone: tz,
     weekday: "long",
     day: "numeric",

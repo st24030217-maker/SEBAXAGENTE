@@ -112,16 +112,18 @@ async function enviarSeguimientos(ahora) {
 async function enviarRecordatorios(negocio, ahora) {
   const d = getDb();
   const limite = new Date(ahora.getTime() + 24 * 3600_000).toISOString();
+  // Si la cita se agendó hace menos de 3 horas, el cliente acaba de recibir la confirmación: no se le recuerda aún.
+  const recienAgendada = new Date(ahora.getTime() - 3 * 3600_000).toISOString();
   const citas = d
     .prepare(
-      "SELECT * FROM citas WHERE estado = 'confirmada' AND recordatorio_enviado = 0 AND inicio > ? AND inicio <= ?"
+      "SELECT * FROM citas WHERE estado = 'confirmada' AND recordatorio_enviado = 0 AND inicio > ? AND inicio <= ? AND creado <= ?"
     )
-    .all(ahora.toISOString(), limite);
+    .all(ahora.toISOString(), limite, recienAgendada);
   for (const c of citas) {
     d.prepare("UPDATE citas SET recordatorio_enviado = 1 WHERE id = ?").run(c.id);
     const conv = getConversation(c.conversacion_id);
     if (!conv) continue;
-    const texto = `Hola${conv.nombre ? ` ${conv.nombre.split(" ")[0]}` : ""} 👋 Te recuerdo tu cita con ${negocio.negocio.nombre}: ${formatLocal(c.inicio, negocio.negocio.zona_horaria)}${c.tipo ? ` (${c.tipo})` : ""}. Si necesitas cambiarla, respóndeme por aquí.`;
+    const texto = `Hola${conv.nombre ? ` ${conv.nombre.split(" ")[0]}` : ""}, te recuerdo tu cita con ${negocio.negocio.nombre}: ${formatLocal(c.inicio, negocio.negocio.zona_horaria)}${c.tipo ? ` (${c.tipo})` : ""}. Si necesitas cambiarla, respóndeme por aquí.`;
     try {
       await sendToChannel(conv.canal, conv.externo_id, texto, { proactivo: true, ultimoMensajeCliente: conv.ultimo_mensaje_cliente });
       await recordOutgoing(conv.id, texto, "agente", "El sistema de recordatorios automáticos");
