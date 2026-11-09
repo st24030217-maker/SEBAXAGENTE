@@ -249,11 +249,14 @@ export async function procesarMensaje({ id, jid, texto, nombre }, enviar = envia
   if (prospecto && primeraVez) {
     const razones = (() => { try { return JSON.parse(prospecto.razones || "[]").join(", "); } catch { return ""; } })();
     if (prospecto.envios > 0 && prospecto.whatsapp_texto) {
+      const conVideo = !!db()
+        .prepare("SELECT 1 FROM eventos WHERE tipo = 'prospecto_whatsapp' AND json_extract(datos, '$.prospecto') = ? AND json_extract(datos, '$.video') = 1")
+        .get(prospecto.id);
       await recordOutgoing(
         c.id,
         prospecto.whatsapp_texto,
         "agente",
-        `[Prospección] Le escribimos primero a este negocio (${prospecto.nombre}, ${prospecto.giro || prospecto.rubro || ""}, ${[prospecto.colonia, prospecto.ciudad].filter(Boolean).join(", ")}). Situación detectada: ${razones}. Este fue el mensaje de WhatsApp que se le envió y ahora está respondiendo`
+        `[Prospección] Le escribimos primero a este negocio (${prospecto.nombre}, ${prospecto.giro || prospecto.rubro || ""}, ${[prospecto.colonia, prospecto.ciudad].filter(Boolean).join(", ")}). Situación detectada: ${razones}. Este fue el mensaje de WhatsApp que se le envió${conVideo ? " (junto con el video de presentación de Sebastián: ya lo vio, no se lo vuelvas a mandar)" : ""} y ahora está respondiendo`
       );
       if (prospecto.envios > 1) {
         await recordOutgoing(c.id, textoSeguimiento(prospecto), "agente", "[Prospección] Como no respondió, días después se le mandó este seguimiento");
@@ -296,6 +299,43 @@ async function enviarTexto(jid, texto) {
 }
 
 /** Para sendToChannel (mensajes del panel, seguimientos, recordatorios de cita). */
+/** Ruta del video de presentación ("quiénes somos"), si está cargado y pesa menos de 16 MB. */
+export function videoPresentacion() {
+  const v = getProspeccion().envio.video_presentacion;
+  if (!v) return null;
+  const ruta = path.isAbsolute(v) ? v : path.join(ROOT, v);
+  try {
+    const st = fs.statSync(ruta);
+    return st.isFile() && st.size > 0 && st.size < 16 * 1024 * 1024 ? ruta : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Manda el video de presentación con un texto abajo (en la misma burbuja). */
+async function enviarVideo(jid, ruta, caption) {
+  if (!waConectado()) throw new Error("El chip de WhatsApp no está conectado");
+  try {
+    await sock.presenceSubscribe(jid);
+    await sock.sendPresenceUpdate("composing", jid);
+  } catch {}
+  await espera(azar(2500, 5000));
+  await sock.sendMessage(jid, { video: fs.readFileSync(ruta), caption, mimetype: "video/mp4" });
+  try {
+    await sock.sendPresenceUpdate("paused", jid);
+  } catch {}
+}
+
+/** Para el agente: manda el video de presentación a un contacto de WhatsApp. */
+export async function sendWaVideo(id, caption = "") {
+  const ruta = videoPresentacion();
+  if (!ruta) throw new Error("No hay video de presentación cargado");
+  const fila = db().prepare("SELECT jid FROM wa_contactos WHERE id = ?").get(String(id));
+  const jid = fila?.jid || (/^\d{10}$/.test(String(id)) ? await resolverJid(id) : null);
+  if (!jid) throw new Error("No se encontró el chat de WhatsApp de este contacto");
+  await enviarVideo(jid, ruta, caption);
+}
+
 export async function sendWaWeb(id, texto) {
   const fila = db().prepare("SELECT jid FROM wa_contactos WHERE id = ?").get(String(id));
   let jid = fila?.jid;
@@ -436,9 +476,12 @@ export async function enviarSiguienteWa(ahora = new Date()) {
       }
       db().prepare("UPDATE prospectos SET estado = 'enviado', envios = envios + 1, ultimo_envio = ?, actualizado = ? WHERE id = ?").run(now(), now(), p.id);
       try {
-        await enviarTexto(jid, p.whatsapp_texto);
+        // Si hay video de presentación, el primer mensaje va como video con el texto abajo (más confianza).
+        const video = e.video_en_primer_mensaje !== false ? videoPresentacion() : null;
+        if (video) await enviarVideo(jid, video, p.whatsapp_texto);
+        else await enviarTexto(jid, p.whatsapp_texto);
         db().prepare("INSERT INTO wa_contactos (id, jid, actualizado) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET jid = excluded.jid").run(p.telefono, jid, now());
-        logEvent("prospecto_whatsapp", null, { prospecto: p.id, telefono: p.telefono });
+        logEvent("prospecto_whatsapp", null, { prospecto: p.id, telefono: p.telefono, video: !!video });
         console.log(`[whatsapp] prospección enviada a ${p.nombre}`);
       } catch (err) {
         db().prepare("UPDATE prospectos SET estado = 'fallido', envios = envios - 1, error = ? WHERE id = ?").run(err.message, p.id);

@@ -159,6 +159,11 @@ envio:
   whatsapp_limite_diario: 12
   whatsapp_subir_por_semana: 3
   whatsapp_limite_maximo: 25
+  # Video de presentación ("quiénes somos"), máximo 16 MB. Si existe, el primer mensaje sale como
+  # video con el texto abajo, y el agente lo puede mandar cuando alguien pregunte quiénes son.
+  # Si el archivo no existe, todo sigue igual que siempre (solo texto).
+  video_presentacion: "public/presentacion.mp4"
+  video_en_primer_mensaje: true
   # Pausa al azar entre un mensaje y otro (minutos), para que se vea natural.
   whatsapp_minutos_min: 7
   whatsapp_minutos_max: 16

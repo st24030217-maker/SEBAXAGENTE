@@ -91,3 +91,14 @@ test("sin correo configurado, el seguimiento de correo no toca a los de WhatsApp
   assert.equal(await prepararSeguimientos(), 0);
   assert.equal(getDb().prepare("SELECT estado FROM prospectos WHERE externo_id = 's1'").get().estado, "enviado");
 });
+
+test("sin video cargado, el agente no intenta mandarlo y el primer mensaje sigue siendo texto", async () => {
+  const { videoPresentacion } = await import("../src/channels/wa-web.js");
+  const { executeTool } = await import("../src/agent/tools.js");
+  const { getNegocio } = await import("../src/config.js");
+  assert.equal(videoPresentacion(), null);
+  const conv = { id: "wa:8711111111", canal: "wa", externo_id: "8711111111" };
+  const r = await executeTool("enviar_video_presentacion", {}, { convId: conv.id, canal: "wa", conv, negocio: getNegocio() });
+  assert.equal(r.ok, false);
+  assert.match(r.motivo, /portafolio/);
+});

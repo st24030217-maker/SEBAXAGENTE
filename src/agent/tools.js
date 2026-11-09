@@ -133,6 +133,18 @@ export const TOOL_DEFINITIONS = [
     },
   },
   {
+    name: "enviar_video_presentacion",
+    description:
+      "Manda por WhatsApp el video corto de presentación de Sebastián y sss.solutions (quiénes somos). Úsala si el cliente pregunta quiénes son, duda si es real o confiable, o quiere conocer más antes de agendar. Solo una vez por conversación y solo en WhatsApp.",
+    input_schema: {
+      type: "object",
+      properties: {
+        mensaje: { type: "string", description: "Texto corto que va abajo del video, por ejemplo: 'Te dejo un video corto para que nos conozcas.'" },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "derivar_a_humano",
     description:
       "Pasa la conversación a una persona del equipo y pausa al agente en este chat. Úsala si el cliente lo pide, hay un reclamo, molestia, una negociación especial o algo que no puedes resolver.",
@@ -370,6 +382,23 @@ Notas: ${input.notas}` : ""}`,
       .prepare("INSERT INTO seguimientos (conversacion_id, ejecutar_en, contexto, origen, creado) VALUES (?, ?, ?, 'agente', ?)")
       .run(convId, cuando, str(input.motivo), now());
     return { ok: true, programado_para: cuando };
+  },
+
+  async enviar_video_presentacion(input, { convId, canal, conv }) {
+    if (canal !== "wa") return { ok: false, motivo: "El video solo se puede mandar por WhatsApp. Comparte el portafolio en su lugar." };
+    const wa = await import("../channels/wa-web.js");
+    if (!wa.videoPresentacion()) return { ok: false, motivo: "No hay video cargado. Comparte el link del portafolio en su lugar." };
+    const tel = conv.externo_id;
+    const ya = getDb()
+      .prepare(
+        `SELECT 1 FROM eventos WHERE (tipo = 'video_enviado' AND conversacion_id = ?)
+           OR (tipo = 'prospecto_whatsapp' AND json_extract(datos, '$.telefono') = ? AND json_extract(datos, '$.video') = 1) LIMIT 1`
+      )
+      .get(convId, tel);
+    if (ya) return { ok: false, motivo: "Este cliente ya recibió el video. No lo mandes otra vez; sigue la conversación." };
+    await wa.sendWaVideo(tel, str(input.mensaje) || "");
+    logEvent("video_enviado", convId, {});
+    return { ok: true, mensaje: "Video enviado. No lo repitas; sigue la conversación y busca agendar la llamada." };
   },
 
   derivar_a_humano(input, { convId, canal }) {

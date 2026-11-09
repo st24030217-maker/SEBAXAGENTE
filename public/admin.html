@@ -537,7 +537,7 @@ function waHtml(w) {
   if (w.estado === "conectado") {
     return `<div class="card piloto"><div class="piloto-ico on">${WA_ICO}</div><div style="min-width:0;flex:1">
       <div class="row" style="margin:0;gap:8px"><b class="piloto-t">WhatsApp conectado</b>${chipPt(w.numero ? "+52 " + w.numero : "chip", "ok")}</div>
-      <p>Hoy van <b>${w.enviadosHoy}</b> de ${w.limite} mensajes de primer contacto. Si alguien responde, el agente conversa y agenda solo.</p>
+      <p>Hoy van <b>${w.enviadosHoy}</b> de ${w.limite} mensajes de primer contacto${w.video ? ", con tu video de presentación" : ""}. Si alguien responde, el agente conversa y agenda solo.</p>
       <small>${calentamientoTxt(w.calentamiento)} Los mensajes salen espaciados al azar, solo en horario laboral y alternando rubros. Los avisos te llegan a tu WhatsApp personal. <a href="#" id="wa-prueba">Mandarme un aviso de prueba</a> · <a href="#" id="wa-off">Desvincular</a></small></div></div>`;
   }
   return `<div class="card piloto" id="wa-card"><div class="piloto-ico">${WA_ICO}</div><div style="min-width:0;flex:1">

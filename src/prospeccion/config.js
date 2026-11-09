@@ -43,6 +43,8 @@ export function loadProspeccion(file) {
     whatsapp_limite_diario: 12,
     whatsapp_subir_por_semana: 0,
     whatsapp_limite_maximo: 0,
+    video_presentacion: "public/presentacion.mp4",
+    video_en_primer_mensaje: true,
     whatsapp_minutos_min: 7,
     whatsapp_minutos_max: 16,
     ...(data.envio || {}),

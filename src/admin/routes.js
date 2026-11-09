@@ -15,7 +15,7 @@ import { setOrderStatus } from "../services/orders.js";
 import { reloadProspeccion, getProspeccion } from "../prospeccion/config.js";
 import { urlBoceto } from "../prospeccion/boceto.js";
 import { probarGcal, gcalConfigurado } from "../services/gcal.js";
-import { estadoWa, desconectarWa, enviadosWaHoy, limiteWaHoy, pedirCodigoVinculacion, avisarDueno, numeroDueno } from "../channels/wa-web.js";
+import { estadoWa, desconectarWa, enviadosWaHoy, limiteWaHoy, pedirCodigoVinculacion, avisarDueno, numeroDueno, videoPresentacion } from "../channels/wa-web.js";
 import {
   ESTADOS as ESTADOS_PROSPECTO,
   getProspecto,
@@ -327,7 +327,7 @@ export function adminRouter() {
   r.get("/prospeccion", wrap(async (_req, res) => {
     const wa = await estadoWa();
     const lim = limiteWaHoy();
-    res.json({ ...resumenProspeccion(), calendario: gcalConfigurado(), whatsapp: { ...wa, qr: undefined, enviadosHoy: enviadosWaHoy(), limite: lim.limite, calentamiento: lim } });
+    res.json({ ...resumenProspeccion(), calendario: gcalConfigurado(), whatsapp: { ...wa, qr: undefined, enviadosHoy: enviadosWaHoy(), limite: lim.limite, calentamiento: lim, video: !!videoPresentacion() } });
   }));
 
   // WhatsApp (chip aparte): estado y QR para vincular.
