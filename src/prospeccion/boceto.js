@@ -5,93 +5,11 @@ import crypto from "node:crypto";
 import { settings } from "../config.js";
 import { getDb, now, logEvent } from "../db.js";
 import { getProspeccion } from "./config.js";
+import { perfilDe, perfilesGaleria } from "./perfiles.js";
 
 const db = () => getDb();
 
-// ---------- Contenido de ejemplo por rubro ----------
-// tipo: menu | cafe | catalogo | citas | fidelidad | inmobiliaria | escuela
-const R = {
-  Restaurantes: {
-    tipo: "menu", color: "#d9480f", que: "menú digital",
-    cats: {
-      Entradas: [["Guacamole con totopos", "Aguacate, jitomate, cebolla y chile serrano", 89], ["Queso fundido", "Con chorizo y tortillas de harina", 99]],
-      "Platos fuertes": [["Arrachera con guarnición", "300 g, frijoles charros y ensalada", 219], ["Enchiladas suizas", "Pollo, salsa verde cremosa y gratinadas", 149], ["Pechuga a la plancha", "Con arroz y verduras salteadas", 159]],
-      Bebidas: [["Agua fresca del día", "Litro", 35], ["Limonada mineral", "Natural", 45], ["Café de olla", "Con canela y piloncillo", 35]],
-    },
-    ia: true,
-  },
-  "Taquerías y comida": {
-    tipo: "menu", color: "#e8590c", que: "menú digital",
-    cats: {
-      Tacos: [["Pastor", "Orden de 5, con piña, cebolla y cilantro", 75], ["Asada", "Orden de 5", 85], ["Tripa", "Orden de 5, bien doradita", 90]],
-      Especiales: [["Gringa", "Pastor con queso en tortilla de harina", 69], ["Quesadilla", "Con la carne que quieras", 45], ["Volcán", "Tostada con queso gratinado y carne", 35]],
-      Bebidas: [["Refresco", "600 ml", 30], ["Agua de horchata", "Litro", 30]],
-    },
-    sellos: { total: 10, llevas: 6, premio: "una orden gratis" },
-  },
-  Cafeterías: {
-    tipo: "cafe", color: "#8a5a3c", que: "tarjeta de fidelidad digital",
-    sellos: { total: 10, llevas: 7, premio: "un café gratis" },
-    cats: { Café: [["Americano", "12 oz", 40], ["Capuchino", "12 oz", 55], ["Latte", "Con leche de tu elección", 58], ["Frappé", "Moka, caramelo o vainilla", 69]], Pan: [["Pan de elote", "Rebanada", 45], ["Croissant", "Mantequilla", 38]] },
-  },
-  "Pastelerías y panaderías": {
-    tipo: "catalogo", color: "#c2255c", que: "catálogo con pedidos por WhatsApp",
-    items: [["Pastel de tres leches", "Para 15 personas", 380], ["Pastel de chocolate", "Relleno de ganache", 420], ["Cheesecake de frutos rojos", "Para 12 personas", 450], ["Cupcakes", "Caja de 6, decorados", 180], ["Galletas decoradas", "Docena, con tu diseño", 240], ["Pay de queso", "Tamaño familiar", 260]],
-    sellos: { total: 8, llevas: 5, premio: "una rebanada gratis" },
-  },
-  Barberías: {
-    tipo: "citas", color: "#b08900", que: "app para agendar citas",
-    servicios: [["Corte clásico", 30, 150], ["Corte y barba", 50, 230], ["Arreglo de barba", 25, 120], ["Corte de niño", 30, 120]],
-    sellos: { total: 5, llevas: 3, premio: "un corte gratis" },
-  },
-  "Estéticas y salones": {
-    tipo: "citas", color: "#9c36b5", que: "app para agendar citas",
-    servicios: [["Corte y peinado", 60, 250], ["Tinte", 120, 650], ["Manicure", 45, 200], ["Pedicure", 60, 250], ["Extensión de pestañas", 90, 450]],
-    sellos: { total: 6, llevas: 4, premio: "un manicure gratis" },
-  },
-  Dentistas: {
-    tipo: "citas", color: "#1971c2", que: "agenda en línea con asistente de IA",
-    servicios: [["Valoración", 30, 0], ["Limpieza dental", 45, 600], ["Resina", 60, 800], ["Blanqueamiento", 90, 2500]],
-    ia: true,
-  },
-  Consultorios: {
-    tipo: "citas", color: "#0c8599", que: "página con agenda en línea",
-    servicios: [["Consulta general", 30, 400], ["Consulta de seguimiento", 20, 300], ["Certificado médico", 15, 250]],
-  },
-  Veterinarias: {
-    tipo: "citas", color: "#2b8a3e", que: "app para agendar citas",
-    servicios: [["Consulta", 30, 350], ["Vacuna", 15, 300], ["Baño y corte", 90, 400], ["Desparasitación", 15, 200]],
-    sellos: { total: 6, llevas: 2, premio: "un baño gratis" },
-  },
-  Gimnasios: {
-    tipo: "fidelidad", color: "#e03131", que: "membresías con tarjeta en el celular",
-    sellos: { total: 12, llevas: 9, premio: "una semana gratis" }, palabraSello: "asistencias",
-    planes: [["Visita", "Un día", 50], ["Mensualidad", "Acceso ilimitado", 450], ["Trimestre", "Ahorra 150", 1200]],
-  },
-  "Lavados de autos": {
-    tipo: "fidelidad", color: "#1c7ed6", que: "tarjeta de fidelidad digital",
-    sellos: { total: 5, llevas: 4, premio: "un lavado gratis" }, palabraSello: "lavados",
-    planes: [["Lavado exterior", "Carrocería y rines", 120], ["Lavado completo", "Por dentro y por fuera", 180], ["Encerado", "Brillo y protección", 350], ["Lavado de vestiduras", "Asientos y alfombras", 700]],
-  },
-  "Tiendas y boutiques": {
-    tipo: "catalogo", color: "#d6336c", que: "catálogo en línea",
-    items: [["Blusa de lino", "Tallas CH a G", 349], ["Vestido casual", "Varios colores", 599], ["Jeans corte recto", "Tallas 3 a 15", 499], ["Bolsa de mano", "Piel sintética", 450], ["Sandalias", "Del 22 al 26", 399], ["Accesorios", "Aretes, collares y pulseras", 149]],
-  },
-  Florerías: {
-    tipo: "catalogo", color: "#e64980", que: "catálogo con pedidos por WhatsApp",
-    items: [["Ramo de 12 rosas", "Rojas, blancas o rosas", 650], ["Arreglo primaveral", "Flores de temporada", 480], ["Ramo de girasoles", "6 girasoles", 420], ["Orquídea en maceta", "Blanca o morada", 550], ["Caja de rosas", "24 rosas", 890], ["Flores con globo", "Para cumpleaños", 520]],
-  },
-  Inmobiliarias: {
-    tipo: "inmobiliaria", color: "#087f5b", que: "página de propiedades con asistente de IA",
-    items: [["Casa en venta", "3 recámaras · 2 baños · cochera doble", "$2,450,000"], ["Departamento en renta", "2 recámaras · 1 baño · amueblado", "$9,500 al mes"], ["Terreno", "300 m² · uso habitacional", "$850,000"], ["Local comercial", "80 m² · sobre avenida", "$15,000 al mes"]],
-    ia: true,
-  },
-  "Escuelas y academias": {
-    tipo: "escuela", color: "#4c6ef5", que: "plataforma con inscripciones en línea",
-    items: [["Inglés", "Niños, jóvenes y adultos · sabatino o entre semana"], ["Regularización", "Primaria y secundaria · grupos reducidos"], ["Computación", "Office, internet y mecanografía"]],
-  },
-};
-const GENERICO = { tipo: "catalogo", color: "#343a40", que: "página web", items: [["Servicio principal", "Descríbelo aquí", 0], ["Servicio adicional", "Descríbelo aquí", 0]] };
+// El contenido de cada tipo de negocio vive en perfiles.js.
 
 // ---------- Claves y direcciones ----------
 
@@ -232,6 +150,16 @@ function seccionPrincipal(p, d) {
       return `<section class="sec"><h2>Propiedades</h2><div class="tabs"><button class="tab on">Todas</button><button class="tab">Venta</button><button class="tab">Renta</button></div><div class="grid">${d.items
         .map(([n, desc, pr], i) => `<div class="prod"><div class="pfoto casa" style="--h:${150 + i * 25}">${ico("home", 34)}</div><b>${esc(n)}</b><small>${esc(desc)}${p.colonia ? ` · ${esc(p.colonia)}` : ""}</small><span class="precio">${esc(pr)}</span></div>`)
         .join("")}</div></section>`;
+    case "servicios":
+      return `<section class="sec"><h2>Servicios</h2><div class="planes">${d.items.map(([n, desc]) => `<div class="plan"><b>${esc(n)}</b><small>${esc(desc)}</small></div>`).join("")}</div></section>
+      <section class="sec"><h2>Lo que dicen nuestros clientes</h2><div class="resenas">${[
+        ["Muy buena atención y cumplieron con lo que prometieron.", "Laura G."],
+        ["Me respondieron rápido por WhatsApp y el precio fue justo.", "Carlos M."],
+        ["Los recomiendo, muy profesionales.", "Ana R."],
+      ]
+        .map(([t, a]) => `<div class="resena"><div class="estrellas">${ico("star", 14).repeat(5)}</div><p>${esc(t)}</p><small>${esc(a)} · reseña de ejemplo</small></div>`)
+        .join("")}</div></section>
+      <section class="sec"><h2>Cotiza sin compromiso</h2><div class="form" style="margin-top:0"><input placeholder="Tu nombre"><input placeholder="WhatsApp" inputmode="tel"><input placeholder="¿Qué necesitas?"><button class="cta" data-demo="cotizacion">Pedir cotización</button></div></section>`;
     case "escuela":
       return `<section class="sec"><h2>Inscripciones abiertas</h2><div class="planes">${d.items.map(([n, desc]) => `<div class="plan"><b>${esc(n)}</b><small>${esc(desc)}</small></div>`).join("")}</div>
       <div class="form"><input placeholder="Nombre del alumno"><input placeholder="WhatsApp" inputmode="tel"><button class="cta" data-demo="inscripcion">Quiero informes</button></div></section>`;
@@ -247,6 +175,12 @@ function chatIA(p, d) {
       "¡Hola! Sí, sigue disponible: cuesta $2,450,000 y tiene cochera doble. ¿Te gustaría verla? Tengo mañana a las 11:00 o a las 5:00.",
       "Mañana a las 5",
       "Listo, quedó agendada la visita. Te mando la ubicación y un recordatorio una hora antes.",
+    ],
+    servicios: [
+      "Hola, ¿cuánto cuesta y cuándo me pueden atender?",
+      `¡Hola! En ${p.nombre} depende de lo que necesites. Cuéntame un poco y te agendo una llamada; tengo mañana a las 10:00 o a las 4:00.`,
+      "Mañana a las 10 está bien",
+      "Listo, quedó agendado. Te mando un recordatorio una hora antes.",
     ],
     menu: [
       "Hola, ¿tienen servicio a domicilio?",
@@ -268,13 +202,13 @@ function chatIA(p, d) {
 /** HTML completo del boceto de un prospecto. */
 export function renderBoceto(p) {
   const cfg = getProspeccion();
-  const d = R[p.rubro] || GENERICO;
+  const d = p.perfil || perfilDe(p);
   const chip = String(process.env.WA_NUMERO || cfg.remitente.whatsapp || "").replace(/\D/g, "").slice(-10);
-  const quiero = `https://wa.me/52${chip}?text=${encodeURIComponent(`Hola, vi la muestra que me hicieron para ${p.nombre} y me interesa.`)}`;
+  const quiero = `https://wa.me/52${chip}?text=${encodeURIComponent(p.demo ? `Hola, vi la muestra de ${d.nombre.toLowerCase()} y me interesa una para mi negocio.` : `Hola, vi la muestra que me hicieron para ${p.nombre} y me interesa.`)}`;
   const mapa = p.lat && p.lon ? `https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lon}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${p.nombre} ${p.ciudad || ""}`)}`;
   const lugar = [p.colonia, p.ciudad].filter(Boolean).join(", ");
   const tel = String(p.telefono || "").replace(/\D/g, "");
-  const accion = { menu: "Pedir", cafe: "Pedir", catalogo: "Pedir", citas: "Agendar", fidelidad: "Escribir", inmobiliaria: "Preguntar", escuela: "Informes" }[d.tipo] || "Escribir";
+  const accion = d.accion || { menu: "Pedir", cafe: "Pedir", catalogo: "Pedir", citas: "Agendar", fidelidad: "Escribir", inmobiliaria: "Preguntar", escuela: "Informes", servicios: "Cotizar" }[d.tipo] || "Escribir";
   const titulo = `${p.nombre} · muestra de ${d.que}`;
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>${esc(titulo)}</title><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="${d.color}">
@@ -351,6 +285,8 @@ button,input{font:inherit;color:inherit}
 .hoja h3{margin:0 0 6px;font-size:18px}.hoja p{color:var(--mu);margin:0 0 12px;font-size:14px}
 .msj{background:color-mix(in srgb,#25d366 14%,var(--bg));border-radius:12px;padding:12px;font-size:13.5px;white-space:pre-line;margin-bottom:12px}
 .cerrar{float:right;border:0;background:none;cursor:pointer;color:var(--mu)}
+.resenas{display:grid;gap:8px}.resena{border:1px solid var(--ln);border-radius:14px;padding:12px}.resena p{margin:6px 0 4px;font-size:14px}.resena small{color:var(--mu);font-size:12px}
+.estrellas{color:#f59f00;display:flex;gap:2px}.estrellas svg{fill:currentColor}
 </style></head><body>
 <div class="aviso">Muestra hecha para <b>${esc(p.nombre)}</b> por sss.solutions. El contenido es de ejemplo.</div>
 <header class="hero"><div class="wrap"><div class="logo">${esc(iniciales(p.nombre))}</div>
@@ -388,6 +324,34 @@ else if(k==="wallet"){modal("Tarjeta en el celular","Tus clientes la agregan con
 else{modal("Así te llegarían los informes","Cada interesado queda registrado y te llega su mensaje directo.","Nuevo interesado en "+NEG+"\\nNombre: Ana Ruiz\\nWhatsApp: 871 000 0000")}})});
 })();
 </script></body></html>`;
+}
+
+// ---------- Galería: una muestra de cada tipo de negocio (para verlas o enseñarlas en persona) ----------
+
+/** Muestra de un perfil con un negocio de ejemplo ("Tu pizzería"). */
+export function renderMuestra(id) {
+  const d = perfilesGaleria().find((x) => x.id === id);
+  if (!d) return null;
+  const tu = /^(cualquier)/i.test(d.nombre) ? "Tu negocio" : `Tu ${d.nombre.split(" y ")[0].toLowerCase()}`;
+  return renderBoceto({ id: 0, demo: true, perfil: d, nombre: tu, colonia: "Centro", ciudad: "Torreón", direccion: "Tu dirección", telefono: "" });
+}
+
+export function renderGaleria() {
+  const cfg = getProspeccion();
+  const tarjetas = perfilesGaleria()
+    .map((d) => `<a class="t" href="/muestras/${d.id}" style="--c:${d.color}"><i>${esc(iniciales(d.nombre))}</i><b>${esc(d.nombre)}</b><small>${esc(d.que)}</small></a>`)
+    .join("");
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Muestras · ${esc(cfg.remitente.empresa)}</title><meta name="robots" content="noindex,nofollow">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+<style>:root{--bg:#f6f5f3;--card:#fff;--tx:#18181b;--mu:#71717a;--ln:#e7e5e4}@media (prefers-color-scheme:dark){:root{--bg:#0c0c0d;--card:#18181b;--tx:#f4f4f5;--mu:#a1a1aa;--ln:#27272a}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 "Plus Jakarta Sans",system-ui,sans-serif}
+main{max-width:980px;margin:0 auto;padding:28px 16px 48px}h1{margin:0;font-size:clamp(24px,6vw,34px);letter-spacing:-.02em}p{color:var(--mu);margin:6px 0 22px}
+.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,210px),1fr));gap:10px}
+.t{background:var(--card);border:1px solid var(--ln);border-radius:16px;padding:14px;color:inherit;text-decoration:none;display:flex;flex-direction:column;gap:2px;transition:transform .15s,border-color .15s}
+.t:hover{transform:translateY(-2px);border-color:var(--c)}.t i{width:40px;height:40px;border-radius:12px;background:var(--c);color:#fff;display:grid;place-items:center;font-style:normal;font-weight:800;font-size:14px;margin-bottom:8px}
+.t small{color:var(--mu);font-size:12.5px}</style></head>
+<body><main><h1>Muestras por tipo de negocio</h1><p>${perfilesGaleria().length} tipos. A cada negocio que contacta, el agente le arma la suya con su nombre, su colonia y su teléfono. Toca una para verla como la vería el cliente.</p>
+<div class="g">${tarjetas}</div></main></body></html>`;
 }
 
 /** Página para claves que no existen. */

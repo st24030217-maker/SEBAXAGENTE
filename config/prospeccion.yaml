@@ -103,6 +103,36 @@ rubros:
     palabras: "escuela"
     servicio: "plataformas web con registro de alumnos y buen posicionamiento en Google"
     proyecto: "EPAD USICAMM 2026 (plataforma educativa)"
+  # --- Más tipos de negocio (cada uno recibe un boceto acorde a lo que es; ver src/prospeccion/perfiles.js) ---
+  - { nombre: "Pizzerías", palabras: "pizza", servicio: "menús digitales con pedidos por WhatsApp y asistentes de IA que toman pedidos solos", proyecto: "KB Huates (app de pedidos)" }
+  - { nombre: "Hamburguesas", palabras: "hamburguesas", servicio: "menús digitales con pedidos por WhatsApp y tarjetas de cliente frecuente", proyecto: "KB Huates (app de pedidos)" }
+  - { nombre: "Mariscos", palabras: "mariscos", servicio: "menús digitales con pedidos por WhatsApp", proyecto: "Los Compadres (menú digital)" }
+  - { nombre: "Pollerías", palabras: "pollo", servicio: "menús digitales con pedidos por WhatsApp", proyecto: "KB Huates (app de pedidos)" }
+  - { nombre: "Gorditas y antojitos", palabras: "gorditas", servicio: "menús digitales con pedidos por WhatsApp y tarjetas de cliente frecuente", proyecto: "Los Compadres (menú digital)" }
+  - { nombre: "Neverías", palabras: "neveria", servicio: "tarjetas de fidelidad digitales y menús digitales", proyecto: "tarjeta de lealtad con Wallet" }
+  - { nombre: "Spas", palabras: "spa", servicio: "apps para agendar citas con paquetes y tarjetas de regalo", proyecto: "Barbería Vázquez (reservas con pago y avisos)" }
+  - { nombre: "Fisioterapia", palabras: "fisioterapia", servicio: "agendas en línea con recordatorios automáticos", proyecto: "Barbería Vázquez (sistema de reservas)" }
+  - { nombre: "Ópticas", palabras: "optica", servicio: "páginas con citas para examen de la vista y catálogo de armazones", proyecto: "Milea Studio (catálogo con búsqueda)" }
+  - { nombre: "Farmacias", palabras: "farmacia", servicio: "catálogos con pedidos a domicilio por WhatsApp", proyecto: "Milea Studio (catálogo con cotizaciones)" }
+  - { nombre: "Tiendas de mascotas", palabras: "mascotas", servicio: "catálogos con pedidos a domicilio y tarjetas de cliente frecuente", proyecto: "tarjeta de lealtad con Wallet" }
+  - { nombre: "Talleres mecánicos", palabras: "taller", servicio: "páginas con citas y asistentes de IA que cotizan por WhatsApp", proyecto: "Barbería Vázquez (sistema de reservas)" }
+  - { nombre: "Refaccionarias", palabras: "refaccionaria", servicio: "catálogos en línea con cotizaciones por WhatsApp", proyecto: "Milea Studio (catálogo con cotizaciones)" }
+  - { nombre: "Ferreterías", palabras: "ferreteria", servicio: "catálogos en línea con cotizaciones por WhatsApp", proyecto: "Milea Studio (catálogo con cotizaciones)" }
+  - { nombre: "Papelerías", palabras: "papeleria", servicio: "catálogos con pedidos y listas escolares por WhatsApp", proyecto: "Milea Studio (catálogo con búsqueda)" }
+  - { nombre: "Joyerías", palabras: "joyeria", servicio: "catálogos en línea con apartado por WhatsApp", proyecto: "Milea Studio (catálogo con búsqueda)" }
+  - { nombre: "Zapaterías", palabras: "zapateria", servicio: "catálogos en línea con apartado por WhatsApp", proyecto: "Milea Studio (catálogo con búsqueda)" }
+  - { nombre: "Mueblerías", palabras: "muebleria", servicio: "catálogos en línea con apartado y pagos", proyecto: "Milea Studio (catálogo con cotizaciones)" }
+  - { nombre: "Celulares", palabras: "celulares", servicio: "catálogos y sistemas de seguimiento de reparaciones por WhatsApp", proyecto: "TikEduca (sistema a la medida)" }
+  - { nombre: "Abogados", palabras: "abogado", servicio: "páginas profesionales con citas y asistentes de IA que atienden a tus clientes", proyecto: "EPAD USICAMM 2026 (plataforma web)" }
+  - { nombre: "Contadores", palabras: "contador", servicio: "páginas profesionales con citas y asistentes de IA que atienden a tus clientes", proyecto: "EPAD USICAMM 2026 (plataforma web)" }
+  - { nombre: "Seguros", palabras: "seguros", servicio: "páginas con cotizador y asistentes de IA que atienden a los interesados", proyecto: "Milea Studio (cotizaciones en línea)" }
+  - { nombre: "Agencias de viajes", palabras: "viajes", servicio: "páginas con paquetes y cotizaciones por WhatsApp", proyecto: "Milea Studio (catálogo con cotizaciones)" }
+  - { nombre: "Fotografía", palabras: "fotografia", servicio: "portafolios en línea con cotizaciones y agenda", proyecto: "Milea Studio (catálogo con búsqueda)" }
+  - { nombre: "Salones de eventos", palabras: "eventos", servicio: "páginas con fechas disponibles y cotizaciones por WhatsApp", proyecto: "Copa Zona Laguna (sistema a la medida)" }
+  - { nombre: "Hoteles", palabras: "hotel", servicio: "páginas con reservas directas, sin comisiones de plataformas", proyecto: "Barbería Vázquez (reservas con pago)" }
+  - { nombre: "Guarderías", palabras: "guarderia", servicio: "páginas con informes e inscripciones en línea", proyecto: "EPAD USICAMM 2026 (plataforma educativa)" }
+  - { nombre: "Lavanderías", palabras: "lavanderia", servicio: "tarjetas de fidelidad digitales y pedidos a domicilio por WhatsApp", proyecto: "tarjeta de lealtad con Wallet" }
+  - { nombre: "Imprentas", palabras: "imprenta", servicio: "páginas con catálogo de productos y cotizaciones por WhatsApp", proyecto: "Milea Studio (catálogo con cotizaciones)" }
 
 # Piloto automático: el agente busca negocios nuevos solo, sin que le des a Buscar.
 automatico:

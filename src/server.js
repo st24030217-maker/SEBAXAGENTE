@@ -17,7 +17,7 @@ import { startEmail } from "./channels/email.js";
 import { startWaWeb, detenerWa } from "./channels/wa-web.js";
 import { verificarClaude } from "./ia/proveedor.js";
 import { restaurarDesdeNube, startNube, startDespierto, tomarTurno, antesDeApagar } from "./services/nube.js";
-import { buscarPorClave, registrarVisita, renderBoceto, bocetoNoEncontrado } from "./prospeccion/boceto.js";
+import { buscarPorClave, registrarVisita, renderBoceto, bocetoNoEncontrado, renderGaleria, renderMuestra } from "./prospeccion/boceto.js";
 import { notifyOwner } from "./services/notify.js";
 
 // Valida configuración al arrancar (falla rápido si negocio.yaml tiene errores).
@@ -130,6 +130,14 @@ app.get("/m/:clave", (req, res) => {
     notifyOwner("boceto", `${p.nombre} (${[p.rubro, p.ciudad].filter(Boolean).join(", ")}) acaba de abrir su muestra. Buen momento: si contesta, el agente sigue la plática.${p.telefono ? `\nTel. ${p.telefono}` : ""}`, { prospecto: p.id });
   }
   res.send(renderBoceto(p));
+});
+
+// Galería con una muestra de cada tipo de negocio.
+app.get("/muestras", (_req, res) => res.set("X-Robots-Tag", "noindex, nofollow").send(renderGaleria()));
+app.get("/muestras/:id", (req, res) => {
+  const html = renderMuestra(req.params.id);
+  res.set("X-Robots-Tag", "noindex, nofollow");
+  html ? res.send(html) : res.status(404).send(bocetoNoEncontrado());
 });
 
 // La dirección principal abre directo el panel del agente.

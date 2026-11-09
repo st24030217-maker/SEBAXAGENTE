@@ -37,6 +37,21 @@ test("solo avisa la primera vez que el negocio lo abre (no cuenta bots ni tus vi
   assert.match(getProspecto(1).notas, /Abrió su boceto/);
 });
 
+test("cada negocio recibe el boceto de lo que realmente es (nombre y giro, no solo el rubro)", async () => {
+  const { perfilDe, perfilesGaleria } = await import("../src/prospeccion/perfiles.js");
+  const caso = (nombre, giro, rubro = "Restaurantes") => perfilDe({ nombre, giro, rubro }).id;
+  assert.equal(caso("Monster Burgers", "Restaurantes con servicio de preparación de pizzas, hamburguesas, hot dogs y pollos rostizados"), "hamburguesas");
+  assert.equal(caso("Auto Spa Laguna", "Lavado y lubricado de automóviles y camiones", "Spas"), "lavado");
+  assert.equal(caso("Studio Nails Karla", "Salones y clínicas de belleza y peluquerías"), "unas");
+  assert.equal(caso("Mudanzas Express", "Autotransporte local de mudanzas", "Otro"), "servicios");
+  assert.equal(caso("Despacho Contable Pérez", "Servicios de contabilidad y auditoría"), "contador");
+  assert.equal(caso("Laboratorio de Inyectores", "Otras reparaciones mecánicas de automóviles y camiones"), "taller");
+  // Todos los perfiles de la galería se pueden mostrar
+  const { renderMuestra } = await import("../src/prospeccion/boceto.js");
+  for (const d of perfilesGaleria()) assert.match(renderMuestra(d.id), /Quiero la mía/, d.id);
+  assert.equal(renderMuestra("no-existe"), null);
+});
+
 test("las ventas cerradas se suman por rubro", () => {
   guardarProspecto({ fuente: "denue", externo_id: "2", nombre: "Barbería Ruiz", rubro: "Barberías", ciudad: "Lerdo", telefono: "8712222222" });
   actualizarProspecto(1, { estado: "cliente", venta_monto: 4500, venta_servicio: "Menú digital", venta_fecha: new Date().toISOString() });

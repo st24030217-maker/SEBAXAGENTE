@@ -600,6 +600,7 @@ async function vistaProspeccion() {
     <p class="muted" style="font-size:12px;margin:8px 0 0;text-align:center">Si no eliges rubro, busca en todos. Si no eliges ciudad, busca solo en La Laguna.</p>
     <p id="bmsg" style="margin:10px 0 0;font-size:13.5px"></p>
     <div class="extras">
+      <a class="b" href="/muestras" target="_blank" rel="noopener">${ico("star")} Ver muestras por tipo de negocio</a>
       ${c.correo ? `<button class="b" id="prueba">${ico("send")} Correo de prueba</button>` : ""}
       ${!c.denue || !s.total ? `<button class="b" id="ejemplos">${ico("flask")} Cargar ejemplos</button>` : ""}
       ${s.total ? `<button class="b ghost" id="borrar-ej">${ico("trash")} Quitar ejemplos</button>` : ""}
