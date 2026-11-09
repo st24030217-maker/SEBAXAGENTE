@@ -134,7 +134,8 @@ export async function analizarProspecto(id, { forzarMedicion = false } = {}) {
   ).run(puntaje, JSON.stringify(razones), msg.asunto, msg.correo, msg.whatsapp, now(), p.id);
   // Piloto automático: los mejores prospectos con correo pueden aprobarse solos (si así se configuró).
   const umbral = Number(cfg.automatico.aprobar_solos_desde_puntaje || 0);
-  if (umbral > 0 && puntaje >= umbral) {
+  // Solo si el correo está configurado: si no, "aprobado" haría que se salten la fila de WhatsApp.
+  if (umbral > 0 && puntaje >= umbral && correoConfigurado()) {
     const r = d
       .prepare("UPDATE prospectos SET estado = 'aprobado', notas = TRIM(COALESCE(notas,'') || char(10) || 'Aprobado automáticamente por puntaje') WHERE id = ? AND estado = 'por_revisar' AND IFNULL(email,'') != '' AND fuente != 'ejemplo'")
       .run(p.id);
