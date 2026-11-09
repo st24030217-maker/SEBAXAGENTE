@@ -57,7 +57,7 @@ export async function notifyOwner(tipo, texto, datos = {}) {
   if (AVISOS_WA.includes(tipo) && !repetido(tipo, texto)) {
     tareas.push(
       import("../channels/wa-web.js").then(({ avisarDueno }) =>
-        avisarDueno(`*Agente Sebax · ${ASUNTOS[tipo] || tipo}*\n\n${texto}${tipo === "cita" ? (datos.enCalendario ? "\n\nYa quedó en tu Google Calendar." : datos.gcal ? "\n\nNo se pudo anotar en tu Google Calendar: agrégala a mano." : "\n\nAgrégala a tu calendario y confírmale al cliente un día antes.") : ""}\n\nPanel: ${settings.publicUrl}/admin`)
+        avisarDueno(`*Agente Sebax · ${ASUNTOS[tipo] || tipo}*\n\n${texto}${tipo === "cita" ? (datos.enCalendario ? "\n\nYa quedó en tu Google Calendar." : datos.gcal ? "\n\nNo se pudo anotar en tu Google Calendar: agrégala a mano." : "\n\nGuarda este mensaje: aquí tienes los datos de la cita. Confírmale al cliente un día antes.") : ""}\n\nPanel: ${settings.publicUrl}/admin`)
       ).then((ok) => {
         if (!ok) console.log(`[aviso] ${tipo}: ${texto}`);
       })
