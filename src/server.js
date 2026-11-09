@@ -111,6 +111,8 @@ main{background:#fff;padding:32px;border-radius:16px;max-width:420px;text-align:
 });
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
+// La dirección principal abre directo el panel del agente.
+app.get("/", (_req, res) => res.redirect("/admin"));
 app.get("/admin", (_req, res) => res.sendFile(path.join(ROOT, "public", "admin.html")));
 app.use(express.static(path.join(ROOT, "public")));
 
