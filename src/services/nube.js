@@ -107,6 +107,76 @@ export async function respaldarEnNube(getDb) {
 
 export const estadoNube = () => ({ activa: nubeConfigurada(), puedeRespaldar, ultimoRespaldo });
 
+// ---------- Turno: un solo agente activo a la vez ----------
+// Al publicar una versión nueva, Render prende la nueva ANTES de apagar la vieja. Sin esto habría
+// unos segundos con dos agentes usando el mismo chip (mensajes dobles) y la nueva cargaría un
+// respaldo viejo. Con el turno: la nueva espera a que la vieja guarde todo y lo suelte.
+const INSTANCIA = `${os.hostname()}-${process.pid}-${Date.now().toString(36)}`;
+const VIDA_TURNO = 90_000; // si la otra no renueva en 90 s, se considera muerta
+const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+let renovador = null;
+
+async function leerTurno() {
+  const b = await descargar("turno.json");
+  if (!b) return null;
+  try {
+    return JSON.parse(b.toString("utf8"));
+  } catch {
+    return null;
+  }
+}
+const escribirTurno = (renovado) => subir("turno.json", JSON.stringify({ id: INSTANCIA, renovado }), "application/json");
+
+/** Espera hasta tener el turno (sin Supabase, regresa de inmediato). */
+export async function tomarTurno({ maxEsperaMs = 10 * 60_000 } = {}) {
+  if (!nubeConfigurada() || settings.dbPath === ":memory:") return;
+  const inicio = Date.now();
+  let avisado = false;
+  for (;;) {
+    let t = null;
+    let fallo = false;
+    try {
+      t = await leerTurno();
+    } catch (e) {
+      fallo = true;
+      console.error("[nube] no se pudo leer el turno:", e.message);
+    }
+    const vencido = Date.now() - inicio > maxEsperaMs;
+    const libre = !fallo && (!t || t.id === INSTANCIA || Date.now() - Number(t.renovado || 0) > VIDA_TURNO);
+    if (libre || vencido) {
+      try {
+        await escribirTurno(Date.now());
+        await espera(3000);
+        const t2 = await leerTurno();
+        if (vencido || !t2 || t2.id === INSTANCIA) break; // si otra lo tomó al mismo tiempo, se vuelve a esperar
+      } catch (e) {
+        console.error("[nube] no se pudo tomar el turno:", e.message);
+        if (vencido) break;
+      }
+    } else if (!avisado) {
+      console.log("[nube] la versión anterior sigue activa: espero a que guarde y se apague (así nunca hay dos usando el chip)");
+      avisado = true;
+    }
+    await espera(5000);
+  }
+  console.log(`[nube] turno tomado tras ${Math.round((Date.now() - inicio) / 1000)} s`);
+  renovador = setInterval(() => escribirTurno(Date.now()).catch((e) => console.error("[nube] renovar turno:", e.message)), 30_000);
+}
+
+/** Suelta el turno para que la siguiente versión arranque de inmediato. */
+export async function soltarTurno() {
+  clearInterval(renovador);
+  if (!nubeConfigurada()) return;
+  try {
+    const t = await leerTurno();
+    if (t?.id === INSTANCIA) await escribirTurno(0);
+  } catch {}
+}
+
+// Lo que hay que detener antes del respaldo final (por ejemplo, WhatsApp).
+const alDetenerse = [];
+export const antesDeApagar = (fn) => alDetenerse.push(fn);
+
 /** Respaldos periódicos + uno final al apagarse (Render avisa con SIGTERM antes de detener). */
 export function startNube(getDb, cadaMin = Number(process.env.RESPALDO_CADA_MIN || 5)) {
   if (!nubeConfigurada()) return;
@@ -118,8 +188,14 @@ export function startNube(getDb, cadaMin = Number(process.env.RESPALDO_CADA_MIN 
   const alApagar = async () => {
     if (apagando) return;
     apagando = true;
-    console.log("[nube] apagándose: guardando respaldo final…");
+    console.log("[nube] apagándose: dejo de enviar y guardo el respaldo final…");
+    for (const fn of alDetenerse) {
+      try {
+        await fn();
+      } catch {}
+    }
     await Promise.race([correr(), new Promise((r) => setTimeout(r, 20_000))]);
+    await Promise.race([soltarTurno(), new Promise((r) => setTimeout(r, 5_000))]);
     process.exit(0);
   };
   process.on("SIGTERM", alApagar);

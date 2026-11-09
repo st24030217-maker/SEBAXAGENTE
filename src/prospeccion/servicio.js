@@ -367,9 +367,16 @@ export async function enviarSiguiente(ahora = new Date()) {
 export async function prepararSeguimientos(ahora = new Date()) {
   const cfg = getProspeccion();
   const dias = Number(cfg.envio.dias_para_seguimiento || 0);
-  if (!dias) return 0;
+  // Solo para los contactados por CORREO. Los de WhatsApp tienen su propio seguimiento (channels/wa-web.js).
+  if (!dias || !correoConfigurado()) return 0;
   const limite = new Date(ahora.getTime() - dias * 86400_000).toISOString();
-  const rows = db().prepare("SELECT * FROM prospectos WHERE estado = 'enviado' AND envios = 1 AND ultimo_envio <= ? LIMIT 5").all(limite);
+  const rows = db()
+    .prepare(
+      `SELECT * FROM prospectos p WHERE estado = 'enviado' AND envios = 1 AND ultimo_envio <= ?
+         AND NOT EXISTS (SELECT 1 FROM eventos e WHERE e.tipo = 'prospecto_whatsapp' AND json_extract(e.datos, '$.prospecto') = p.id)
+       LIMIT 5`
+    )
+    .all(limite);
   for (const p of rows) {
     const msg = await redactar(p, cfg, { seguimiento: true });
     db()

@@ -99,7 +99,7 @@ export function redactarPlantilla(p, cfg, { seguimiento = false } = {}) {
     return {
       asunto: `Re: ${p.asunto || `Idea para ${p.nombre}`}`,
       correo: `Hola de nuevo\n\nTe escribí hace unos días sobre ${r.servicio} para ${p.nombre}. Sé que andan ocupados, así que solo te dejo la idea: si te late, te muestro en 10 minutos un ejemplo hecho para un negocio como el tuyo, sin compromiso.\n\n¿Te parece bien esta semana?`,
-      whatsapp: `Hola, soy ${yo} otra vez. ¿Pudieron ver lo que les mandé sobre ${r.servicio}? Si les late, les muestro un ejemplo en 10 minutos, sin compromiso.`,
+      whatsapp: `Hola, soy ${yo} otra vez. ¿Pudieron ver lo que les mandé sobre ${r.servicio}? Si les late, les muestro un ejemplo en 10 minutos, sin compromiso.\n\nY si no les interesa, solo díganme y no les vuelvo a escribir.`,
     };
   }
   return {

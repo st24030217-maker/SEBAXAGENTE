@@ -15,6 +15,7 @@ import { handleIncoming, recordOutgoing, MENSAJE_ERROR } from "../agent/agent.js
 import { notifyOwner } from "../services/notify.js";
 import { getProspeccion } from "../prospeccion/config.js";
 import { dentroDeHorarioEnvio } from "../prospeccion/servicio.js";
+import { redactarPlantilla } from "../prospeccion/redactar.js";
 import { iaDisponible } from "../ia/proveedor.js";
 
 const CARPETA = path.join(path.dirname(settings.dbPath === ":memory:" ? path.join(ROOT, "data", "x") : settings.dbPath), "whatsapp-sesion");
@@ -38,7 +39,14 @@ function asegurarTablas() {
 /** Últimos 10 dígitos (número mexicano sin lada de país). */
 export const diezDigitos = (s) => String(s || "").replace(/\D/g, "").slice(-10);
 
-export const esBaja = (t) => /^\s*(baja|alto|stop|no me (vuelvas a |vuelvan a )?escrib|no me interesa,? gracias$|ya no me (escribas|manden))/i.test(String(t || "").trim());
+export const esBaja = (t) => {
+  const s = String(t || "").trim();
+  return (
+    /^\s*(baja|alto|stop|no me (vuelvas a |vuelvan a )?escrib|ya no me (escribas|manden))/i.test(s) ||
+    // "No me interesa", "No, gracias", "No nos interesa por ahora, gracias"... solo si es TODO el mensaje.
+    /^(no,?\s*gracias|no (me|nos) interesa)(\s*(por (ahora|el momento)))?[\s,.!]*((muchas\s+)?gracias)?[\s.!]*$/i.test(s)
+  );
+};
 
 // ---------- Conexión ----------
 
@@ -83,6 +91,7 @@ async function conectar() {
     if (u.connection === "close") {
       const codigo = u.lastDisconnect?.error?.output?.statusCode;
       sock = null;
+      if (apagandoWa) return; // se está apagando a propósito: no se reconecta
       if (codigo === DisconnectReason.loggedOut) {
         // Se desvinculó desde el celular: se borra la sesión y se pide un QR nuevo.
         estado = "apagado";
@@ -119,6 +128,20 @@ export async function pedirCodigoVinculacion(tel10 = numeroChip()) {
   if (!sock) throw new Error("Todavía se está preparando la conexión; intenta en unos segundos.");
   const codigo = await sock.requestPairingCode(`52${tel}`);
   return { codigo: String(codigo).replace(/^(.{4})(.{4})$/, "$1-$2"), numero: tel };
+}
+
+let apagandoWa = false;
+/**
+ * Apagado limpio (al publicar una versión nueva o reiniciar): deja de enviar y cierra la conexión
+ * SIN desvincular, para que la instancia nueva use la misma sesión y nunca haya dos mandando a la vez.
+ */
+export function detenerWa() {
+  apagandoWa = true;
+  estado = "apagado";
+  try {
+    sock?.end?.(new Error("apagando"));
+  } catch {}
+  sock = null;
 }
 
 export async function desconectarWa() {
@@ -174,9 +197,37 @@ async function recibir(m) {
   pendientes.set(id, p);
 }
 
+/** WhatsApp personal del dueño (a 10 dígitos): ahí llegan los avisos. OWNER_WHATSAPP o el de la config. */
+export function numeroDueno() {
+  const crudo = process.env.OWNER_WHATSAPP || getProspeccion().remitente?.whatsapp || "";
+  const d = String(crudo).replace(/\D/g, "");
+  return d.length >= 10 ? d.slice(-10) : null;
+}
+
+let jidDueno = null;
+/** Manda un aviso al WhatsApp personal del dueño desde el chip. Devuelve false si no se pudo. */
+export async function avisarDueno(texto) {
+  const tel = numeroDueno();
+  if (!tel || !waConectado() || tel === numero) return false;
+  try {
+    jidDueno ||= await resolverJid(tel);
+    if (!jidDueno) return false;
+    await sock.sendMessage(jidDueno, { text: texto });
+    return true;
+  } catch (e) {
+    console.error("[whatsapp] no se pudo avisar al dueño:", e.message);
+    return false;
+  }
+}
+
 /** Lógica de un mensaje entrante (separada de la conexión para poder probarla). */
 export async function procesarMensaje({ id, jid, texto, nombre }, enviar = enviarTexto) {
   const tel = /^\d{10}$/.test(id) ? id : null;
+  // Si el dueño le escribe al chip (por ejemplo, contestando un aviso), el agente no le responde como a un cliente.
+  if (tel && tel === numeroDueno()) {
+    console.log(`[whatsapp] mensaje del dueño ignorado: "${texto.slice(0, 60)}"`);
+    return "dueno";
+  }
   const prospecto = tel ? db().prepare("SELECT * FROM prospectos WHERE telefono = ? ORDER BY id DESC LIMIT 1").get(tel) : null;
   const convId = `wa:${id}`;
 
@@ -191,7 +242,11 @@ export async function procesarMensaje({ id, jid, texto, nombre }, enviar = envia
   }
 
   const c = getOrCreateConversation("wa", id, nombre || prospecto?.nombre || null);
-  if (prospecto && loadHistory(c.id).length === 0) {
+  const primeraVez = loadHistory(c.id).length === 0;
+  if (!prospecto && primeraVez) {
+    notifyOwner("lead_nuevo", `Alguien nuevo escribió al chip${nombre ? ` (${nombre})` : ""}${tel ? `, tel. ${tel}` : ""}: "${texto.slice(0, 160)}"`, { id });
+  }
+  if (prospecto && primeraVez) {
     const razones = (() => { try { return JSON.parse(prospecto.razones || "[]").join(", "); } catch { return ""; } })();
     if (prospecto.envios > 0 && prospecto.whatsapp_texto) {
       await recordOutgoing(
@@ -200,12 +255,15 @@ export async function procesarMensaje({ id, jid, texto, nombre }, enviar = envia
         "agente",
         `[Prospección] Le escribimos primero a este negocio (${prospecto.nombre}, ${prospecto.giro || prospecto.rubro || ""}, ${[prospecto.colonia, prospecto.ciudad].filter(Boolean).join(", ")}). Situación detectada: ${razones}. Este fue el mensaje de WhatsApp que se le envió y ahora está respondiendo`
       );
+      if (prospecto.envios > 1) {
+        await recordOutgoing(c.id, textoSeguimiento(prospecto), "agente", "[Prospección] Como no respondió, días después se le mandó este seguimiento");
+      }
     }
     upsertLead(c.id, { empresa: prospecto.nombre, telefono: tel, email: prospecto.email || undefined, necesidad: `Prospecto ${prospecto.rubro || ""}: ${razones}`.slice(0, 300), etapa: "interesado" });
     if (["enviado", "whatsapp", "aprobado", "por_revisar"].includes(prospecto.estado)) {
       db().prepare("UPDATE prospectos SET estado = 'respondio', actualizado = ? WHERE id = ?").run(now(), prospecto.id);
     }
-    notifyOwner("lead_nuevo", `${prospecto.nombre} respondió por WhatsApp: "${texto.slice(0, 160)}"`, { prospecto: prospecto.id, telefono: tel });
+    notifyOwner("lead_nuevo", `${prospecto.nombre} (${[prospecto.rubro, prospecto.ciudad].filter(Boolean).join(", ")}) respondió: "${texto.slice(0, 200)}"\nTel. ${tel}. El agente ya le está contestando.`, { prospecto: prospecto.id, telefono: tel });
   }
 
   if (!iaDisponible()) {
@@ -282,9 +340,55 @@ export function limiteWaHoy(ahora = new Date()) {
 let enviando = false;
 let proximoEnvio = 0;
 
+/** Texto del seguimiento por WhatsApp (sale de la plantilla: siempre el mismo para el mismo negocio). */
+export const textoSeguimiento = (p) => redactarPlantilla(p, getProspeccion(), { seguimiento: true }).whatsapp;
+
+/** Prospectos contactados por WhatsApp que no han contestado en N días y aún no reciben seguimiento. */
+export function seguimientosPendientesWa(ahora = new Date()) {
+  const dias = Number(getProspeccion().envio.dias_para_seguimiento || 0);
+  if (!dias) return [];
+  const limite = new Date(ahora.getTime() - dias * 86400_000).toISOString();
+  return db()
+    .prepare(
+      `SELECT p.* FROM prospectos p
+       WHERE p.estado = 'enviado' AND p.envios = 1 AND p.ultimo_envio <= ? AND IFNULL(p.telefono,'') != '' AND p.fuente != 'ejemplo'
+         AND EXISTS (SELECT 1 FROM eventos e WHERE e.tipo = 'prospecto_whatsapp' AND json_extract(e.datos, '$.prospecto') = p.id)
+       ORDER BY p.ultimo_envio LIMIT 20`
+    )
+    .all(limite);
+}
+
+/** Manda UN seguimiento si hay pendientes y no se ha usado la mitad del límite del día en seguimientos. */
+async function enviarSeguimientoWa(cfg, ahora) {
+  const tope = Math.ceil(limiteWaHoy(ahora).limite / 2);
+  const desde = new Date(ahora.getTime() - 24 * 3600_000).toISOString();
+  const hechos = db()
+    .prepare("SELECT COUNT(*) n FROM eventos WHERE tipo = 'prospecto_whatsapp' AND creado >= ? AND json_extract(datos, '$.seguimiento') = 1")
+    .get(desde).n;
+  if (hechos >= tope) return null;
+  const [p] = seguimientosPendientesWa(ahora);
+  if (!p) return null;
+  const nota = `Seguimiento por WhatsApp el ${ahora.toISOString().slice(0, 10)} (no respondió al primer mensaje)`;
+  // Se marca antes de enviar: aunque algo falle a medias, nunca se le manda dos veces el seguimiento.
+  const r = db()
+    .prepare("UPDATE prospectos SET envios = 2, ultimo_envio = ?, notas = TRIM(COALESCE(notas,'') || char(10) || ?), actualizado = ? WHERE id = ? AND envios = 1")
+    .run(now(), nota, now(), p.id);
+  if (!r.changes) return null;
+  const jid = db().prepare("SELECT jid FROM wa_contactos WHERE id = ?").get(p.telefono)?.jid || (await resolverJid(p.telefono));
+  if (!jid) return null;
+  try {
+    await enviarTexto(jid, textoSeguimiento(p));
+    logEvent("prospecto_whatsapp", null, { prospecto: p.id, telefono: p.telefono, seguimiento: true });
+    console.log(`[whatsapp] seguimiento enviado a ${p.nombre}`);
+  } catch (err) {
+    db().prepare("UPDATE prospectos SET error = ? WHERE id = ?").run(`Seguimiento no enviado: ${err.message}`, p.id);
+  }
+  return p.id;
+}
+
 /** Manda UN mensaje de prospección si toca (horario, límite diario y pausa al azar entre mensajes). */
 export async function enviarSiguienteWa(ahora = new Date()) {
-  if (enviando || !waConectado()) return null;
+  if (enviando || apagandoWa || !waConectado()) return null;
   const cfg = getProspeccion();
   const e = cfg.envio;
   if (!dentroDeHorarioEnvio(cfg, ahora) || Date.now() < proximoEnvio) return null;
@@ -294,6 +398,12 @@ export async function enviarSiguienteWa(ahora = new Date()) {
   if (enviadosWaHoy(ahora) >= limiteWaHoy(ahora).limite) return null;
   enviando = true;
   try {
+    // Primero los seguimientos (a quien no contestó en N días), hasta la mitad del límite del día.
+    const seg = await enviarSeguimientoWa(cfg, ahora);
+    if (seg) {
+      proximoEnvio = Date.now() + azar(e.whatsapp_minutos_min, e.whatsapp_minutos_max) * 60_000;
+      return seg;
+    }
     // Hasta 3 intentos por vuelta: los teléfonos fijos sin WhatsApp se saltan sin gastar el turno.
     for (let i = 0; i < 3; i++) {
       let p = db()

@@ -9,7 +9,9 @@ process.env.SMTP_USER = "";
 process.env.OWNER_WEBHOOK_URL = "";
 
 const { openDb, getDb, getConversation, getLead } = await import("../src/db.js");
-const { procesarMensaje, esBaja, diezDigitos } = await import("../src/channels/wa-web.js");
+const { procesarMensaje, esBaja, diezDigitos, numeroDueno, seguimientosPendientesWa, textoSeguimiento } = await import("../src/channels/wa-web.js");
+const { logEvent } = await import("../src/db.js");
+const { prepararSeguimientos } = await import("../src/prospeccion/servicio.js");
 const { guardarProspecto } = await import("../src/prospeccion/servicio.js");
 
 const enviados = [];
@@ -33,6 +35,10 @@ test("detecta pedidos de baja sin confundir preguntas normales", () => {
   assert.ok(esBaja("No me vuelvas a escribir"));
   assert.ok(!esBaja("¿Cuánto cuesta la página?"));
   assert.ok(!esBaja("No me interesa el menú pero sí la página"));
+  assert.ok(esBaja("No me interesa"));
+  assert.ok(esBaja("no, gracias"));
+  assert.ok(esBaja("No nos interesa por el momento, gracias."));
+  assert.ok(!esBaja("No sé, ¿cuánto cuesta?"));
 });
 
 test("cuando un prospecto responde: abre conversación, crea lead y lo marca como respondió", async () => {
@@ -53,4 +59,35 @@ test("si pide BAJA: se confirma una sola vez, se bloquea y se pausa el agente", 
   assert.equal(enviados.length, 1);
   assert.equal(getDb().prepare("SELECT estado FROM prospectos WHERE telefono = '8710000002'").get().estado, "no_contactar");
   assert.equal(getConversation("wa:8710000002").bot_activo, 0);
+});
+
+test("si el dueño le escribe al chip, el agente no le contesta como a un cliente", async () => {
+  const yo = numeroDueno();
+  assert.match(yo, /^[0-9]{10}$/);
+  const antes = enviados.length;
+  assert.equal(await procesarMensaje({ id: yo, jid: `521${yo}@s.whatsapp.net`, texto: "ok, gracias", nombre: "Sebas" }, enviarFalso), "dueno");
+  assert.equal(enviados.length, antes);
+  assert.ok(!getConversation(`wa:${yo}`), "no se abre conversación con el dueño");
+});
+
+test("seguimiento por WhatsApp: solo a quien se le escribió por WhatsApp hace N días y no contestó", () => {
+  const hace5 = new Date(Date.now() - 5 * 86400_000).toISOString();
+  const ins = (ext, nombre, tel, cuando) => {
+    guardarProspecto({ fuente: "denue", externo_id: ext, nombre, rubro: "Barberías", ciudad: "Torreón", telefono: tel });
+    const id = getDb().prepare("SELECT id FROM prospectos WHERE externo_id = ?").get(ext).id;
+    getDb().prepare("UPDATE prospectos SET estado = 'enviado', envios = 1, ultimo_envio = ?, whatsapp_texto = 'hola' WHERE id = ?").run(cuando, id);
+    return id;
+  };
+  const a = ins("s1", "Barbería Uno", "8711111111", hace5);
+  ins("s2", "Barbería Dos (por correo)", "8712222222", hace5);
+  const c = ins("s3", "Barbería Tres (reciente)", "8713333333", new Date().toISOString());
+  for (const id of [a, c]) logEvent("prospecto_whatsapp", null, { prospecto: Number(id), telefono: "x" });
+  const ids = seguimientosPendientesWa().map((p) => p.id);
+  assert.deepEqual(ids, [Number(a)]);
+  assert.match(textoSeguimiento({ nombre: "Barbería Uno", rubro: "Barberías" }), /no les vuelvo a escribir/);
+});
+
+test("sin correo configurado, el seguimiento de correo no toca a los de WhatsApp", async () => {
+  assert.equal(await prepararSeguimientos(), 0);
+  assert.equal(getDb().prepare("SELECT estado FROM prospectos WHERE externo_id = 's1'").get().estado, "enviado");
 });

@@ -14,16 +14,13 @@ import { fetchMercadoPagoPayment, verifyStripeSignature } from "./services/payme
 import { getProspeccion } from "./prospeccion/config.js";
 import { startProspeccion, darDeBaja } from "./prospeccion/servicio.js";
 import { startEmail } from "./channels/email.js";
-import { startWaWeb } from "./channels/wa-web.js";
+import { startWaWeb, detenerWa } from "./channels/wa-web.js";
 import { verificarClaude } from "./ia/proveedor.js";
-import { restaurarDesdeNube, startNube, startDespierto } from "./services/nube.js";
+import { restaurarDesdeNube, startNube, startDespierto, tomarTurno, antesDeApagar } from "./services/nube.js";
 
 // Valida configuración al arrancar (falla rápido si negocio.yaml tiene errores).
 const negocio = getNegocio();
 getProspeccion();
-// En la nube sin disco (Render gratis): recupera la base y la sesión de WhatsApp antes de abrirlas.
-await restaurarDesdeNube();
-getDb();
 
 if (!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_AUTH_TOKEN && !process.env.GEMINI_API_KEY) {
   console.warn("Falta ANTHROPIC_API_KEY o GEMINI_API_KEY en .env: el agente no podrá conversar.");
@@ -31,6 +28,17 @@ if (!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_AUTH_TOKEN && !proc
 
 const app = express();
 app.set("trust proxy", 1);
+
+let listo = false;
+// /health responde desde el primer segundo (Render lo usa para saber que la versión nueva arrancó).
+app.get("/health", (_req, res) => res.json({ ok: true, listo }));
+// Mientras la versión anterior se apaga y se carga el respaldo, todo lo demás espera.
+app.use((req, res, next) => {
+  if (listo) return next();
+  res.status(503).set("Retry-After", "10").send(`<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="8"><title>Agente Sebax</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#000;color:#fff;font-family:system-ui,sans-serif;text-align:center;padding:16px}p{color:#a1a1aa}</style></head>
+<body><main><h2>Actualizando el agente</h2><p>Tarda menos de un minuto. Esta página se recarga sola.</p></main></body></html>`);
+});
 // Guardamos el cuerpo crudo: lo necesitan las firmas de Meta y Stripe.
 app.use(
   express.json({
@@ -110,13 +118,19 @@ main{background:#fff;padding:32px;border-radius:16px;max-width:420px;text-align:
 <body><main><h1>Baja de correos</h1><p>${msg}</p></main></body></html>`);
 });
 
-app.get("/health", (_req, res) => res.json({ ok: true }));
 // La dirección principal abre directo el panel del agente.
 app.get("/", (_req, res) => res.redirect("/admin"));
 app.get("/admin", (_req, res) => res.sendFile(path.join(ROOT, "public", "admin.html")));
 app.use(express.static(path.join(ROOT, "public")));
 
-app.listen(settings.port, () => {
+app.listen(settings.port, async () => {
+  // Turno: si hay otra versión activa (publicación nueva), se espera a que guarde y se apague.
+  // Luego se recupera la base y la sesión de WhatsApp del respaldo, y recién ahí se abre la base.
+  await tomarTurno();
+  await restaurarDesdeNube();
+  getDb();
+  listo = true;
+  antesDeApagar(detenerWa);
   console.log(`\n✅ Agente de ventas de "${negocio.negocio.nombre}" activo`);
   console.log(`   Chat de prueba:  http://localhost:${settings.port}`);
   console.log(`   Panel admin:     http://localhost:${settings.port}/admin`);

@@ -12,7 +12,19 @@ const ICONOS = {
 };
 
 const AVISOS_CORREO = ["lead_nuevo", "cita", "derivacion", "error", "pago", "pedido"];
-const ASUNTOS = { lead_nuevo: "Respuesta nueva", cita: "Cita agendada", derivacion: "Te necesita", error: "Error", pago: "Pago", pedido: "Pedido" };
+const AVISOS_WA = ["lead_nuevo", "cita", "derivacion", "error", "pago", "pedido"];
+const ASUNTOS = { lead_nuevo: "Respuesta nueva", cita: "Cita agendada", derivacion: "Te necesita", error: "Algo falló", pago: "Pago", pedido: "Pedido" };
+
+// Los errores se avisan una sola vez cada 30 min (si algo falla en bucle, no te llena el WhatsApp).
+const ultimosErrores = new Map();
+function repetido(tipo, texto) {
+  if (tipo !== "error") return false;
+  const clave = texto.replace(/\d+/g, "#").slice(0, 120);
+  const antes = ultimosErrores.get(clave);
+  if (antes && Date.now() - antes < 30 * 60_000) return true;
+  ultimosErrores.set(clave, Date.now());
+  return false;
+}
 
 /** Archivo de calendario (.ics) para que la cita se agregue a Google Calendar / Outlook con un toque. */
 function invitacionIcs(d) {
@@ -40,6 +52,17 @@ function invitacionIcs(d) {
 export async function notifyOwner(tipo, texto, datos = {}) {
   const tareas = [];
   const { telegramChatId, webhookUrl } = settings.owner;
+
+  // Aviso a tu WhatsApp personal desde el chip (si está conectado).
+  if (AVISOS_WA.includes(tipo) && !repetido(tipo, texto)) {
+    tareas.push(
+      import("../channels/wa-web.js").then(({ avisarDueno }) =>
+        avisarDueno(`*Agente Sebax · ${ASUNTOS[tipo] || tipo}*\n\n${texto}${tipo === "cita" ? "\n\nAgrégala a tu calendario y confírmale al cliente un día antes." : ""}\n\nPanel: ${settings.publicUrl}/admin`)
+      ).then((ok) => {
+        if (!ok) console.log(`[aviso] ${tipo}: ${texto}`);
+      })
+    );
+  }
 
   if (telegramChatId && settings.telegram.token) {
     tareas.push(
