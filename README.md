@@ -165,7 +165,7 @@ El proyecto trae `render.yaml`, así que Render crea todo solo:
 
 1. Entra a https://dashboard.render.com → **New** → **Blueprint** y elige este repositorio.
 2. Render te pide las claves (nunca van en el repo, porque es público): `ADMIN_TOKEN` (contraseña larga para el panel), `GEMINI_API_KEY`, `DENUE_TOKEN`, `WA_NUMERO` y, opcional, `ANTHROPIC_API_KEY`.
-3. Se crea un servicio **Starter** (siempre prendido) con un **disco de 1 GB** en `/app/data`, donde viven la base de clientes y la sesión de WhatsApp.
+3. Se crea un servicio **gratis**. Como el plan gratis no guarda archivos, el agente respalda la base y la sesión de WhatsApp en **Supabase Storage** (gratis) cada 5 minutos y al apagarse, y las recupera al arrancar. Además se visita a sí mismo cada 10 minutos para que Render no lo duerma. Con plan de pago y disco en `/app/data` no hace falta Supabase.
 4. Abre `https://TU-SERVICIO.onrender.com/admin` y entra con tu `ADMIN_TOKEN`.
 
 **Pasar tus datos de la PC a la nube:** en el panel de la PC → **Más → Ajustes → Descargar respaldo**; en el panel de la nube → **Restaurar respaldo** con ese archivo.

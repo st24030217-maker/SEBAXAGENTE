@@ -16,10 +16,13 @@ import { startProspeccion, darDeBaja } from "./prospeccion/servicio.js";
 import { startEmail } from "./channels/email.js";
 import { startWaWeb } from "./channels/wa-web.js";
 import { verificarClaude } from "./ia/proveedor.js";
+import { restaurarDesdeNube, startNube, startDespierto } from "./services/nube.js";
 
 // Valida configuración al arrancar (falla rápido si negocio.yaml tiene errores).
 const negocio = getNegocio();
 getProspeccion();
+// En la nube sin disco (Render gratis): recupera la base y la sesión de WhatsApp antes de abrirlas.
+await restaurarDesdeNube();
 getDb();
 
 if (!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_AUTH_TOKEN && !process.env.GEMINI_API_KEY) {
@@ -126,6 +129,8 @@ app.listen(settings.port, () => {
   verificarClaude("claude-haiku-5-5");
   setInterval(() => verificarClaude("claude-haiku-5-5"), 59 * 60_000);
   startProspeccion();
+  startNube(getDb);
+  startDespierto();
   startEmail();
   startWaWeb().catch((e) => console.error("[whatsapp]", e.message));
 });
