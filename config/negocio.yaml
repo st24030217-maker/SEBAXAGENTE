@@ -59,10 +59,10 @@ citas:
   tipos:
     - nombre: "Llamada de diagnóstico gratuita (WhatsApp o videollamada)"
       modalidad: en_linea
-      dias: [martes, jueves, sabado, domingo]
+      dias: [lunes, miercoles, viernes, sabado, domingo]
     - nombre: "Visita en tu negocio (Torreón, Gómez Palacio o Lerdo)"
       modalidad: presencial
-      dias: [lunes, miercoles, viernes, sabado, domingo]
+      dias: [martes, jueves, sabado, domingo]
 
 catalogo:
   - id: WEB
