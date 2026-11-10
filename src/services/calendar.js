@@ -19,6 +19,54 @@ export async function prepararDia(fecha, negocio) {
 
 const DIAS = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
 
+const normalizar = (t) =>
+  String(t || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+
+/**
+ * Tipos de cita del negocio.yaml. Cada uno puede ser un texto ("Llamada") o un objeto
+ * { nombre, modalidad: presencial | en_linea, dias: [lunes, ...] }. Sin "dias", vale todos los días.
+ */
+export function tiposCita(negocio) {
+  return (negocio.citas?.tipos || [])
+    .map((t) => (typeof t === "string" ? { nombre: t } : { ...t, nombre: String(t?.nombre || "") }))
+    .filter((t) => t.nombre)
+    .map((t) => ({
+      nombre: t.nombre,
+      modalidad: t.modalidad ? normalizar(t.modalidad).replace(/\s+/g, "_") : null,
+      dias: Array.isArray(t.dias) && t.dias.length ? t.dias.map(normalizar) : null,
+    }));
+}
+
+/** Tipos de cita que se ofrecen un día de la semana (lunes, martes, ...). */
+export function tiposDelDia(negocio, dia) {
+  const d = normalizar(dia);
+  return tiposCita(negocio).filter((t) => !t.dias || t.dias.includes(d));
+}
+
+const PALABRAS = {
+  presencial: /presencial|visita|en persona|domicilio|oficina|tu negocio|en su negocio|cara a cara/,
+  en_linea: /en linea|online|llamada|video|zoom|meet|remot|virtual|whatsapp|telefon/,
+};
+
+/** Reconoce el tipo que pidió el agente aunque no lo escriba igual que en negocio.yaml. */
+export function resolverTipo(tipo, tipos) {
+  const t = normalizar(tipo);
+  if (!t) return null;
+  const exacto = tipos.find((x) => normalizar(x.nombre) === t) || tipos.find((x) => normalizar(x.nombre).includes(t) || t.includes(normalizar(x.nombre)));
+  if (exacto) return exacto;
+  for (const [modalidad, re] of Object.entries(PALABRAS)) {
+    if (re.test(t)) {
+      const m = tipos.filter((x) => (x.modalidad || (re.test(normalizar(x.nombre)) ? modalidad : null)) === modalidad);
+      if (m.length === 1) return m[0];
+    }
+  }
+  return null;
+}
+
 /** Partes de fecha/hora de un instante, vistas en la zona horaria tz. */
 export function localParts(date, tz) {
   const parts = Object.fromEntries(
@@ -131,6 +179,7 @@ export function availableSlots(fecha, negocio, ahora = new Date()) {
     fecha,
     dia: diaNombre,
     slots,
+    tipos: tiposDelDia(negocio, diaNombre).map((t) => t.nombre),
     ...(slots.length ? {} : { motivo: "No quedan horarios libres ese día (o está fuera del rango permitido)" }),
   };
 }
@@ -146,16 +195,37 @@ export function bookAppointment({ convId, fecha, hora, tipo, notas }, negocio, a
       horarios_libres_ese_dia: disp.slots.map((s) => s.hora),
     };
   }
+  // Cada tipo de cita solo se agenda en sus días (ej.: presencial lunes, miércoles y viernes).
+  const todos = tiposCita(negocio);
+  let tipoFinal = tipo || null;
+  if (todos.some((t) => t.dias)) {
+    const delDia = tiposDelDia(negocio, disp.dia);
+    let elegido = resolverTipo(tipo, todos);
+    if (!elegido && delDia.length === 1) elegido = delDia[0];
+    if (!elegido) {
+      return { ok: false, error: `Falta indicar el tipo de cita. Los ${disp.dia} se puede: ${delDia.map((t) => t.nombre).join(" / ")}.`, tipos_ese_dia: delDia.map((t) => t.nombre) };
+    }
+    if (!delDia.includes(elegido) && !delDia.some((t) => t.nombre === elegido.nombre)) {
+      const dias = (elegido.dias || []).join(", ");
+      return {
+        ok: false,
+        error: `"${elegido.nombre}" no se agenda los ${disp.dia}${dias ? `; solo ${dias}` : ""}. Ese día se puede: ${delDia.map((t) => t.nombre).join(" / ") || "nada"}.`,
+        tipos_ese_dia: delDia.map((t) => t.nombre),
+      };
+    }
+    tipoFinal = elegido.nombre;
+  }
   const duracion = Number(negocio.citas?.duracion_minutos || 30);
   const fin = new Date(new Date(slot.inicio).getTime() + duracion * 60_000).toISOString();
   const r = getDb()
     .prepare("INSERT INTO citas (conversacion_id, inicio, fin, tipo, notas, creado) VALUES (?, ?, ?, ?, ?, ?)")
-    .run(convId, slot.inicio, fin, tipo || null, notas || null, new Date().toISOString());
+    .run(convId, slot.inicio, fin, tipoFinal, notas || null, new Date().toISOString());
   return {
     ok: true,
     cita_id: Number(r.lastInsertRowid),
     inicio: slot.inicio,
     fin,
+    tipo: tipoFinal,
     descripcion: formatLocal(slot.inicio, negocio.negocio.zona_horaria),
   };
 }

@@ -111,7 +111,7 @@ export const TOOL_DEFINITIONS = [
       properties: {
         fecha: { type: "string", description: "YYYY-MM-DD" },
         hora: { type: "string", description: "HH:MM, uno de los horarios libres" },
-        tipo: { type: "string", description: "Tipo de cita" },
+        tipo: { type: "string", description: "Tipo de cita, uno de los que se ofrecen ese día (ver tipos_de_cita_ese_dia)" },
         notas: { type: "string", description: "Tema de la cita y datos útiles" },
       },
       required: ["fecha", "hora"],
@@ -333,7 +333,7 @@ const HANDLERS = {
     if (!negocio.citas?.activo) throw new Error("Las citas no están habilitadas");
     await prepararDia(str(input.fecha), negocio);
     const r = availableSlots(str(input.fecha), negocio);
-    return { fecha: r.fecha, dia: r.dia, horarios_libres: r.slots.map((s) => s.hora), motivo: r.motivo };
+    return { fecha: r.fecha, dia: r.dia, horarios_libres: r.slots.map((s) => s.hora), tipos_de_cita_ese_dia: r.tipos, motivo: r.motivo };
   },
 
   async agendar_cita(input, { convId, negocio }) {
@@ -345,6 +345,7 @@ const HANDLERS = {
       negocio
     );
     if (r.ok) {
+      input = { ...input, tipo: r.tipo || input.tipo };
       logEvent("cita", convId, r);
       const lead = getLead(convId);
       const quien = [lead?.nombre, lead?.empresa].filter(Boolean).join(" · ") || convId;

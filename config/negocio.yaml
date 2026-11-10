@@ -55,9 +55,14 @@ citas:
   duracion_minutos: 30
   anticipacion_minima_horas: 3
   dias_maximos_adelante: 14
+  # Cada tipo de cita se agenda solo en sus días. Quita "dias" para ofrecerlo todos los días.
   tipos:
-    - "Llamada de diagnóstico gratuita (WhatsApp o videollamada)"
-    - "Visita en tu negocio (Torreón, Gómez Palacio o Lerdo)"
+    - nombre: "Llamada de diagnóstico gratuita (WhatsApp o videollamada)"
+      modalidad: en_linea
+      dias: [lunes, miercoles, viernes, sabado, domingo]
+    - nombre: "Visita en tu negocio (Torreón, Gómez Palacio o Lerdo)"
+      modalidad: presencial
+      dias: [martes, jueves, sabado, domingo]
 
 catalogo:
   - id: WEB
