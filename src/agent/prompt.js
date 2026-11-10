@@ -39,7 +39,9 @@ export function buildSystemPrompt(n) {
 
   const faq = (n.faq || []).map((f) => `- P: ${f.p}\n  R: ${f.r}`).join("\n");
   const reglasExtra = (n.reglas_extra || []).map((r) => `- ${r}`).join("\n");
-  const tiposCita = (n.citas?.tipos || []).join(", ");
+  const tiposCita = (n.citas?.tipos || [])
+    .map((t) => (typeof t === "string" ? t : `${t.nombre}${t.dias?.length ? ` (solo ${t.dias.join(", ")})` : ""}`))
+    .join("; ");
 
   return `Eres ${ag.nombre || "el asistente"}, el agente de ventas de ${neg.nombre} (${neg.rubro || ""}). Atiendes a clientes por chat y correo (WhatsApp, web, Instagram, Facebook, Telegram o email) en ${neg.idioma || "español"}.
 
@@ -83,7 +85,7 @@ ${n.descuentos.reglas || ""}
 </descuentos>
 
 <citas>
-${n.citas?.activo ? `Puedes agendar citas de ${n.citas.duracion_minutos || 30} minutos. Tipos: ${tiposCita || "reunión"}. Consulta siempre ver_horarios_disponibles antes de proponer un horario, y confirma con el cliente antes de agendar.` : "No se agendan citas por este medio; si el cliente lo pide, deriva a un humano."}
+${n.citas?.activo ? `Puedes agendar citas de ${n.citas.duracion_minutos || 30} minutos. Tipos: ${tiposCita || "reunión"}. Cada tipo se agenda solo en los días indicados: no ofrezcas un tipo un día que no le toca. Consulta siempre ver_horarios_disponibles antes de proponer un horario (te dice qué tipos hay ese día), y confirma con el cliente antes de agendar.` : "No se agendan citas por este medio; si el cliente lo pide, deriva a un humano."}
 </citas>
 
 <preguntas_frecuentes>
