@@ -15,7 +15,7 @@ import { setOrderStatus } from "../services/orders.js";
 import { reloadProspeccion, getProspeccion } from "../prospeccion/config.js";
 import { urlBoceto } from "../prospeccion/boceto.js";
 import { probarGcal, gcalConfigurado } from "../services/gcal.js";
-import { estadoWa, desconectarWa, enviadosWaHoy, limiteWaHoy, pedirCodigoVinculacion, avisarDueno, numeroDueno, videoPresentacion, probarPrimerMensaje } from "../channels/wa-web.js";
+import { estadoWa, desconectarWa, enviadosWaHoy, limiteWaHoy, pedirCodigoVinculacion, avisarDueno, numeroDueno, videoPresentacion, probarPrimerMensaje, sendWaDocumento } from "../channels/wa-web.js";
 import {
   ESTADOS as ESTADOS_PROSPECTO,
   getProspecto,
@@ -197,6 +197,23 @@ export function adminRouter() {
     // Cuando un humano escribe, el agente se pausa para no interrumpir (se puede reactivar).
     if (!automatico && req.body?.pausarBot !== false) setBotActive(conv.id, false);
     res.json({ ok: true });
+  }));
+
+  // Manda un PDF (por ejemplo, una cotización) a una conversación de WhatsApp.
+  // Cuerpo: el PDF tal cual. Query: ?nombre=Archivo.pdf&texto=Mensaje que va abajo
+  r.post("/conversaciones/:id/archivo", express.raw({ type: "application/pdf", limit: "15mb" }), wrap(async (req, res) => {
+    const conv = getConversation(req.params.id);
+    if (!conv) return res.status(404).json({ error: "No existe" });
+    if (conv.canal !== "wa") return res.status(400).json({ error: "Solo se pueden mandar archivos por WhatsApp" });
+    if (!Buffer.isBuffer(req.body) || !req.body.length || req.body.subarray(0, 4).toString() !== "%PDF") {
+      return res.status(400).json({ error: "Manda un PDF (Content-Type: application/pdf)" });
+    }
+    const nombre = String(req.query.nombre || "Documento.pdf").replace(/[\\/]/g, "-").slice(0, 120);
+    const texto = String(req.query.texto || "").trim();
+    await sendWaDocumento(conv.externo_id, req.body, nombre, texto);
+    await recordOutgoing(conv.id, `${texto ? `${texto}\n` : ""}[Archivo enviado: ${nombre}]`, "agente", "El equipo (envío de archivo)");
+    logEvent("archivo_enviado", conv.id, { nombre, bytes: req.body.length });
+    res.json({ ok: true, nombre });
   }));
 
   r.get("/leads", wrap((req, res) => {
