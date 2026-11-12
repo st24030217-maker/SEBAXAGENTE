@@ -368,6 +368,23 @@ export function adminRouter() {
     res.json({ ok: true, numero: numeroDueno() });
   }));
 
+  // Te manda un PDF (por ejemplo, una cotización) a tu WhatsApp personal (OWNER_WHATSAPP).
+  // Cuerpo: el PDF. Query: ?nombre=Archivo.pdf&texto=Mensaje&numero=10 dígitos (debe coincidir con el tuyo)
+  r.post("/whatsapp/archivo-dueno", express.raw({ type: "application/pdf", limit: "15mb" }), wrap(async (req, res) => {
+    const tel = numeroDueno();
+    if (!tel) return res.status(409).json({ error: "No hay número personal configurado (OWNER_WHATSAPP)" });
+    if (req.query.numero && String(req.query.numero).replace(/\D/g, "").slice(-10) !== tel) {
+      return res.status(409).json({ error: "El número no coincide con tu número personal configurado" });
+    }
+    if (!Buffer.isBuffer(req.body) || !req.body.length || req.body.subarray(0, 4).toString() !== "%PDF") {
+      return res.status(400).json({ error: "Manda un PDF (Content-Type: application/pdf)" });
+    }
+    const nombre = String(req.query.nombre || "Documento.pdf").replace(/[\\/]/g, "-").slice(0, 120);
+    await sendWaDocumento(tel, req.body, nombre, String(req.query.texto || "").trim());
+    logEvent("archivo_enviado_dueno", null, { nombre, bytes: req.body.length });
+    res.json({ ok: true, numero: tel, nombre });
+  }));
+
   // Aprueba de golpe los N mejores "por revisar" que tengan teléfono (o correo).
   r.post("/prospeccion/aprobar-lote", wrap((req, res) => {
     const n = Math.max(1, Math.min(100, Number(req.body?.cantidad || 10)));
