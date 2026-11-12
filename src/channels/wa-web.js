@@ -354,6 +354,23 @@ export async function sendWaVideo(id, caption = "") {
   await enviarVideo(jid, ruta, caption);
 }
 
+/** Manda un archivo (PDF, por ejemplo una cotización) a un contacto de WhatsApp, con un texto abajo. */
+export async function sendWaDocumento(id, archivo, nombre, caption = "", mimetype = "application/pdf") {
+  if (!waConectado()) throw new Error("El chip de WhatsApp no está conectado");
+  const fila = db().prepare("SELECT jid FROM wa_contactos WHERE id = ?").get(String(id));
+  const jid = fila?.jid || (/^\d{10}$/.test(String(id)) ? await resolverJid(id) : null);
+  if (!jid) throw new Error("No se encontró el chat de WhatsApp de este contacto");
+  try {
+    await sock.presenceSubscribe(jid);
+    await sock.sendPresenceUpdate("composing", jid);
+  } catch {}
+  await espera(azar(1500, 3500));
+  await sock.sendMessage(jid, { document: archivo, fileName: nombre, mimetype, caption });
+  try {
+    await sock.sendPresenceUpdate("paused", jid);
+  } catch {}
+}
+
 export async function sendWaWeb(id, texto) {
   const fila = db().prepare("SELECT jid FROM wa_contactos WHERE id = ?").get(String(id));
   let jid = fila?.jid;
