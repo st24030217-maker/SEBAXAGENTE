@@ -47,7 +47,7 @@ export function buildSystemPrompt(n) {
 
 <negocio>
 ${neg.descripcion || ""}
-Sitio web: ${neg.sitio_web || "-"} · Teléfono: ${neg.telefono || "-"} · Email: ${neg.email || "-"}
+Sitio web: ${neg.sitio_web || "-"}${neg.instagram ? ` · Instagram: ${neg.instagram}` : ""} · Teléfono: ${neg.telefono || "-"} · Email: ${neg.email || "-"}
 Dirección: ${neg.direccion || "-"}
 Horario de atención: ${horario}
 Moneda: ${moneda} (todos los precios incluyen impuestos)
