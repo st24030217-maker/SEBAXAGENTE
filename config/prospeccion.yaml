@@ -169,7 +169,7 @@ envio:
   whatsapp_minutos_max: 16
   # --- Correo ---
   # Máximo de correos por día. Empieza bajo para no caer en spam.
-  limite_diario: 20
+  limite_diario: 12
   # Minutos mínimos entre un correo y el siguiente (se ve más natural).
   minutos_entre_correos: 4
   # Solo se envía en este horario (hora de La Laguna).

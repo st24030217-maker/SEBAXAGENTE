@@ -104,7 +104,9 @@ export function redactarPlantilla(p, cfg, { seguimiento = false } = {}) {
     return {
       asunto: `Re: ${p.asunto || `Idea para ${p.nombre}`}`,
       correo: `Hola de nuevo\n\nTe escribí hace unos días sobre ${r.servicio} para ${p.nombre}. Sé que andan ocupados, así que solo te dejo la idea: si te late, te muestro en 10 minutos un ejemplo hecho para un negocio como el tuyo, sin compromiso.\n\n¿Te parece bien esta semana?`,
-      whatsapp: `Hola, soy ${yo} otra vez. ¿Pudieron ver lo que les mandé sobre ${r.servicio}? Si les late, les muestro un ejemplo en 10 minutos, sin compromiso.\n\nY si no les interesa, solo díganme y no les vuelvo a escribir.`,
+      whatsapp: bocetoDe(p)
+        ? `Hola, soy ${yo} otra vez. Les dejo la muestra que les preparé para ${p.nombre}, ya actualizada:\n${bocetoDe(p)}\n\n¿Qué les parece? Y si no les interesa, solo díganme y no les vuelvo a escribir.`
+        : `Hola, soy ${yo} otra vez. ¿Pudieron ver lo que les mandé sobre ${r.servicio}? Si les late, les muestro un ejemplo en 10 minutos, sin compromiso.\n\nY si no les interesa, solo díganme y no les vuelvo a escribir.`,
     };
   }
   return {
@@ -158,7 +160,7 @@ Reglas de estilo:
 ${cfg.estilo.map((e) => `- ${e}`).join("\n")}
 - Escribe en español de México, natural, como persona y no como empresa.
 ${bocetoDe(p) ? `- Ya le preparaste una página de muestra con su nombre y dirección. Incluye este link una sola vez y preséntalo como "una muestra de cómo se vería para ${p.nombre}": ${bocetoDe(p)} (no pongas el link del portafolio).` : `- Incluye el link del portafolio una sola vez: ${cfg.remitente.portafolio}`}
-- No pongas firma ni despedida con tus datos (se agrega sola). No pongas enlaces para darse de baja (se agregan solos).
+- No pongas firma ni despedida con tus datos (se agrega sola). No pongas frases ni enlaces para darse de baja.
 - Termina con una pregunta fácil de responder.${anterior}
 
 Responde SOLO con un JSON, sin texto antes ni después:
@@ -179,11 +181,9 @@ Responde SOLO con un JSON, sin texto antes ni después:
   }
 }
 
-/** Firma y pie legal que se agregan a cada correo. */
-export function pieCorreo(cfg, bajaUrl) {
+/** Firma que se agrega a cada correo. (Sin texto de "baja" visible: si alguien pide que no le escriban,
+ *  el agente lo detecta en su respuesta y lo bloquea igual; Gmail además ve la cabecera List-Unsubscribe.) */
+export function pieCorreo(cfg, _bajaUrl) {
   const r = cfg.remitente;
-  const baja = bajaUrl
-    ? `Si no te interesa recibir más correos, da clic aquí: ${bajaUrl} o responde "BAJA".`
-    : `Si no te interesa recibir más correos, solo responde "BAJA" y no te vuelvo a escribir.`;
-  return `\n\n--\n${r.nombre} · ${r.empresa}\nWhatsApp ${r.whatsapp}\n${r.portafolio}\n\n${baja}`;
+  return `\n\n--\n${r.nombre} · ${r.empresa}\nWhatsApp ${r.whatsapp}\n${r.portafolio}`;
 }

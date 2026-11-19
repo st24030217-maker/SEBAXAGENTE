@@ -1,5 +1,6 @@
 // Avisos al dueño del negocio (Telegram y/o webhook genérico para Slack, Make, Zapier, n8n...).
 import { settings } from "../config.js";
+import { negocioActual } from "../contexto.js";
 
 const ICONOS = {
   lead_nuevo: "🆕",
@@ -13,6 +14,7 @@ const ICONOS = {
 
 const AVISOS_CORREO = ["lead_nuevo", "cita", "derivacion", "error", "pago", "pedido"];
 const AVISOS_WA = ["lead_nuevo", "cita", "derivacion", "error", "pago", "pedido", "boceto"];
+const ASUNTOS_NEGOCIO = { lead_nuevo: "Cliente nuevo", derivacion: "Un cliente te necesita" };
 const ASUNTOS = { lead_nuevo: "Respuesta nueva", cita: "Cita agendada", derivacion: "Te necesita", error: "Algo falló", pago: "Pago", pedido: "Pedido", boceto: "Abrió su muestra" };
 
 // Los errores se avisan una sola vez cada 30 min (si algo falla en bucle, no te llena el WhatsApp).
@@ -50,6 +52,22 @@ function invitacionIcs(d) {
  * @param {object} datos Datos estructurados (van al webhook)
  */
 export async function notifyOwner(tipo, texto, datos = {}) {
+  // Negocio cliente: el aviso va al WhatsApp de SU dueño, desde SU chip (nunca a tus canales).
+  const n = negocioActual();
+  if (n) {
+    if (!AVISOS_WA.includes(tipo) || tipo === "boceto" || repetido(tipo, `${n.slug}|${texto}`)) return;
+    try {
+      const { avisarDuenoNegocio } = await import("../channels/wa-negocio.js");
+      const ok = await avisarDuenoNegocio(
+        n,
+        `*${n.meta.nombre} · ${ASUNTOS_NEGOCIO[tipo] || ASUNTOS[tipo] || tipo}*\n\n${texto}${tipo === "cita" ? "\n\nGuarda este mensaje: aquí tienes los datos de la cita." : ""}\n\nPanel: ${settings.publicUrl}/n/${n.slug}/admin`
+      );
+      if (!ok) console.log(`[aviso ${n.slug}] ${tipo}: ${texto}`);
+    } catch (e) {
+      console.error(`[aviso ${n.slug}] falló:`, e.message);
+    }
+    return;
+  }
   const tareas = [];
   const { telegramChatId, webhookUrl } = settings.owner;
 

@@ -5,6 +5,7 @@
 // tal cual o en base64). Tu calendario debe estar compartido con el correo de la cuenta de servicio
 // con permiso "Hacer cambios en los eventos".
 import crypto from "node:crypto";
+import { negocioActual } from "../contexto.js";
 
 const calendarId = () => process.env.GOOGLE_CALENDAR_ID || "";
 
@@ -20,7 +21,8 @@ function credenciales() {
   }
 }
 
-export const gcalConfigurado = () => !!(calendarId() && credenciales());
+// Es TU calendario: los negocios cliente no lo usan.
+export const gcalConfigurado = () => !negocioActual() && !!(calendarId() && credenciales());
 
 let token = null;
 let tokenVence = 0;
@@ -68,6 +70,7 @@ const ocupadoCache = new Map(); // "YYYY-MM-DD" -> { hasta: ms, intervalos: [[in
 
 /** Intervalos ocupados ya consultados para esa fecha (síncrono; vacío si no se ha consultado). */
 export function ocupadoGoogle(fecha) {
+  if (negocioActual()) return [];
   return ocupadoCache.get(fecha)?.intervalos || [];
 }
 

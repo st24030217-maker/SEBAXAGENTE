@@ -7,6 +7,8 @@ import express from "express";
 import { DatabaseSync } from "node:sqlite";
 import { Router } from "express";
 import { settings, reloadNegocio, getNegocio } from "../config.js";
+import { negocioActual } from "../contexto.js";
+import { rutasPanelNegocio, rutasNegociosPrincipal } from "./negocios.js";
 import { getDb, getConversation, getLead, upsertLead, setBotActive, now, logEvent } from "../db.js";
 import { recordOutgoing } from "../agent/agent.js";
 import { ETAPAS } from "../agent/tools.js";
@@ -52,17 +54,24 @@ export function esRedLocal(req) {
 const SIEMPRE_CON_CLAVE = ["/respaldo", "/restaurar", "/whatsapp/desconectar", "/whatsapp/codigo"];
 const panelAbierto = () => /^(1|true|si|sí|yes)$/i.test(process.env.ADMIN_ABIERTO || "");
 
+const claveIgual = (token, esperado) =>
+  !!esperado &&
+  esperado !== "cambia-esta-clave" &&
+  token.length === esperado.length &&
+  crypto.timingSafeEqual(Buffer.from(token), Buffer.from(esperado));
+
 function auth(req, res, next) {
   if (esRedLocal(req)) return next();
-  if (panelAbierto() && !SIEMPRE_CON_CLAVE.includes(req.path)) return next();
   const token = req.get("x-admin-token") || "";
-  const esperado = settings.adminToken;
-  const ok =
-    esperado &&
-    esperado !== "cambia-esta-clave" &&
-    token.length === esperado.length &&
-    crypto.timingSafeEqual(Buffer.from(token), Buffer.from(esperado));
-  if (!ok) return res.status(401).json({ error: "No autorizado. Revisa ADMIN_TOKEN en .env (y que no sea el valor de ejemplo)." });
+  const n = negocioActual();
+  if (n) {
+    // Panel de un negocio cliente: entra su dueño con su clave, o tú con la tuya (ADMIN_TOKEN).
+    // ADMIN_ABIERTO no aplica aquí: el panel de cada negocio siempre pide clave.
+    if (claveIgual(token, n.meta.token) || claveIgual(token, settings.adminToken)) return next();
+    return res.status(401).json({ error: "Clave incorrecta. Pídele a sss.solutions la clave de tu panel." });
+  }
+  if (panelAbierto() && !SIEMPRE_CON_CLAVE.includes(req.path)) return next();
+  if (!claveIgual(token, settings.adminToken)) return res.status(401).json({ error: "No autorizado. Revisa ADMIN_TOKEN en .env (y que no sea el valor de ejemplo)." });
   next();
 }
 
@@ -75,7 +84,11 @@ const wrap = (fn) => async (req, res) => {
   }
 };
 
-export function adminRouter() {
+/**
+ * @param {{negocio?: boolean}} opciones negocio=true: panel de un negocio cliente (/n/<slug>/admin),
+ *   sin prospección y con su propio WhatsApp. Sin opciones: tu panel principal.
+ */
+export function adminRouter({ negocio: esNegocio = false } = {}) {
   const r = Router();
   r.use(auth);
   const db = () => getDb();
@@ -271,9 +284,23 @@ export function adminRouter() {
 
   r.post("/recargar-config", wrap((_req, res) => {
     const n = reloadNegocio();
-    reloadProspeccion();
+    if (!esNegocio) reloadProspeccion();
     res.json({ ok: true, productos: n.catalogo.length });
   }));
+
+  if (esNegocio) {
+    // Panel de un negocio cliente: su WhatsApp, su configuración y su respaldo. Nada de prospección.
+    rutasPanelNegocio(r, wrap);
+    r.get("/respaldo", wrap((_req, res) => {
+      const tmp = path.join(os.tmpdir(), `agente-respaldo-${Date.now()}.db`);
+      db().exec(`VACUUM INTO '${tmp.replace(/'/g, "''")}'`);
+      res.download(tmp, `${negocioActual().slug}-respaldo-${now().slice(0, 10)}.db`, () => fs.rm(tmp, { force: true }, () => {}));
+    }));
+    return r;
+  }
+
+  // Tus negocios cliente (alta, lista, activar/pausar). Solo en tu panel.
+  rutasNegociosPrincipal(r, wrap);
 
   r.get("/config", wrap((_req, res) => {
     res.json({

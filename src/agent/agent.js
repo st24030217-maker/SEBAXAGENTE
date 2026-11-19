@@ -13,6 +13,7 @@ import {
 } from "../db.js";
 import { buildSystemPrompt, turnContext } from "./prompt.js";
 import { TOOL_DEFINITIONS, executeTool } from "./tools.js";
+import { negocioActual } from "../contexto.js";
 import { notifyOwner } from "../services/notify.js";
 import { generarGemini } from "../ia/gemini.js";
 import { generarTexto } from "../ia/texto.js";
@@ -25,16 +26,24 @@ export const MENSAJE_ERROR = "Disculpa, tuve un problema técnico. Dame un momen
 const MENSAJE_RECHAZO = "Disculpa, en eso no puedo ayudarte. ¿Te ayudo con algún producto o servicio?";
 const HISTORY_MAX_MESSAGES = Number(process.env.HISTORY_MAX_MESSAGES || 150);
 
-let systemCache = { negocio: null, texto: "" };
+// Una instrucción armada por cada configuración (cada negocio tiene la suya).
+const systemCache = new WeakMap();
 function systemPrompt() {
   const n = getNegocio();
-  if (systemCache.negocio !== n) systemCache = { negocio: n, texto: buildSystemPrompt(n) };
-  return systemCache.texto;
+  if (!systemCache.has(n)) systemCache.set(n, buildSystemPrompt(n));
+  return systemCache.get(n);
 }
+
+// Los negocios cliente no tienen el video de presentación de sss.solutions.
+const SOLO_PRINCIPAL = new Set(["enviar_video_presentacion"]);
+const TOOLS_NEGOCIO = TOOL_DEFINITIONS.filter((t) => !SOLO_PRINCIPAL.has(t.name));
+const herramientas = () => (negocioActual() ? TOOLS_NEGOCIO : TOOL_DEFINITIONS);
 
 // ---------- Exclusión por conversación (evita respuestas cruzadas si el cliente manda varios mensajes seguidos) ----------
 const locks = new Map();
-function withLock(key, fn) {
+function withLock(convId, fn) {
+  // Dos negocios pueden tener el mismo id de conversación ("web:abc"): el candado incluye el negocio.
+  const key = `${negocioActual()?.slug || ""}|${convId}`;
   const prev = locks.get(key) || Promise.resolve();
   const run = prev.then(fn, fn);
   const tail = run.catch(() => {});
@@ -188,7 +197,7 @@ function baseParams(history) {
     max_tokens: 16000,
     // Instrucciones y herramientas fijas -> se guardan en caché (más barato y rápido).
     system: [{ type: "text", text: systemPrompt(), cache_control: { type: "ephemeral" } }],
-    tools: TOOL_DEFINITIONS,
+    tools: herramientas(),
     messages: history,
     output_config: { effort: settings.claude.effort },
     // Caché automática del historial de la conversación.
@@ -212,7 +221,7 @@ async function callClaude(convId, history) {
       const resp =
         prov === "claude"
           ? await llamarClaude(paraClaude(history))
-          : await generarGemini({ system: systemPrompt(), messages: history, tools: TOOL_DEFINITIONS, maxTokens: 4096 });
+          : await generarGemini({ system: systemPrompt(), messages: history, tools: herramientas(), maxTokens: 4096 });
       logUsage(convId, resp.model, resp.usage);
       return resp;
     } catch (e) {

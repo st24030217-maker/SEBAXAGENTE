@@ -1,6 +1,16 @@
 // Links de pago: Mercado Pago (Checkout Pro), Stripe (Checkout) o manual (transferencia).
 import crypto from "node:crypto";
 import { settings } from "../config.js";
+import { negocioActual } from "../contexto.js";
+
+/** Con qué cobra el negocio actual: el agente principal usa .env; cada negocio cliente, su propia cuenta. */
+export function pagosActuales() {
+  const t = negocioActual();
+  if (!t) return { ...settings.payments, sufijo: "" };
+  const p = t.meta.pagos || {};
+  const mp = p.proveedor === "mercadopago" && p.mercadopago_token;
+  return { provider: mp ? "mercadopago" : "manual", mercadopagoToken: mp ? p.mercadopago_token : "", stripeKey: "", sufijo: `negocio=${encodeURIComponent(t.slug)}` };
+}
 
 const ZERO_DECIMAL = new Set(["CLP", "JPY", "KRW", "PYG", "VND", "XOF", "XAF", "UGX", "RWF", "ISK"]);
 
@@ -9,11 +19,11 @@ const ZERO_DECIMAL = new Set(["CLP", "JPY", "KRW", "PYG", "VND", "XOF", "XAF", "
  * @returns {Promise<{metodo: string, link: string|null, instrucciones: string|null, referencia: string|null}>}
  */
 export async function createPaymentLink(pedido, items, negocio) {
-  const provider = settings.payments.provider;
+  const { provider, mercadopagoToken, stripeKey, sufijo } = pagosActuales();
   const moneda = negocio.negocio.moneda;
   const ref = `pedido-${pedido.id}`;
 
-  if (provider === "mercadopago" && settings.payments.mercadopagoToken) {
+  if (provider === "mercadopago" && mercadopagoToken) {
     const body = {
       items: items.map((it) => ({
         id: it.id,
@@ -23,17 +33,17 @@ export async function createPaymentLink(pedido, items, negocio) {
         currency_id: moneda,
       })),
       external_reference: ref,
-      notification_url: `${settings.publicUrl}/webhooks/mercadopago`,
+      notification_url: `${settings.publicUrl}/webhooks/mercadopago${sufijo ? `?${sufijo}` : ""}`,
       back_urls: {
-        success: `${settings.publicUrl}/pago/ok?pedido=${pedido.id}`,
-        failure: `${settings.publicUrl}/pago/error?pedido=${pedido.id}`,
-        pending: `${settings.publicUrl}/pago/pendiente?pedido=${pedido.id}`,
+        success: `${settings.publicUrl}/pago/ok?pedido=${pedido.id}${sufijo ? `&${sufijo}` : ""}`,
+        failure: `${settings.publicUrl}/pago/error?pedido=${pedido.id}${sufijo ? `&${sufijo}` : ""}`,
+        pending: `${settings.publicUrl}/pago/pendiente?pedido=${pedido.id}${sufijo ? `&${sufijo}` : ""}`,
       },
       statement_descriptor: negocio.negocio.nombre.slice(0, 22),
     };
     const res = await fetch("https://api.mercadopago.com/checkout/preferences", {
       method: "POST",
-      headers: { Authorization: `Bearer ${settings.payments.mercadopagoToken}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${mercadopagoToken}`, "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
     const data = await res.json();
@@ -41,7 +51,7 @@ export async function createPaymentLink(pedido, items, negocio) {
     return { metodo: "mercadopago", link: data.init_point, instrucciones: null, referencia: data.id };
   }
 
-  if (provider === "stripe" && settings.payments.stripeKey) {
+  if (provider === "stripe" && stripeKey) {
     const factor = ZERO_DECIMAL.has(moneda.toUpperCase()) ? 1 : 100;
     const form = new URLSearchParams();
     form.set("mode", "payment");
@@ -57,7 +67,7 @@ export async function createPaymentLink(pedido, items, negocio) {
     });
     const res = await fetch("https://api.stripe.com/v1/checkout/sessions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${settings.payments.stripeKey}`, "Content-Type": "application/x-www-form-urlencoded" },
+      headers: { Authorization: `Bearer ${stripeKey}`, "Content-Type": "application/x-www-form-urlencoded" },
       body: form,
     });
     const data = await res.json();
@@ -76,7 +86,7 @@ export async function createPaymentLink(pedido, items, negocio) {
 /** Consulta un pago de Mercado Pago. Devuelve {aprobado, pedidoId, referencia}. */
 export async function fetchMercadoPagoPayment(paymentId) {
   const res = await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(paymentId)}`, {
-    headers: { Authorization: `Bearer ${settings.payments.mercadopagoToken}` },
+    headers: { Authorization: `Bearer ${pagosActuales().mercadopagoToken}` },
   });
   if (!res.ok) throw new Error(`Mercado Pago pago ${paymentId}: ${res.status}`);
   const p = await res.json();

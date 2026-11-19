@@ -2,16 +2,26 @@ import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { settings } from "./config.js";
+import { negocioActual } from "./contexto.js";
 
 let db;
 
+/** Base del negocio actual: la del agente principal o, dentro de conNegocio(), la de ese negocio. */
 export function getDb() {
+  const t = negocioActual();
+  if (t) return (t.db ||= abrirDb(t.dbPath));
   if (!db) openDb(settings.dbPath);
   return db;
 }
 
-/** Abre (o crea) la base de datos. ":memory:" sirve para tests. */
+/** Abre (o crea) la base de datos principal. ":memory:" sirve para tests. */
 export function openDb(file) {
+  db = abrirDb(file);
+  return db;
+}
+
+/** Abre (o crea) una base con todas las tablas, sin cambiar cuál es la principal. */
+export function abrirDb(file) {
   if (file !== ":memory:") {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     // Restauración pendiente (subida desde el panel): reemplaza la base antes de abrirla.
@@ -23,11 +33,11 @@ export function openDb(file) {
       console.log("[db] respaldo restaurado");
     }
   }
-  db = new DatabaseSync(file);
-  db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
-  db.exec(SCHEMA);
-  migrar(db);
-  return db;
+  const d = new DatabaseSync(file);
+  d.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
+  d.exec(SCHEMA);
+  migrar(d);
+  return d;
 }
 
 /** Columnas agregadas después de la primera versión (las bases viejas las reciben solas). */
@@ -201,6 +211,9 @@ CREATE TABLE IF NOT EXISTS uso_ia (
   cache_write      INTEGER,
   creado           TEXT NOT NULL
 );
+
+-- Contactos de WhatsApp (chip vinculado): número a 10 dígitos -> id interno del chat.
+CREATE TABLE IF NOT EXISTS wa_contactos (id TEXT PRIMARY KEY, jid TEXT NOT NULL, actualizado TEXT NOT NULL);
 `;
 
 // ---------- Conversaciones ----------

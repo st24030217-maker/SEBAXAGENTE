@@ -7,6 +7,7 @@ import { getNegocio } from "../config.js";
 import { generateFollowup, recordOutgoing } from "../agent/agent.js";
 import { sendToChannel } from "../channels/index.js";
 import { formatLocal, localParts } from "./calendar.js";
+import { paraCadaNegocio } from "../negocios.js";
 
 const DIAS = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
 let corriendo = false;
@@ -16,9 +17,13 @@ export function startScheduler(intervaloMs = 60_000) {
     if (corriendo) return;
     corriendo = true;
     try {
-      await runSchedulerOnce();
-    } catch (e) {
-      console.error("[automatizaciones]", e);
+      try {
+        await runSchedulerOnce();
+      } catch (e) {
+        console.error("[automatizaciones]", e);
+      }
+      // Lo mismo para cada negocio cliente, cada uno con su base, su horario y sus canales.
+      await paraCadaNegocio(() => runSchedulerOnce(), "automatizaciones");
     } finally {
       corriendo = false;
     }

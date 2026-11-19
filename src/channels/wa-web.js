@@ -153,7 +153,7 @@ export async function desconectarWa() {
 // ---------- Recibir y conversar ----------
 
 /** Identidad del contacto: su número (10 dígitos) si WhatsApp lo da; si no, su id interno. */
-function contactoDe(m) {
+export function contactoDe(m) {
   const k = m.key || {};
   const candidatos = [k.remoteJid, k.remoteJidAlt, k.senderPn, k.participant].filter(Boolean);
   const pn = candidatos.find((j) => j.endsWith("@s.whatsapp.net"));
@@ -161,7 +161,7 @@ function contactoDe(m) {
   return { id: pn ? diezDigitos(pn) : jid, jid };
 }
 
-const textoDe = (m) =>
+export const textoDe = (m) =>
   m.message?.conversation ||
   m.message?.extendedTextMessage?.text ||
   m.message?.imageMessage?.caption ||
@@ -173,6 +173,21 @@ const textoDe = (m) =>
 // Si el cliente manda varios mensajes seguidos, se espera a que termine y se responde una vez.
 const pendientes = new Map();
 
+export const SOLO_IMAGEN = "[El cliente mandó una imagen, sticker o archivo sin texto. Pídele que te lo describa por escrito.]";
+/** ¿En las últimas 48 h el cliente ya mandó una imagen sola y el bot ya le contestó pidiendo texto? */
+export function yaPidioTexto(id) {
+  const desde = new Date(Date.now() - 48 * 3600_000).toISOString();
+  const ult = db()
+    .prepare("SELECT id FROM mensajes WHERE conversacion_id = ? AND rol = 'cliente' AND texto LIKE '%imagen, sticker o archivo sin texto%' AND creado >= ? ORDER BY id DESC LIMIT 1")
+    .get(`wa:${id}`, desde);
+  if (!ult) return false;
+  return !!db().prepare("SELECT 1 FROM mensajes WHERE conversacion_id = ? AND rol = 'agente' AND id > ?").get(`wa:${id}`, ult.id);
+}
+const avisoImagenReciente = (id) =>
+  !!db()
+    .prepare("SELECT 1 FROM eventos WHERE tipo = 'imagenes_sin_texto' AND conversacion_id = ? AND creado >= ?")
+    .get(`wa:${id}`, new Date(Date.now() - 6 * 3600_000).toISOString());
+
 async function recibir(m) {
   const jid = m.key?.remoteJid || "";
   if (m.key?.fromMe || !jid || jid.endsWith("@g.us") || jid === "status@broadcast" || jid.endsWith("@newsletter")) return;
@@ -181,7 +196,7 @@ async function recibir(m) {
   let texto = textoDe(m).trim();
   if (!texto) {
     if (m.message?.audioMessage) texto = "[El cliente mandó un audio que no puedes escuchar. Pídele amablemente que lo escriba.]";
-    else if (m.message) texto = "[El cliente mandó una imagen, sticker o archivo sin texto. Pídele que te lo describa por escrito.]";
+    else if (m.message) texto = SOLO_IMAGEN;
     else return;
   }
   const p = pendientes.get(id) || { textos: [], nombre: m.pushName || null, timer: null };
@@ -189,6 +204,16 @@ async function recibir(m) {
   clearTimeout(p.timer);
   p.timer = setTimeout(() => {
     pendientes.delete(id);
+    // Solo imágenes otra vez (ya se le pidió una vez que lo escribiera): el bot no repite lo mismo;
+    // se guarda el mensaje y se le avisa a Sebastián para que las vea en el chip.
+    if (p.textos.every((t) => t === SOLO_IMAGEN) && yaPidioTexto(id)) {
+      db().prepare("INSERT INTO mensajes (conversacion_id, rol, texto, creado) VALUES (?, 'cliente', ?, ?)").run(`wa:${id}`, SOLO_IMAGEN, now());
+      if (!avisoImagenReciente(id)) {
+        logEvent("imagenes_sin_texto", `wa:${id}`, { id });
+        notifyOwner("derivacion", `${p.nombre || id} (${id}) sigue mandando imágenes sin texto. El bot ya le pidió una vez que lo escribiera; míralas tú en el WhatsApp del chip.`);
+      }
+      return;
+    }
     procesarMensaje({ id, jid, texto: p.textos.join("\n"), nombre: p.nombre }).catch((e) => {
       console.error(`[whatsapp] ${id}:`, e.message);
       notifyOwner("error", `No se pudo responder el WhatsApp de ${p.nombre || id}: ${e.message}`);
@@ -298,7 +323,8 @@ export async function procesarMensaje({ id, jid, texto, nombre }, enviar = envia
     notifyOwner("error", `El agente no pudo responder el WhatsApp de ${nombre || id}. Revisa la conversación en el panel.`, { id });
     return "error_ia";
   }
-  await enviar(jid, respuesta);
+  // Si el agente repite un link de boceto viejo (del historial), sale con la dirección pública actual.
+  await enviar(jid, /^https:\/\//.test(settings.publicUrl) ? respuesta.replace(/(?:https?:\/\/)?[a-z0-9.-]+\.(?:onrender\.com|trycloudflare\.com)\/m\//gi, `${settings.publicUrl}/m/`) : respuesta);
   return "respondido";
 }
 
@@ -447,6 +473,8 @@ async function enviarSeguimientoWa(cfg, ahora) {
 /** Manda UN mensaje de prospección si toca (horario, límite diario y pausa al azar entre mensajes). */
 export async function enviarSiguienteWa(ahora = new Date()) {
   if (enviando || apagandoWa || !waConectado()) return null;
+  // Con túnel, no se manda nada hasta tener la dirección pública (si no, el link del boceto saldría roto).
+  if ((process.env.TUNEL || "").toLowerCase() === "cloudflare" && !/^https:\/\//.test(settings.publicUrl)) return null;
   const cfg = getProspeccion();
   const e = cfg.envio;
   if (!dentroDeHorarioEnvio(cfg, ahora) || Date.now() < proximoEnvio) return null;
@@ -496,6 +524,8 @@ export async function enviarSiguienteWa(ahora = new Date()) {
       try {
         // Si hay video de presentación, el primer mensaje va como video con el texto abajo (más confianza).
         const video = e.video_en_primer_mensaje !== false ? videoPresentacion() : null;
+        // El link del boceto siempre sale con la dirección pública actual (Render o túnel pudieron cambiar).
+        if (/^https:\/\//.test(settings.publicUrl)) p.whatsapp_texto = p.whatsapp_texto.replace(/https?:\/\/[^\s/]+\/m\//g, `${settings.publicUrl}/m/`);
         if (video) await enviarVideo(jid, video, p.whatsapp_texto);
         else await enviarTexto(jid, p.whatsapp_texto);
         db().prepare("INSERT INTO wa_contactos (id, jid, actualizado) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET jid = excluded.jid").run(p.telefono, jid, now());

@@ -1,0 +1,92 @@
+# ============================================================
+#  CONFIGURACIÓN DEL AGENTE DE {{NOMBRE}}
+#  Todo lo que el agente sabe del negocio sale de aquí.
+#  Cambia los datos de EJEMPLO por los reales y presiona "Guardar":
+#  el agente usa la versión nueva al instante.
+#
+#  PRECIOS: número = precio por unidad (con impuestos).
+#  "precio: null" = se cotiza a la medida (el agente no da precio y agenda una cita).
+# ============================================================
+
+negocio:
+  nombre: "{{NOMBRE}}"
+  rubro: "Describe el giro en pocas palabras"
+  descripcion: >
+    Qué vende o qué servicio da el negocio, para quién y qué lo hace diferente.
+  sitio_web: ""
+  telefono: "{{TELEFONO}}"
+  email: ""
+  direccion: "Calle, número, colonia, ciudad"
+  zona_horaria: "America/Monterrey"   # Torreón/Monterrey. CDMX: America/Mexico_City
+  moneda: "MXN"
+  idioma: "español de México"
+
+agente:
+  nombre: "el asistente de {{NOMBRE}}"
+  personalidad: >
+    Amable, claro y rápido. Habla de tú, con frases cortas y sin tecnicismos.
+    Usa como máximo un emoji por mensaje.
+  objetivo: >
+    Resolver las dudas del cliente, recomendarle lo que mejor le queda,
+    cotizar y cerrar el pedido, o agendarle una cita.
+
+# Horario de atención (24 h). Deja "" el día que no se atiende.
+horario:
+  lunes: "09:00-19:00"
+  martes: "09:00-19:00"
+  miercoles: "09:00-19:00"
+  jueves: "09:00-19:00"
+  viernes: "09:00-19:00"
+  sabado: "10:00-15:00"
+  domingo: ""
+
+citas:
+  activo: true
+  duracion_minutos: 30
+  anticipacion_minima_horas: 2
+  dias_maximos_adelante: 14
+  tipos:
+    - "Cita en el local"
+
+# "id" único que no cambia. stock: null = sin control de inventario.
+catalogo:
+  - id: P-001
+    nombre: "Producto o servicio de ejemplo"
+    categoria: "General"
+    precio: 250
+    stock: null
+    descripcion: "Describe qué incluye, tamaños, sabores o duración."
+
+politicas:
+  envios: "Entregas a domicilio en la ciudad el mismo día o al día siguiente."
+  retiro: "Puedes recoger en el local en horario de atención."
+  devoluciones: "Cambios dentro de los 7 días con ticket."
+  medios_pago: "Efectivo, transferencia y tarjeta."
+  facturacion: "Facturamos: pedimos RFC, razón social, régimen fiscal y uso de CFDI."
+
+# Costos de envío: costo_santiago = envío dentro de la ciudad, costo_regiones = foráneo.
+envio:
+  costo_santiago: 0
+  costo_regiones: 0
+  gratis_desde: 0
+
+descuentos:
+  maximo_porcentaje: 0   # el agente nunca da más que esto (se valida en el servidor)
+  reglas: "No se ofrecen descuentos."
+
+pagos:
+  instrucciones_transferencia: >
+    Banco · CLABE 000000000000000000 · a nombre de {{NOMBRE}}.
+    Manda tu comprobante por este chat.
+
+seguimientos:
+  activo: true
+  horas_inactividad: [24, 72]
+  etapas: ["interesado", "cotizado", "negociacion"]
+
+faq:
+  - p: "¿Dónde están?"
+    r: "Escribe aquí la dirección y cómo llegar."
+
+reglas_extra:
+  - "Si preguntan por algo que no está en el catálogo, ofrece lo más parecido o pasa la plática a una persona."
