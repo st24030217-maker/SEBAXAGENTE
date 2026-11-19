@@ -17,7 +17,7 @@ import { setOrderStatus } from "../services/orders.js";
 import { reloadProspeccion, getProspeccion } from "../prospeccion/config.js";
 import { urlBoceto } from "../prospeccion/boceto.js";
 import { probarGcal, gcalConfigurado } from "../services/gcal.js";
-import { estadoWa, desconectarWa, enviadosWaHoy, limiteWaHoy, pedirCodigoVinculacion, avisarDueno, numeroDueno, videoPresentacion, probarPrimerMensaje } from "../channels/wa-web.js";
+import { estadoWa, desconectarWa, enviadosWaHoy, limiteWaHoy, pedirCodigoVinculacion, avisarDueno, numeroDueno, videoPresentacion, probarPrimerMensaje, sendWaDocumento } from "../channels/wa-web.js";
 import {
   ESTADOS as ESTADOS_PROSPECTO,
   getProspecto,
@@ -212,6 +212,23 @@ export function adminRouter({ negocio: esNegocio = false } = {}) {
     res.json({ ok: true });
   }));
 
+  // Manda un PDF (por ejemplo, una cotización) a una conversación de WhatsApp.
+  // Cuerpo: el PDF tal cual. Query: ?nombre=Archivo.pdf&texto=Mensaje que va abajo
+  r.post("/conversaciones/:id/archivo", express.raw({ type: "application/pdf", limit: "15mb" }), wrap(async (req, res) => {
+    const conv = getConversation(req.params.id);
+    if (!conv) return res.status(404).json({ error: "No existe" });
+    if (conv.canal !== "wa") return res.status(400).json({ error: "Solo se pueden mandar archivos por WhatsApp" });
+    if (!Buffer.isBuffer(req.body) || !req.body.length || req.body.subarray(0, 4).toString() !== "%PDF") {
+      return res.status(400).json({ error: "Manda un PDF (Content-Type: application/pdf)" });
+    }
+    const nombre = String(req.query.nombre || "Documento.pdf").replace(/[\\/]/g, "-").slice(0, 120);
+    const texto = String(req.query.texto || "").trim();
+    await sendWaDocumento(conv.externo_id, req.body, nombre, texto);
+    await recordOutgoing(conv.id, `${texto ? `${texto}\n` : ""}[Archivo enviado: ${nombre}]`, "agente", "El equipo (envío de archivo)");
+    logEvent("archivo_enviado", conv.id, { nombre, bytes: req.body.length });
+    res.json({ ok: true, nombre });
+  }));
+
   r.get("/leads", wrap((req, res) => {
     const etapa = req.query.etapa;
     const rows = etapa
@@ -376,6 +393,23 @@ export function adminRouter({ negocio: esNegocio = false } = {}) {
     const ok = await avisarDueno(`*Agente Sebax · Aviso de prueba*\n\nAsí te van a llegar los avisos: cuando un negocio conteste, cuando se agende una cita o cuando alguien pida hablar contigo.\n\nPanel: ${settings.publicUrl}/admin`);
     if (!ok) return res.status(409).json({ error: "No se pudo: revisa que el chip esté conectado y que tu número personal sea distinto al del chip." });
     res.json({ ok: true, numero: numeroDueno() });
+  }));
+
+  // Te manda un PDF (por ejemplo, una cotización) a tu WhatsApp personal (OWNER_WHATSAPP).
+  // Cuerpo: el PDF. Query: ?nombre=Archivo.pdf&texto=Mensaje&numero=10 dígitos (debe coincidir con el tuyo)
+  r.post("/whatsapp/archivo-dueno", express.raw({ type: "application/pdf", limit: "15mb" }), wrap(async (req, res) => {
+    const tel = numeroDueno();
+    if (!tel) return res.status(409).json({ error: "No hay número personal configurado (OWNER_WHATSAPP)" });
+    if (req.query.numero && String(req.query.numero).replace(/\D/g, "").slice(-10) !== tel) {
+      return res.status(409).json({ error: "El número no coincide con tu número personal configurado" });
+    }
+    if (!Buffer.isBuffer(req.body) || !req.body.length || req.body.subarray(0, 4).toString() !== "%PDF") {
+      return res.status(400).json({ error: "Manda un PDF (Content-Type: application/pdf)" });
+    }
+    const nombre = String(req.query.nombre || "Documento.pdf").replace(/[\\/]/g, "-").slice(0, 120);
+    await sendWaDocumento(tel, req.body, nombre, String(req.query.texto || "").trim());
+    logEvent("archivo_enviado_dueno", null, { nombre, bytes: req.body.length });
+    res.json({ ok: true, numero: tel, nombre });
   }));
 
   // Aprueba de golpe los N mejores "por revisar" que tengan teléfono (o correo).

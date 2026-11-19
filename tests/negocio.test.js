@@ -126,3 +126,39 @@ test("el system prompt es estable (sirve la caché) e incluye el catálogo", () 
   assert.ok(a.includes("NB-001"));
   assert.ok(!/\d{4}-\d{2}-\d{2}T/.test(a));
 });
+
+test("cada tipo de cita solo se agenda en sus días (presencial L/M/V, en línea M/J, fin de semana ambas)", () => {
+  const n = {
+    ...negocio,
+    citas: {
+      ...negocio.citas,
+      tipos: [
+        { nombre: "Llamada en línea", modalidad: "en_linea", dias: ["martes", "jueves", "sabado", "domingo"] },
+        { nombre: "Visita presencial", modalidad: "presencial", dias: ["lunes", "miércoles", "viernes", "sabado", "domingo"] },
+      ],
+    },
+  };
+  const ahora = new Date("2030-01-01T12:00:00Z");
+  // 2030-01-07 es lunes, 2030-01-08 martes, 2030-01-12 sábado.
+  assert.deepEqual(availableSlots("2030-01-07", n, ahora).tipos, ["Visita presencial"]);
+  assert.deepEqual(availableSlots("2030-01-08", n, ahora).tipos, ["Llamada en línea"]);
+  assert.equal(availableSlots("2030-01-12", n, ahora).tipos.length, 2);
+
+  const mal = bookAppointment({ convId: conv.id, fecha: "2030-01-08", hora: "11:00", tipo: "Visita presencial" }, n, ahora);
+  assert.equal(mal.ok, false);
+  assert.match(mal.error, /no se agenda los martes/);
+
+  // Sin tipo, el día que solo tiene una modalidad la toma sola.
+  const lunes = bookAppointment({ convId: conv.id, fecha: "2030-01-07", hora: "11:00" }, n, ahora);
+  assert.equal(lunes.ok, true);
+  assert.equal(lunes.tipo, "Visita presencial");
+
+  // Reconoce el tipo aunque el agente lo escriba distinto.
+  const martes = bookAppointment({ convId: conv.id, fecha: "2030-01-08", hora: "11:30", tipo: "videollamada" }, n, ahora);
+  assert.equal(martes.tipo, "Llamada en línea");
+
+  // Sábado con ambas: si no dice cuál, se le pide que elija.
+  const sab = bookAppointment({ convId: conv.id, fecha: "2030-01-12", hora: "11:00" }, n, ahora);
+  assert.equal(sab.ok, false);
+  assert.equal(sab.tipos_ese_dia.length, 2);
+});

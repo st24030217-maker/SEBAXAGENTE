@@ -1,10 +1,12 @@
 // Respaldo automático en Supabase Storage (gratis) para hosts sin disco, como el plan gratis de Render.
 //  - Al arrancar: si no hay datos locales, descarga la base y la sesión de WhatsApp del respaldo.
-//  - Cada pocos minutos (y al apagarse): sube una copia nueva.
+//  - Cada 30 min (y al apagarse): sube una copia nueva, solo si algo cambió.
 // Se activa solo si existen SUPABASE_URL y SUPABASE_SERVICE_KEY.
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import zlib from "node:zlib";
 import { settings } from "../config.js";
 import { conNegocio } from "../contexto.js";
 
@@ -67,7 +69,7 @@ function desempacarSesion(json, dir = SESION()) {
 // ---------- Negocios cliente (cada uno en negocios/<slug>/ dentro del bucket) ----------
 
 const firmas = new Map(); // slug -> huella del último respaldo (solo se sube lo que cambió)
-function huella(n) {
+function huellaNegocio(n) {
   const t = (p) => {
     try {
       return fs.statSync(p).mtimeMs;
@@ -88,7 +90,7 @@ async function respaldarNegocios() {
   const lista = listarNegocios();
   await subir("negocios/indice.json", JSON.stringify(lista.map((n) => n.slug)), "application/json");
   for (const n of lista) {
-    const h = huella(n);
+    const h = huellaNegocio(n);
     if (firmas.get(n.slug) === h) continue;
     const tmp = path.join(os.tmpdir(), `respaldo-${n.slug}-${Date.now()}.db`);
     try {
@@ -138,12 +140,14 @@ export async function restaurarDesdeNube() {
     return;
   }
   try {
-    const db = await descargar("agente.db");
+    const dbGz = await descargar("agente.db.gz");
+    const db = dbGz ? zlib.gunzipSync(dbGz) : await descargar("agente.db");
     if (db) {
       fs.writeFileSync(settings.dbPath, db);
       console.log(`[nube] base restaurada desde Supabase (${Math.round(db.length / 1024)} KB)`);
     } else console.log("[nube] no hay respaldo previo en Supabase: se empieza desde cero");
-    const ses = await descargar("whatsapp-sesion.json");
+    const sesGz = await descargar("whatsapp-sesion.json.gz");
+    const ses = sesGz ? zlib.gunzipSync(sesGz) : await descargar("whatsapp-sesion.json");
     if (ses) console.log(`[nube] sesión de WhatsApp restaurada (${desempacarSesion(ses.toString("utf8"))} archivos)`);
     await restaurarNegocios();
     puedeRespaldar = true;
@@ -152,19 +156,39 @@ export async function restaurarDesdeNube() {
   }
 }
 
-/** Sube una copia de la base y de la sesión de WhatsApp. */
+// Huellas de lo último que se subió: si nada cambió, no se vuelve a subir (ahorra ancho de banda;
+// Render cobra la salida a internet y subir la base cada pocos minutos se come los 5 GB gratis).
+let huellaDb = null;
+let huellaSesion = null;
+let diarioSubido = null; // día de la semana cuya copia diaria ya se subió en esta ejecución
+const huella = (b) => crypto.createHash("sha256").update(b).digest("hex");
+
+/** Sube una copia de la base y de la sesión de WhatsApp, solo si cambiaron desde la última vez. */
 export async function respaldarEnNube(getDb) {
   if (!nubeConfigurada() || !puedeRespaldar) return null;
   const tmp = path.join(os.tmpdir(), `respaldo-${Date.now()}.db`);
   try {
     getDb().exec(`VACUUM INTO '${tmp.replace(/'/g, "''")}'`);
     const db = fs.readFileSync(tmp);
-    await subir("agente.db", db);
-    // Copia del día aparte, por si algo sale mal (se guarda una por día de la semana).
+    const h = huella(db);
+    if (h !== huellaDb) {
+      await subir("agente.db.gz", zlib.gzipSync(db, { level: 9 }), "application/gzip");
+      huellaDb = h;
+    }
+    // Copia del día aparte, por si algo sale mal (una por día de la semana, subida una sola vez al día).
     const dia = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"][new Date().getDay()];
-    await subir(`diarios/agente-${dia}.db`, db);
+    if (diarioSubido !== dia) {
+      await subir(`diarios/agente-${dia}.db.gz`, zlib.gzipSync(db, { level: 9 }), "application/gzip");
+      diarioSubido = dia;
+    }
     const ses = empacarSesion();
-    if (ses) await subir("whatsapp-sesion.json", ses, "application/json");
+    if (ses) {
+      const hs = huella(ses);
+      if (hs !== huellaSesion) {
+        await subir("whatsapp-sesion.json.gz", zlib.gzipSync(ses, { level: 9 }), "application/gzip");
+        huellaSesion = hs;
+      }
+    }
     await respaldarNegocios();
     ultimoRespaldo = new Date().toISOString();
     return ultimoRespaldo;
@@ -246,7 +270,7 @@ const alDetenerse = [];
 export const antesDeApagar = (fn) => alDetenerse.push(fn);
 
 /** Respaldos periódicos + uno final al apagarse (Render avisa con SIGTERM antes de detener). */
-export function startNube(getDb, cadaMin = Number(process.env.RESPALDO_CADA_MIN || 5)) {
+export function startNube(getDb, cadaMin = Number(process.env.RESPALDO_CADA_MIN || 30)) {
   if (!nubeConfigurada()) return;
   console.log(`   Respaldo en la nube: Supabase cada ${cadaMin} min`);
   const correr = () => respaldarEnNube(getDb).catch((e) => console.error("[nube] respaldo falló:", e.message));
