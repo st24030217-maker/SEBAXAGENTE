@@ -2,13 +2,16 @@
  * Widget de chat del agente de ventas.
  * Pégalo en cualquier página:
  *   <script src="https://TU-SERVIDOR/widget.js" data-color="#4f46e5" defer></script>
+ * Para el agente de un negocio cliente agrega data-negocio="<su-direccion>" (y data-abrir="1" para abrirlo solo).
  */
 (function () {
   if (window.__agenteSebax) return;
   window.__agenteSebax = true;
 
   var script = document.currentScript;
-  var BASE = (script && script.src ? new URL(script.src).origin : location.origin);
+  var NEGOCIO = ((script && script.getAttribute("data-negocio")) || "").replace(/[^a-z0-9-]/g, "");
+  var BASE = (script && script.src ? new URL(script.src).origin : location.origin) + (NEGOCIO ? "/n/" + NEGOCIO : "");
+  var ABRIR = !!(script && script.getAttribute("data-abrir"));
   var COLOR = (script && script.getAttribute("data-color")) || "#4f46e5";
   var SALUDO = (script && script.getAttribute("data-saludo")) || "";
 
@@ -18,10 +21,10 @@
       localStorage.setItem(k, v);
     } catch (e) { return null; }
   }
-  var sesion = store("agente_sesion");
+  var sesion = store("agente_sesion" + (NEGOCIO ? "_" + NEGOCIO : ""));
   if (!sesion) {
     sesion = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2)).replace(/[^A-Za-z0-9_-]/g, "");
-    store("agente_sesion", sesion);
+    store("agente_sesion" + (NEGOCIO ? "_" + NEGOCIO : ""), sesion);
   }
   var ultimoId = 0, abierto = false, enviando = false, poll = null, info = { negocio: "", agente: "Asistente" };
 
@@ -123,7 +126,12 @@
   panel.querySelector(".as-x").addEventListener("click", cerrar);
 
   input.addEventListener("keydown", function (e) {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      // Si el teclado está componiendo texto (dictado, autocorrector, IME), Enter solo confirma.
+      if (e.isComposing || e.keyCode === 229) return;
+      form.requestSubmit();
+    }
   });
   form.addEventListener("submit", function (e) {
     e.preventDefault();
@@ -161,4 +169,5 @@
   });
   // Mensajes proactivos (seguimientos, respuestas de un asesor humano).
   poll = setInterval(function () { if (!enviando) traerNuevos(false); }, 10000);
+  if (ABRIR) abrir();
 })();

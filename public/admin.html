@@ -299,10 +299,16 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--surface-hover)}
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} }, del(k) { try { localStorage.removeItem(k); } catch {} } };
+// Panel de un negocio cliente (/n/<slug>/admin): el servidor define AGENTE_BASE y todo apunta a SU API.
+const BASE = window.AGENTE_BASE || "";
+const ES_NEGOCIO = !!BASE;
+const CLAVE_KEY = "admin_token" + (BASE ? ":" + BASE : "");
+const TAB_KEY = "admin_tab" + (BASE ? ":" + BASE : "");
 // Enlace mágico: /admin#clave=XXXX entra solo, guarda la clave en este navegador y la borra de la barra de direcciones.
-(() => { const m = location.hash.match(/clave=([^&]+)/); if (m) { store.set("admin_token", decodeURIComponent(m[1])); history.replaceState(null, "", location.pathname); } })();
-let token = store.get("admin_token") || "";
-let tab = store.get("admin_tab") || "prospeccion";
+(() => { const m = location.hash.match(/clave=([^&]+)/); if (m) { store.set(CLAVE_KEY, decodeURIComponent(m[1])); history.replaceState(null, "", location.pathname); } })();
+let token = store.get(CLAVE_KEY) || "";
+const TAB_INICIAL = ES_NEGOCIO ? "resumen" : "prospeccion";
+let tab = store.get(TAB_KEY) || TAB_INICIAL;
 let moneda = "CLP";
 let convSel = null;
 
@@ -312,13 +318,13 @@ const ETAPA_CLASE = { ganado: "ok", perdido: "bad", negociacion: "warn", cotizad
 const chip = (t, c = "") => `<span class="chip ${c}">${esc(t)}</span>`;
 
 async function api(path, opts = {}) {
-  const res = await fetch("/admin/api" + path, { ...opts, headers: { "Content-Type": "application/json", "x-admin-token": token, ...(opts.headers || {}) } });
+  const res = await fetch(BASE + "/admin/api" + path, { ...opts, headers: { "Content-Type": "application/json", "x-admin-token": token, ...(opts.headers || {}) } });
   if (res.status === 401 && sinToken) {
     const clave = prompt("Esta acción es delicada y pide la contraseña del panel (ADMIN_TOKEN):");
-    if (clave) { token = clave.trim(); store.set("admin_token", token); return api(path, opts); }
+    if (clave) { token = clave.trim(); store.set(CLAVE_KEY, token); return api(path, opts); }
     throw new Error("Se necesita la contraseña para esta acción");
   }
-  if (res.status === 401) { store.del("admin_token"); token = ""; sinToken = false; login(); throw new Error("No autorizado"); }
+  if (res.status === 401) { store.del(CLAVE_KEY); token = ""; sinToken = false; login(); throw new Error("No autorizado"); }
   const d = await res.json();
   if (!res.ok) throw new Error(d.error || "Error");
   return d;
@@ -411,31 +417,46 @@ const skeleton = (n = 4) => `<div class="pros">${'<div class="skel"></div>'.repe
 
 // En la red de casa el servidor no pide contraseña: probamos antes de mostrar el login.
 async function probarRedLocal() {
-  try { const r = await fetch("/admin/api/config"); if (r.ok) { sinToken = true; return render(); } } catch {}
+  try { const r = await fetch(BASE + "/admin/api/config"); if (r.ok) { sinToken = true; return render(); } } catch {}
   login();
 }
 
 function login() {
-  $("#app").innerHTML = `<div class="fondo"><div class="grid-bg"></div><div class="glow g1"></div><div class="glow g2"></div></div><div class="login-wrap"><div class="card login">${LOGO}<h1 class="text-gradient">Agente Sebax</h1><p class="muted" style="margin:0">Escribe tu clave de acceso (ADMIN_TOKEN del archivo .env).</p>
+  $("#app").innerHTML = `<div class="fondo"><div class="grid-bg"></div><div class="glow g1"></div><div class="glow g2"></div></div><div class="login-wrap"><div class="card login">${LOGO}<h1 class="text-gradient">${ES_NEGOCIO ? "Tu agente de ventas" : "Agente Sebax"}</h1><p class="muted" style="margin:0">${ES_NEGOCIO ? "Escribe la clave de tu panel (te la dio sss.solutions)." : "Escribe tu clave de acceso (ADMIN_TOKEN del archivo .env)."}</p>
   <form id="f"><input id="t" type="password" placeholder="Clave de acceso" autofocus><button class="b p btn-big">Entrar</button></form><p id="e" class="muted"></p></div></div>`;
-  $("#f").onsubmit = async (e) => { e.preventDefault(); token = $("#t").value.trim(); try { await api("/config"); store.set("admin_token", token); render(); } catch (err) { $("#e").textContent = err.message; } };
+  $("#f").onsubmit = async (e) => { e.preventDefault(); token = $("#t").value.trim(); try { await api("/config"); store.set(CLAVE_KEY, token); render(); } catch (err) { $("#e").textContent = err.message; } };
 }
 
-const NAV = [
-  ["prospeccion", "Prospección", "target"], ["leads", "Leads", "users"], ["conversaciones", "Chats", "msg"], ["resumen", "Resumen", "chart"],
-  ["pedidos", "Pedidos", "bag"], ["citas", "Citas", "cal"], ["seguimientos", "Seguimientos", "clock"], ["ajustes", "Ajustes", "gear"],
-];
-const NAV_MOVIL = ["prospeccion", "leads", "conversaciones", "resumen"];
+const NAV = ES_NEGOCIO
+  ? [
+      ["resumen", "Resumen", "chart"], ["conversaciones", "Chats", "msg"], ["citas", "Citas", "cal"], ["pedidos", "Pedidos", "bag"],
+      ["leads", "Clientes", "users"], ["seguimientos", "Seguimientos", "clock"], ["whatsapp", "WhatsApp", "phone"], ["ajustes", "Ajustes", "gear"],
+    ]
+  : [
+      ["prospeccion", "Prospección", "target"], ["negocios", "Negocios", "store"], ["leads", "Leads", "users"], ["conversaciones", "Chats", "msg"], ["resumen", "Resumen", "chart"],
+      ["pedidos", "Pedidos", "bag"], ["citas", "Citas", "cal"], ["seguimientos", "Seguimientos", "clock"], ["ajustes", "Ajustes", "gear"],
+    ];
+const NAV_MOVIL = ES_NEGOCIO ? ["resumen", "conversaciones", "citas", "whatsapp"] : ["prospeccion", "negocios", "leads", "conversaciones"];
 const TABS = Object.fromEntries(NAV.map(([k, v]) => [k, v]));
 
 let sinToken = false; // true si el servidor nos deja entrar sin contraseña (red de casa)
+let nombrePanel = "Agente de ventas"; // en el panel de un negocio, su nombre
+async function cargarNombrePanel() {
+  if (!ES_NEGOCIO || nombrePanel !== "Agente de ventas") return;
+  try {
+    const c = await api("/config");
+    nombrePanel = c.negocio; moneda = c.moneda || moneda;
+    document.title = `${c.negocio} · Panel`;
+    $("#brand-sub") && ($("#brand-sub").textContent = c.negocio);
+  } catch {}
+}
 function render() {
   if (!token && !sinToken) return probarRedLocal();
-  if (!VIEWS[tab]) tab = "prospeccion";
+  if (!VIEWS[tab] || !TABS[tab]) tab = TAB_INICIAL;
   const titulo = TABS[tab];
   const boton = ([k, v, i]) => `<button data-t="${k}" class="${k === tab ? "on" : ""}">${ico(i)}<span>${v}</span></button>`;
   $("#app").innerHTML = `<div class="fondo"><div class="grid-bg"></div><div class="glow g1"></div><div class="glow g2"></div></div><div class="shell">
-    <aside class="side"><div>${MARCA}<span class="brand-sub">Agente de ventas</span></div>
+    <aside class="side"><div>${MARCA}<span class="brand-sub" id="brand-sub">${esc(nombrePanel)}</span></div>
       <nav>${NAV.map(boton).join("")}</nav>
       <div class="side-foot">${sinToken ? `<span class="estado-red"><span class="dot"></span>Conectado</span>` : `<button class="b ghost" id="salir">Cerrar sesión</button>`}${botonTema()}</div></aside>
     <div class="content"><div class="topbar">${MARCA}${botonTema()}</div><main id="main">${skeleton()}</main></div>
@@ -444,12 +465,13 @@ function render() {
   document.querySelectorAll("[data-t]").forEach((b) => (b.onclick = () => ir(b.dataset.t)));
   $("#mas").onclick = menuMas;
   enlazarTema();
-  $("#salir") && ($("#salir").onclick = () => { store.del("admin_token"); token = ""; render(); });
+  $("#salir") && ($("#salir").onclick = () => { store.del(CLAVE_KEY); token = ""; render(); });
   VIEWS[tab]().catch((e) => ($("#main").innerHTML = `<div class="aviso">${ico("alert")}<div>Error: ${esc(e.message)}</div></div>`));
+  cargarNombrePanel();
 }
 
 function ir(t) {
-  tab = t; store.set("admin_tab", t);
+  tab = t; store.set(TAB_KEY, t);
   document.querySelectorAll(".hoja").forEach((h) => h.remove());
   render(); window.scrollTo(0, 0);
 }
@@ -830,7 +852,7 @@ const VIEWS = {
     <div class="scroll"><table><tr><th>Nombre</th><th>Contacto</th><th>Necesidad</th><th>Etapa</th><th>Prob.</th><th>Canal</th><th>Actualizado</th></tr>
     ${rows.map((l) => `<tr class="click" data-id="${esc(l.conversacion_id)}"><td>${esc(l.nombre || "-")}<br><small class="muted">${esc(l.empresa || "")}</small></td><td>${esc(l.telefono || "")}<br>${esc(l.email || "")}</td><td>${esc(l.necesidad || "")}</td><td>${chip(l.etapa, ETAPA_CLASE[l.etapa])}</td><td>${l.puntaje ?? "-"}</td><td>${esc(l.canal)}</td><td>${fecha(l.actualizado)}</td></tr>`).join("") || '<tr><td colspan="7" class="muted">Sin leads</td></tr>'}</table></div>`;
     $("#et").onchange = (e) => { store.set("admin_etapa", e.target.value); VIEWS.leads(); };
-    $("#csv").onclick = async () => { const r = await fetch("/admin/api/leads.csv", { headers: { "x-admin-token": token } }); const b = await r.blob(); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = "leads.csv"; a.click(); };
+    $("#csv").onclick = async () => { const r = await fetch(BASE + "/admin/api/leads.csv", { headers: { "x-admin-token": token } }); const b = await r.blob(); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = "leads.csv"; a.click(); };
     irAConversacion();
   },
 
@@ -876,8 +898,8 @@ const VIEWS = {
       <div class="row" style="margin:12px 0 0"><button class="b p" id="resp-dl">${ico("save")} Descargar respaldo</button>
       <label class="b" style="margin:0">${ico("undo")} Restaurar respaldo<input type="file" id="resp-up" accept=".db" hidden></label></div><p id="resp-msg" class="muted"></p></div></div>`;
     $("#resp-dl").onclick = async () => {
-      let r = await fetch("/admin/api/respaldo", { headers: { "x-admin-token": token } });
-      if (r.status === 401) { const c = prompt("Descargar todos los datos pide la contraseña del panel:"); if (!c) return; token = c.trim(); store.set("admin_token", token); r = await fetch("/admin/api/respaldo", { headers: { "x-admin-token": token } }); }
+      let r = await fetch(BASE + "/admin/api/respaldo", { headers: { "x-admin-token": token } });
+      if (r.status === 401) { const c = prompt("Descargar todos los datos pide la contraseña del panel:"); if (!c) return; token = c.trim(); store.set(CLAVE_KEY, token); r = await fetch(BASE + "/admin/api/respaldo", { headers: { "x-admin-token": token } }); }
       if (!r.ok) return toast("No se pudo descargar el respaldo", "bad");
       const a = document.createElement("a"); a.href = URL.createObjectURL(await r.blob()); a.download = `agente-respaldo-${new Date().toISOString().slice(0, 10)}.db`; a.click();
     };
@@ -886,8 +908,8 @@ const VIEWS = {
       if (!confirm(`¿Reemplazar TODOS los datos de este agente con "${f.name}"? Los datos actuales se guardan aparte por seguridad.`)) return;
       $("#resp-msg").textContent = "Subiendo…";
       try {
-        if (sinToken && !store.get("admin_token")) { const c = prompt("Reemplazar los datos pide la contraseña del panel:"); if (!c) return; token = c.trim(); store.set("admin_token", token); }
-        const r = await fetch("/admin/api/restaurar", { method: "POST", headers: { "x-admin-token": token, "Content-Type": "application/octet-stream" }, body: f });
+        if (sinToken && !store.get(CLAVE_KEY)) { const c = prompt("Reemplazar los datos pide la contraseña del panel:"); if (!c) return; token = c.trim(); store.set(CLAVE_KEY, token); }
+        const r = await fetch(BASE + "/admin/api/restaurar", { method: "POST", headers: { "x-admin-token": token, "Content-Type": "application/octet-stream" }, body: f });
         const d = await r.json(); if (!r.ok) throw new Error(d.error);
         $("#resp-msg").textContent = d.mensaje; setTimeout(() => location.reload(), 15000);
       } catch (err) { $("#resp-msg").textContent = "Error: " + err.message; }
@@ -896,8 +918,158 @@ const VIEWS = {
   },
 };
 
+// ---------- Negocios cliente (tu panel) ----------
+const WA_ESTADO = { conectado: ["WhatsApp conectado", "ok"], esperando_qr: ["esperando QR", "warn"], conectando: ["conectando", "warn"], apagado: ["sin WhatsApp", ""] };
+const copiar = async (texto, msg = "Copiado") => { try { await navigator.clipboard.writeText(texto); toast(msg); } catch { prompt("Copia este texto:", texto); } };
+const waAcceso = (tel, nombre, enlace) => `https://wa.me/52${tel}?text=${encodeURIComponent(`Hola, ya quedó listo el agente de ventas de ${nombre}.\n\nEntra a tu panel desde aquí (guárdalo, es tu acceso):\n${enlace}\n\nAhí conectas tu WhatsApp escaneando un código y ves tus chats, citas y pedidos.`)}`;
+
+function mostrarAcceso(nombre, enlace, dueno) {
+  const el = document.createElement("div");
+  el.className = "hoja";
+  el.innerHTML = `<div class="sheet"><div class="grab"></div><h3 style="margin:0 0 6px">Acceso de ${esc(nombre)}</h3>
+    <p class="muted" style="margin:0 0 12px">Este enlace entra directo a su panel. Mándaselo solo al dueño.</p>
+    <input readonly value="${esc(enlace)}" style="width:100%" onclick="this.select()">
+    <div class="row" style="margin:12px 0 0"><button class="b p" id="ac-cp">${ico("save")} Copiar enlace</button>
+    ${dueno ? `<a class="b" target="_blank" rel="noopener" href="${waAcceso(dueno, nombre, enlace)}">${ico("send")} Mandárselo por WhatsApp</a>` : ""}
+    <a class="b ghost" target="_blank" rel="noopener" href="${esc(enlace)}">Abrir su panel</a></div></div>`;
+  document.body.appendChild(el);
+  el.onclick = (e) => { if (e.target === el) el.remove(); };
+  $("#ac-cp", el).onclick = () => copiar(enlace, "Enlace copiado");
+}
+
+async function vistaNegocios() {
+  const lista = await api("/negocios");
+  const activos = lista.filter((n) => n.activo).length;
+  const fila = (n) => {
+    const [wt, wc] = WA_ESTADO[n.whatsapp] || WA_ESTADO.apagado;
+    const m = (v) => { try { return new Intl.NumberFormat("es-MX", { style: "currency", currency: n.moneda, maximumFractionDigits: 0 }).format(v || 0); } catch { return v; } };
+    return `<div class="card" style="margin:0 0 12px"><div class="row" style="margin:0;gap:8px;flex-wrap:wrap">
+        <b style="font-size:17px">${esc(n.nombre)}</b>${n.activo ? chipPt(wt, wc) : chip("en pausa", "bad")}${n.configValida ? "" : chip("revisar configuración", "bad")}
+        <small class="muted" style="margin-left:auto">/n/${esc(n.slug)}</small></div>
+      <p class="muted" style="margin:8px 0">${n.conversaciones30} chats y ${m(n.ventas30)} en ventas en 30 días · ${n.citasProximas} citas próximas · ${n.productos ?? 0} productos${n.dueno ? ` · dueño ${esc(n.dueno)}` : " · sin WhatsApp del dueño"}${n.ultimaActividad ? ` · última actividad ${fecha(n.ultimaActividad)}` : ""}</p>
+      <div class="row" style="margin:0;gap:8px;flex-wrap:wrap">
+        <a class="b p" href="/n/${esc(n.slug)}/admin" target="_blank" rel="noopener">Abrir su panel</a>
+        <button class="b" data-acceso="${esc(n.slug)}">${ico("send")} Acceso del dueño</button>
+        <a class="b" href="/n/${esc(n.slug)}/chat" target="_blank" rel="noopener">${ico("msg")} Probar su chat</a>
+        <button class="b ghost" data-pausa="${esc(n.slug)}" data-activo="${n.activo ? 1 : 0}">${n.activo ? "Pausar" : "Reactivar"}</button></div></div>`;
+  };
+  $("#main").innerHTML = `<div class="card" style="margin:0 0 16px"><h2 style="margin:0 0 4px">Dar de alta un negocio</h2>
+      <p class="muted" style="margin:0 0 12px">Cada negocio tiene su agente, su WhatsApp, su panel y sus datos por separado. ${lista.length ? `Tienes ${activos} activo${activos === 1 ? "" : "s"} de ${lista.length}.` : ""}</p>
+      <form id="alta" class="row" style="margin:0;gap:8px;flex-wrap:wrap">
+        <input id="al-n" placeholder="Nombre del negocio" required style="flex:2;min-width:180px">
+        <input id="al-d" placeholder="WhatsApp del dueño (10 dígitos)" inputmode="tel" style="flex:1;min-width:180px">
+        <input id="al-s" placeholder="Dirección (opcional)" style="flex:1;min-width:140px">
+        <button class="b p">${ico("check")} Crear agente</button></form><p id="al-e" class="muted" style="margin:8px 0 0"></p></div>
+    ${lista.length ? lista.map(fila).join("") : `<div class="info">${ico("store")}<div>Todavía no tienes negocios cliente. Cuando cierres una venta, dalo de alta aquí: en un minuto tiene su agente listo.</div></div>`}`;
+  $("#al-n").oninput = () => { $("#al-s").placeholder = "/n/" + ($("#al-n").value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "direccion"); };
+  $("#alta").onsubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const r = await post("/negocios", { nombre: $("#al-n").value, dueno: $("#al-d").value, slug: $("#al-s").value || undefined });
+      toast(`Agente de ${r.negocio.nombre} creado`);
+      await vistaNegocios();
+      mostrarAcceso(r.negocio.nombre, r.enlace, r.negocio.dueno);
+    } catch (err) { $("#al-e").textContent = err.message; }
+  };
+  document.querySelectorAll("[data-acceso]").forEach((b) => (b.onclick = async () => {
+    const n = lista.find((x) => x.slug === b.dataset.acceso);
+    const r = await api(`/negocios/${encodeURIComponent(n.slug)}/enlace`);
+    mostrarAcceso(n.nombre, r.enlace, n.dueno);
+  }));
+  document.querySelectorAll("[data-pausa]").forEach((b) => (b.onclick = async () => {
+    const activo = b.dataset.activo === "1";
+    if (activo && !confirm("¿Pausar este negocio? Su agente deja de contestar (WhatsApp y chat) hasta que lo reactives. No se borra nada.")) return;
+    await api(`/negocios/${encodeURIComponent(b.dataset.pausa)}`, { method: "PATCH", body: JSON.stringify({ activo: !activo }) });
+    toast(activo ? "Negocio en pausa" : "Negocio reactivado");
+    vistaNegocios();
+  }));
+}
+
+// ---------- WhatsApp del negocio (panel de un negocio) ----------
+let waNegTimer = null;
+async function vistaWaNegocio() {
+  clearTimeout(waNegTimer);
+  const w = await api("/whatsapp");
+  if (tab !== "whatsapp") return;
+  if (w.estado === "conectado") {
+    $("#main").innerHTML = `<div class="card piloto"><div class="piloto-ico on">${WA_ICO}</div><div style="min-width:0;flex:1">
+      <div class="row" style="margin:0;gap:8px"><b class="piloto-t">WhatsApp conectado</b>${chipPt(w.numero ? "+52 " + w.numero : "conectado", "ok")}</div>
+      <p>Tu agente ya contesta a los clientes que le escriben a este número, a cualquier hora. Tú ves todo en <b>Chats</b> y puedes contestar tú cuando quieras (el agente se pausa en esa plática).</p>
+      <small>${w.dueno ? `Los avisos (clientes nuevos, citas, pedidos) te llegan al ${esc(w.dueno)}. <a href="#" id="wn-prueba">Mandarme un aviso de prueba</a> · ` : `Para recibir avisos escribe tu WhatsApp personal en <b>Ajustes</b>. · `}<a href="#" id="wn-off">Desvincular</a></small></div></div>
+      <div class="info">${ico("alert")}<div>Para probarlo, escríbele al número del negocio desde <b>otro</b> celular: los mensajes que mandas desde tu número personal (${esc(w.dueno || "el del dueño")}) el agente no los contesta, para no confundirte con un cliente.</div></div>`;
+    $("#wn-prueba") && ($("#wn-prueba").onclick = async (e) => { e.preventDefault(); try { const r = await post("/whatsapp/aviso-prueba"); toast(`Aviso enviado a ${r.numero}`); } catch (err) { toast(err.message, "bad"); } });
+    $("#wn-off").onclick = async (e) => { e.preventDefault(); if (!confirm("¿Desvincular el WhatsApp? El agente deja de contestar ahí hasta que lo vuelvas a conectar.")) return; await post("/whatsapp/desconectar"); toast("WhatsApp desvinculado"); setTimeout(vistaWaNegocio, 1200); };
+    return;
+  }
+  const qr = w.qr ? `<img src="${w.qr}" alt="Código QR de WhatsApp" style="width:240px;height:240px;border-radius:16px;background:#fff;padding:10px">` : w.estado === "apagado" ? "<small>Preparando el código…</small>" : '<div class="skel" style="width:240px;height:240px"></div>';
+  if (!$("#wn-card")) {
+    $("#main").innerHTML = `<div class="card piloto" id="wn-card"><div class="piloto-ico">${WA_ICO}</div><div style="min-width:0;flex:1">
+      <div class="row" style="margin:0;gap:8px"><b class="piloto-t">Conecta el WhatsApp del negocio</b><span id="wn-chip"></span></div>
+      <p>En el celular del negocio: abre WhatsApp → <b>Ajustes</b> → <b>Dispositivos vinculados</b> → <b>Vincular un dispositivo</b> y escanea este código. Tu celular sigue funcionando normal.</p>
+      <div id="wn-qr" style="margin-top:12px"></div>
+      <div style="margin-top:14px"><small>¿Estás viendo esto en el mismo celular del negocio y no puedes escanear?</small><br>
+        <button class="b" id="wn-cod" style="margin-top:8px">${ico("phone")} Vincular con código</button><div id="wn-cod-out" style="margin-top:10px"></div></div></div></div>`;
+    $("#wn-cod").onclick = async () => {
+      const num = prompt("Número de WhatsApp del negocio a 10 dígitos:"); if (!num) return;
+      try {
+        const r = await post("/whatsapp/codigo", { numero: num });
+        $("#wn-cod-out").innerHTML = `<div class="info" style="margin:0"><div><span>WhatsApp → <b>Ajustes</b> → <b>Dispositivos vinculados</b> → <b>Vincular un dispositivo</b> → <b>Vincular con número de teléfono</b> y escribe:</span></div>
+          <div style="font-family:var(--font-h);font-size:34px;font-weight:800;letter-spacing:4px;color:var(--fg);justify-content:center">${esc(r.codigo)}</div><div><small class="muted">El código vence en unos minutos. Si vence, pide otro.</small></div></div>`;
+      } catch (err) { toast(err.message, "bad"); }
+    };
+  }
+  $("#wn-chip").innerHTML = chipPt(w.estado === "esperando_qr" ? "Esperando que escanees" : "Conectando", "warn");
+  $("#wn-qr").innerHTML = qr;
+  waNegTimer = setTimeout(() => tab === "whatsapp" && vistaWaNegocio().catch(() => {}), 3000);
+}
+
+// ---------- Ajustes del negocio (panel de un negocio) ----------
+async function vistaAjustesNegocio() {
+  const [c, y] = await Promise.all([api("/config"), api("/config-yaml")]);
+  $("#main").innerHTML = `${c.errorConfig ? `<div class="aviso">${ico("alert")}<div>La configuración tiene un error y el agente no puede usarla: ${esc(c.errorConfig)}</div></div>` : ""}
+    <div class="grid">
+      <div class="card"><h2>Avisos a tu WhatsApp</h2><p class="muted">Aquí te llegan los clientes nuevos, las citas, los pedidos y cuando alguien pide hablar contigo.</p>
+        <form id="aj-d" class="row" style="margin:0;gap:8px"><input id="aj-dn" value="${esc(c.dueno || "")}" placeholder="Tu WhatsApp personal (10 dígitos)" inputmode="tel" style="flex:1"><button class="b p">Guardar</button></form></div>
+      <div class="card"><h2>Cobros</h2><p class="muted">${c.pagos === "mercadopago" ? "El agente manda links de pago de <b>tu</b> Mercado Pago." : "El agente da tus datos de transferencia (los de la configuración de abajo)."}</p>
+        <form id="aj-p" class="row" style="margin:0;gap:8px;flex-wrap:wrap"><select id="aj-pp"><option value="transferencia">Transferencia</option><option value="mercadopago" ${c.pagos === "mercadopago" ? "selected" : ""}>Mercado Pago</option></select>
+        <input id="aj-pt" type="password" placeholder="${c.mercadopagoConectado ? "Access Token guardado (déjalo vacío para conservarlo)" : "Access Token de Mercado Pago (APP_USR-...)"}" style="flex:1;min-width:200px"><button class="b p">Guardar</button></form></div>
+      <div class="card"><h2>Tu chat para la web</h2><p class="muted">Comparte este enlace en tu Instagram, Facebook o Google, o pega el código en tu página.</p>
+        <div class="row" style="margin:0;gap:8px;flex-wrap:wrap"><a class="b" href="${esc(c.chat)}" target="_blank" rel="noopener">${ico("msg")} Abrir chat</a><button class="b" id="aj-cl">Copiar enlace</button><button class="b" id="aj-cw">Copiar código para tu página</button></div></div>
+      <div class="card"><h2>Respaldo</h2><p class="muted">Descarga todos tus datos: chats, clientes, pedidos y citas.</p><button class="b p" id="aj-rs">${ico("save")} Descargar respaldo</button></div>
+    </div>
+    <div class="card" style="margin-top:16px"><h2 style="margin:0 0 4px">Lo que sabe tu agente</h2>
+      <p class="muted" style="margin:0 0 10px">Catálogo, precios, horario, políticas y preguntas frecuentes. Cambia el texto y presiona Guardar: el agente lo usa desde el siguiente mensaje. Si algo está mal escrito, no se guarda y te dice dónde está el error.</p>
+      <textarea id="aj-y" rows="24" spellcheck="false" style="width:100%;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;line-height:1.5">${esc(y.yaml)}</textarea>
+      <div class="row" style="margin:10px 0 0"><button class="b p" id="aj-yg">${ico("save")} Guardar</button><span id="aj-ym" class="muted"></span></div></div>`;
+  $("#aj-d").onsubmit = async (e) => { e.preventDefault(); try { const r = await post("/ajustes", { dueno: $("#aj-dn").value }); toast(r.dueno ? `Avisos a ${r.dueno}` : "Avisos desactivados"); } catch (err) { toast(err.message, "bad"); } };
+  $("#aj-p").onsubmit = async (e) => {
+    e.preventDefault();
+    const pagos = { proveedor: $("#aj-pp").value }; if ($("#aj-pt").value.trim()) pagos.mercadopago_token = $("#aj-pt").value.trim();
+    try { await post("/ajustes", { pagos }); toast("Cobros guardados"); vistaAjustesNegocio(); } catch (err) { toast(err.message, "bad"); }
+  };
+  $("#aj-cl").onclick = () => copiar(c.chat, "Enlace copiado");
+  $("#aj-cw").onclick = () => copiar(c.widget, "Código copiado");
+  $("#aj-rs").onclick = async () => {
+    const r = await fetch(BASE + "/admin/api/respaldo", { headers: { "x-admin-token": token } });
+    if (!r.ok) return toast("No se pudo descargar el respaldo", "bad");
+    const a = document.createElement("a"); a.href = URL.createObjectURL(await r.blob()); a.download = `${c.slug}-respaldo-${new Date().toISOString().slice(0, 10)}.db`; a.click();
+  };
+  $("#aj-yg").onclick = async () => {
+    $("#aj-ym").textContent = "Guardando…";
+    try {
+      const r = await api("/config-yaml", { method: "PUT", body: JSON.stringify({ yaml: $("#aj-y").value }) });
+      $("#aj-ym").textContent = `Guardado: ${r.productos} productos. El agente ya usa la versión nueva.`;
+      nombrePanel = r.negocio; $("#brand-sub") && ($("#brand-sub").textContent = r.negocio);
+    } catch (err) { $("#aj-ym").textContent = "No se guardó: " + err.message; }
+  };
+}
+
+VIEWS.negocios = vistaNegocios;
+VIEWS.whatsapp = vistaWaNegocio;
+if (ES_NEGOCIO) VIEWS.ajustes = vistaAjustesNegocio;
+
 function irAConversacion() {
-  document.querySelectorAll("[data-id]").forEach((el) => (el.onclick = () => { convSel = el.dataset.id; tab = "conversaciones"; store.set("admin_tab", tab); render(); }));
+  document.querySelectorAll("[data-id]").forEach((el) => (el.onclick = () => { convSel = el.dataset.id; tab = "conversaciones"; store.set(TAB_KEY, tab); render(); }));
 }
 
 async function detalle(id) {

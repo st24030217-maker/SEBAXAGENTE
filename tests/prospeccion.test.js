@@ -60,7 +60,7 @@ test("la plantilla menciona el negocio, el portafolio y no inventa precios", () 
   assert.ok(m.correo.includes(cfg.remitente.portafolio));
   assert.doesNotMatch(m.correo, /\$\s?\d/);
   assert.match(redactarPlantilla({ ...p, asunto: "Hola" }, cfg, { seguimiento: true }).asunto, /^Re: /);
-  assert.match(pieCorreo(cfg, null), /BAJA/);
+  assert.doesNotMatch(pieCorreo(cfg, "https://x/baja/1"), /BAJA|baja/);
 });
 
 test("no duplica prospectos y la baja los bloquea", () => {

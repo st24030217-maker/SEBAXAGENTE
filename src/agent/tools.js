@@ -7,6 +7,7 @@ import { gcalConfigurado, crearEventoGoogle } from "../services/gcal.js";
 import { createPaymentLink } from "../services/payments.js";
 import { notifyOwner } from "../services/notify.js";
 import { formatMoney } from "./prompt.js";
+import { negocioActual } from "../contexto.js";
 
 const ETAPAS = ["nuevo", "interesado", "cotizado", "negociacion", "ganado", "perdido"];
 const ENTREGAS = ["despacho_santiago", "despacho_regiones", "retiro", "sin_envio"];
@@ -386,6 +387,7 @@ Notas: ${input.notas}` : ""}`,
   },
 
   async enviar_video_presentacion(input, { convId, canal, conv }) {
+    if (negocioActual()) return { ok: false, motivo: "Esta herramienta no está disponible para este negocio." };
     if (canal !== "wa") return { ok: false, motivo: "El video solo se puede mandar por WhatsApp. Comparte el portafolio en su lugar." };
     const wa = await import("../channels/wa-web.js");
     if (!wa.videoPresentacion()) return { ok: false, motivo: "No hay video cargado. Comparte el link del portafolio en su lugar." };

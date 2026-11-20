@@ -8,6 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import zlib from "node:zlib";
 import { settings } from "../config.js";
+import { conNegocio } from "../contexto.js";
 
 const URL_BASE = () => String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const CLAVE = () => process.env.SUPABASE_SERVICE_KEY || "";
@@ -45,24 +46,89 @@ async function subir(nombre, cuerpo, tipo = "application/octet-stream") {
 }
 
 /** Empaqueta la carpeta de sesión de WhatsApp en un JSON {archivo: base64}. */
-function empacarSesion() {
-  if (!fs.existsSync(SESION())) return null;
+function empacarSesion(dir = SESION()) {
+  if (!fs.existsSync(dir)) return null;
   const archivos = {};
-  for (const f of fs.readdirSync(SESION())) {
-    const p = path.join(SESION(), f);
+  for (const f of fs.readdirSync(dir)) {
+    const p = path.join(dir, f);
     if (fs.statSync(p).isFile()) archivos[f] = fs.readFileSync(p).toString("base64");
   }
   return Object.keys(archivos).length ? JSON.stringify(archivos) : null;
 }
 
-function desempacarSesion(json) {
+function desempacarSesion(json, dir = SESION()) {
   const archivos = JSON.parse(json);
-  fs.mkdirSync(SESION(), { recursive: true });
+  fs.mkdirSync(dir, { recursive: true });
   for (const [f, b64] of Object.entries(archivos)) {
     if (f.includes("/") || f.includes("\\") || f.includes("..")) continue;
-    fs.writeFileSync(path.join(SESION(), f), Buffer.from(b64, "base64"));
+    fs.writeFileSync(path.join(dir, f), Buffer.from(b64, "base64"));
   }
   return Object.keys(archivos).length;
+}
+
+// ---------- Negocios cliente (cada uno en negocios/<slug>/ dentro del bucket) ----------
+
+const firmas = new Map(); // slug -> huella del último respaldo (solo se sube lo que cambió)
+function huellaNegocio(n) {
+  const t = (p) => {
+    try {
+      return fs.statSync(p).mtimeMs;
+    } catch {
+      return 0;
+    }
+  };
+  let ses = 0;
+  try {
+    for (const f of fs.readdirSync(n.sesionDir)) ses = Math.max(ses, t(path.join(n.sesionDir, f)));
+  } catch {}
+  return [t(n.dbPath), t(`${n.dbPath}-wal`), t(n.yamlPath), t(n.metaPath), ses].join("|");
+}
+
+async function respaldarNegocios() {
+  const { listarNegocios } = await import("../negocios.js");
+  const { getDb } = await import("../db.js");
+  const lista = listarNegocios();
+  await subir("negocios/indice.json", JSON.stringify(lista.map((n) => n.slug)), "application/json");
+  for (const n of lista) {
+    const h = huellaNegocio(n);
+    if (firmas.get(n.slug) === h) continue;
+    const tmp = path.join(os.tmpdir(), `respaldo-${n.slug}-${Date.now()}.db`);
+    try {
+      conNegocio(n, () => getDb().exec(`VACUUM INTO '${tmp.replace(/'/g, "''")}'`));
+      await subir(`negocios/${n.slug}/agente.db`, fs.readFileSync(tmp));
+      await subir(`negocios/${n.slug}/negocio.yaml`, fs.readFileSync(n.yamlPath), "text/plain");
+      await subir(`negocios/${n.slug}/negocio.json`, fs.readFileSync(n.metaPath), "application/json");
+      const ses = empacarSesion(n.sesionDir);
+      if (ses) await subir(`negocios/${n.slug}/whatsapp-sesion.json`, ses, "application/json");
+      firmas.set(n.slug, h);
+    } catch (e) {
+      console.error(`[nube] respaldo de ${n.slug} falló:`, e.message);
+    } finally {
+      fs.rm(tmp, { force: true }, () => {});
+    }
+  }
+}
+
+async function restaurarNegocios() {
+  const indice = await descargar("negocios/indice.json");
+  if (!indice) return;
+  const { carpetaNegocios, SLUG_OK } = await import("../negocios.js");
+  const slugs = JSON.parse(indice.toString("utf8")).filter((s) => SLUG_OK.test(s));
+  for (const slug of slugs) {
+    const dir = path.join(carpetaNegocios(), slug);
+    if (fs.existsSync(path.join(dir, "negocio.json"))) continue; // ya está en disco
+    const meta = await descargar(`negocios/${slug}/negocio.json`);
+    const yaml = await descargar(`negocios/${slug}/negocio.yaml`);
+    if (!meta || !yaml) continue;
+    fs.mkdirSync(dir, { recursive: true });
+    const db = await descargar(`negocios/${slug}/agente.db`);
+    if (db) fs.writeFileSync(path.join(dir, "agente.db"), db);
+    const ses = await descargar(`negocios/${slug}/whatsapp-sesion.json`);
+    if (ses) desempacarSesion(ses.toString("utf8"), path.join(dir, "whatsapp-sesion"));
+    fs.writeFileSync(path.join(dir, "negocio.yaml"), yaml);
+    fs.writeFileSync(path.join(dir, "negocio.json"), meta); // al final: sin este archivo el negocio no "existe"
+  }
+  console.log(`[nube] negocios cliente restaurados: ${slugs.length}`);
 }
 
 /** Al arrancar (antes de abrir la base): recupera datos y sesión si el disco viene vacío. */
@@ -83,6 +149,7 @@ export async function restaurarDesdeNube() {
     const sesGz = await descargar("whatsapp-sesion.json.gz");
     const ses = sesGz ? zlib.gunzipSync(sesGz) : await descargar("whatsapp-sesion.json");
     if (ses) console.log(`[nube] sesión de WhatsApp restaurada (${desempacarSesion(ses.toString("utf8"))} archivos)`);
+    await restaurarNegocios();
     puedeRespaldar = true;
   } catch (e) {
     console.error("[nube] NO se pudo restaurar el respaldo; los respaldos quedan pausados para no borrar el bueno:", e.message);
@@ -122,6 +189,7 @@ export async function respaldarEnNube(getDb) {
         huellaSesion = hs;
       }
     }
+    await respaldarNegocios();
     ultimoRespaldo = new Date().toISOString();
     return ultimoRespaldo;
   } finally {

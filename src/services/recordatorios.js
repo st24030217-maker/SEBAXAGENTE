@@ -4,6 +4,8 @@
 import { getDb, getLead, logEvent } from "../db.js";
 import { getNegocio } from "../config.js";
 import { localParts, localDateString, zonedToUtc } from "./calendar.js";
+import { negocioActual } from "../contexto.js";
+import { paraCadaNegocio } from "../negocios.js";
 
 const HORA_AGENDA = Number(process.env.AGENDA_HORA || 8);
 
@@ -28,6 +30,7 @@ const yaEnviado = (tipo, clave) =>
  */
 export async function revisarRecordatorios(ahora = new Date(), enviar) {
   const tz = getNegocio().negocio.zona_horaria;
+  const marca = negocioActual() ? negocioActual().meta.nombre : "Agente Sebax";
   const d = getDb();
   const enviados = [];
 
@@ -41,7 +44,7 @@ export async function revisarRecordatorios(ahora = new Date(), enviar) {
         const q = quien(c);
         return `${hora(c.inicio, tz)} · ${q.nombre}${c.tipo ? ` · ${c.tipo}` : ""}${q.tel ? `\n      tel. ${q.tel}` : ""}`;
       });
-      const texto = `*Agente Sebax · Tu agenda de hoy*\n\n${diaLargo(hoy, tz).replace(/^./, (x) => x.toUpperCase())}: ${citas.length === 1 ? "tienes 1 cita" : `tienes ${citas.length} citas`}.\n\n${lineas.join("\n")}`;
+      const texto = `*${marca} · Tu agenda de hoy*\n\n${diaLargo(hoy, tz).replace(/^./, (x) => x.toUpperCase())}: ${citas.length === 1 ? "tienes 1 cita" : `tienes ${citas.length} citas`}.\n\n${lineas.join("\n")}`;
       if (await enviar(texto)) enviados.push(texto);
       else return enviados; // chip desconectado: se reintenta en el siguiente minuto
     }
@@ -59,7 +62,7 @@ export async function revisarRecordatorios(ahora = new Date(), enviar) {
     if (yaEnviado("recordatorio_dueno", clave)) continue;
     const q = quien(c);
     const min = Math.max(1, Math.round((new Date(c.inicio) - ahora) / 60_000));
-    const texto = `*Agente Sebax · Cita en ${min >= 55 ? "1 hora" : `${min} minutos`}*\n\n${hora(c.inicio, tz)} · ${q.nombre}${c.tipo ? `\n${c.tipo}` : ""}${q.tel ? `\nTel. ${q.tel}` : ""}${q.necesidad ? `\nBusca: ${q.necesidad}` : ""}${c.notas ? `\nNotas: ${c.notas}` : ""}`;
+    const texto = `*${marca} · Cita en ${min >= 55 ? "1 hora" : `${min} minutos`}*\n\n${hora(c.inicio, tz)} · ${q.nombre}${c.tipo ? `\n${c.tipo}` : ""}${q.tel ? `\nTel. ${q.tel}` : ""}${q.necesidad ? `\nBusca: ${q.necesidad}` : ""}${c.notas ? `\nNotas: ${c.notas}` : ""}`;
     if (!(await enviar(texto))) break;
     logEvent("recordatorio_dueno", c.conversacion_id, { clave });
     enviados.push(texto);
@@ -74,9 +77,14 @@ export function startRecordatorios(enviar, cadaMs = 60_000) {
     if (corriendo) return;
     corriendo = true;
     try {
-      await revisarRecordatorios(new Date(), enviar);
-    } catch (e) {
-      console.error("[recordatorios]", e.message);
+      try {
+        await revisarRecordatorios(new Date(), enviar);
+      } catch (e) {
+        console.error("[recordatorios]", e.message);
+      }
+      // Cada negocio cliente recibe su agenda y sus avisos en el WhatsApp de su dueño, desde su chip.
+      const { avisarDuenoNegocio } = await import("../channels/wa-negocio.js");
+      await paraCadaNegocio((n) => (n.meta.dueno ? revisarRecordatorios(new Date(), (t) => avisarDuenoNegocio(n, t)) : null), "recordatorios");
     } finally {
       corriendo = false;
     }

@@ -7,6 +7,8 @@ import express from "express";
 import { DatabaseSync } from "node:sqlite";
 import { Router } from "express";
 import { settings, reloadNegocio, getNegocio } from "../config.js";
+import { negocioActual } from "../contexto.js";
+import { rutasPanelNegocio, rutasNegociosPrincipal } from "./negocios.js";
 import { getDb, getConversation, getLead, upsertLead, setBotActive, now, logEvent } from "../db.js";
 import { recordOutgoing } from "../agent/agent.js";
 import { ETAPAS } from "../agent/tools.js";
@@ -15,7 +17,7 @@ import { setOrderStatus } from "../services/orders.js";
 import { reloadProspeccion, getProspeccion } from "../prospeccion/config.js";
 import { urlBoceto } from "../prospeccion/boceto.js";
 import { probarGcal, gcalConfigurado } from "../services/gcal.js";
-import { estadoWa, desconectarWa, enviadosWaHoy, limiteWaHoy, pedirCodigoVinculacion, avisarDueno, numeroDueno, videoPresentacion, probarPrimerMensaje, sendWaDocumento } from "../channels/wa-web.js";
+import { estadoWa, desconectarWa, enviadosWaHoy, limiteWaHoy, pedirCodigoVinculacion, avisarDueno, numeroDueno, videoPresentacion, probarPrimerMensaje, sendWaDocumento, sendWaVideoArchivo } from "../channels/wa-web.js";
 import {
   ESTADOS as ESTADOS_PROSPECTO,
   getProspecto,
@@ -52,17 +54,24 @@ export function esRedLocal(req) {
 const SIEMPRE_CON_CLAVE = ["/respaldo", "/restaurar", "/whatsapp/desconectar", "/whatsapp/codigo"];
 const panelAbierto = () => /^(1|true|si|sí|yes)$/i.test(process.env.ADMIN_ABIERTO || "");
 
+const claveIgual = (token, esperado) =>
+  !!esperado &&
+  esperado !== "cambia-esta-clave" &&
+  token.length === esperado.length &&
+  crypto.timingSafeEqual(Buffer.from(token), Buffer.from(esperado));
+
 function auth(req, res, next) {
   if (esRedLocal(req)) return next();
-  if (panelAbierto() && !SIEMPRE_CON_CLAVE.includes(req.path)) return next();
   const token = req.get("x-admin-token") || "";
-  const esperado = settings.adminToken;
-  const ok =
-    esperado &&
-    esperado !== "cambia-esta-clave" &&
-    token.length === esperado.length &&
-    crypto.timingSafeEqual(Buffer.from(token), Buffer.from(esperado));
-  if (!ok) return res.status(401).json({ error: "No autorizado. Revisa ADMIN_TOKEN en .env (y que no sea el valor de ejemplo)." });
+  const n = negocioActual();
+  if (n) {
+    // Panel de un negocio cliente: entra su dueño con su clave, o tú con la tuya (ADMIN_TOKEN).
+    // ADMIN_ABIERTO no aplica aquí: el panel de cada negocio siempre pide clave.
+    if (claveIgual(token, n.meta.token) || claveIgual(token, settings.adminToken)) return next();
+    return res.status(401).json({ error: "Clave incorrecta. Pídele a sss.solutions la clave de tu panel." });
+  }
+  if (panelAbierto() && !SIEMPRE_CON_CLAVE.includes(req.path)) return next();
+  if (!claveIgual(token, settings.adminToken)) return res.status(401).json({ error: "No autorizado. Revisa ADMIN_TOKEN en .env (y que no sea el valor de ejemplo)." });
   next();
 }
 
@@ -75,7 +84,11 @@ const wrap = (fn) => async (req, res) => {
   }
 };
 
-export function adminRouter() {
+/**
+ * @param {{negocio?: boolean}} opciones negocio=true: panel de un negocio cliente (/n/<slug>/admin),
+ *   sin prospección y con su propio WhatsApp. Sin opciones: tu panel principal.
+ */
+export function adminRouter({ negocio: esNegocio = false } = {}) {
   const r = Router();
   r.use(auth);
   const db = () => getDb();
@@ -288,9 +301,23 @@ export function adminRouter() {
 
   r.post("/recargar-config", wrap((_req, res) => {
     const n = reloadNegocio();
-    reloadProspeccion();
+    if (!esNegocio) reloadProspeccion();
     res.json({ ok: true, productos: n.catalogo.length });
   }));
+
+  if (esNegocio) {
+    // Panel de un negocio cliente: su WhatsApp, su configuración y su respaldo. Nada de prospección.
+    rutasPanelNegocio(r, wrap);
+    r.get("/respaldo", wrap((_req, res) => {
+      const tmp = path.join(os.tmpdir(), `agente-respaldo-${Date.now()}.db`);
+      db().exec(`VACUUM INTO '${tmp.replace(/'/g, "''")}'`);
+      res.download(tmp, `${negocioActual().slug}-respaldo-${now().slice(0, 10)}.db`, () => fs.rm(tmp, { force: true }, () => {}));
+    }));
+    return r;
+  }
+
+  // Tus negocios cliente (alta, lista, activar/pausar). Solo en tu panel.
+  rutasNegociosPrincipal(r, wrap);
 
   r.get("/config", wrap((_req, res) => {
     res.json({
@@ -368,16 +395,23 @@ export function adminRouter() {
     res.json({ ok: true, numero: numeroDueno() });
   }));
 
-  // Te manda un PDF (por ejemplo, una cotización) a tu WhatsApp personal (OWNER_WHATSAPP).
-  // Cuerpo: el PDF. Query: ?nombre=Archivo.pdf&texto=Mensaje&numero=10 dígitos (debe coincidir con el tuyo)
-  r.post("/whatsapp/archivo-dueno", express.raw({ type: "application/pdf", limit: "15mb" }), wrap(async (req, res) => {
+  // Te manda un PDF (por ejemplo, una cotización) o un video MP4 a tu WhatsApp personal (OWNER_WHATSAPP).
+  // Cuerpo: el PDF o el MP4. Query: ?nombre=Archivo.pdf&texto=Mensaje&numero=10 dígitos (debe coincidir con el tuyo)
+  r.post("/whatsapp/archivo-dueno", express.raw({ type: ["application/pdf", "video/mp4"], limit: "16mb" }), wrap(async (req, res) => {
     const tel = numeroDueno();
     if (!tel) return res.status(409).json({ error: "No hay número personal configurado (OWNER_WHATSAPP)" });
     if (req.query.numero && String(req.query.numero).replace(/\D/g, "").slice(-10) !== tel) {
       return res.status(409).json({ error: "El número no coincide con tu número personal configurado" });
     }
-    if (!Buffer.isBuffer(req.body) || !req.body.length || req.body.subarray(0, 4).toString() !== "%PDF") {
-      return res.status(400).json({ error: "Manda un PDF (Content-Type: application/pdf)" });
+    const esPdf = Buffer.isBuffer(req.body) && req.body.subarray(0, 4).toString() === "%PDF";
+    const esMp4 = Buffer.isBuffer(req.body) && req.body.subarray(4, 8).toString() === "ftyp";
+    if (!esPdf && !esMp4) {
+      return res.status(400).json({ error: "Manda un PDF (Content-Type: application/pdf) o un MP4 (video/mp4)" });
+    }
+    if (esMp4) {
+      await sendWaVideoArchivo(tel, req.body, String(req.query.texto || "").trim());
+      logEvent("archivo_enviado_dueno", null, { nombre: "video.mp4", bytes: req.body.length });
+      return res.json({ ok: true, numero: tel, nombre: "video.mp4" });
     }
     const nombre = String(req.query.nombre || "Documento.pdf").replace(/[\\/]/g, "-").slice(0, 120);
     await sendWaDocumento(tel, req.body, nombre, String(req.query.texto || "").trim());

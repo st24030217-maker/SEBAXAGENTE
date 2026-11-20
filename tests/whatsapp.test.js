@@ -9,7 +9,7 @@ process.env.SMTP_USER = "";
 process.env.OWNER_WEBHOOK_URL = "";
 
 const { openDb, getDb, getConversation, getLead } = await import("../src/db.js");
-const { procesarMensaje, esBaja, diezDigitos, numeroDueno, seguimientosPendientesWa, textoSeguimiento } = await import("../src/channels/wa-web.js");
+const { procesarMensaje, esBaja, esRespuestaAutomatica, diezDigitos, numeroDueno, seguimientosPendientesWa, textoSeguimiento } = await import("../src/channels/wa-web.js");
 const { logEvent } = await import("../src/db.js");
 const { prepararSeguimientos } = await import("../src/prospeccion/servicio.js");
 const { guardarProspecto } = await import("../src/prospeccion/servicio.js");
@@ -107,4 +107,20 @@ test("sin video cargado, el agente no intenta mandarlo y el primer mensaje sigue
   const r = await executeTool("enviar_video_presentacion", {}, { convId: conv.id, canal: "wa", conv, negocio: getNegocio() });
   assert.equal(r.ok, false);
   assert.match(r.motivo, /portafolio/);
+});
+
+test("detecta respuestas automáticas de WhatsApp Business y no confunde a personas", () => {
+  for (const t of [
+    "Hola, gracias por comunicarte a Loncheria Mingo. Nuestro horario de servicio es de 1 de la tarde a 12 de la noche todos los días ⏱️ . En cuanto retomemos nuestro servicio con gusto te atenderemos.",
+    "Gracias por comunicarte a Consultoría Integral En Seguros Y Fianzas. ¿Cómo podemos ayudarte? 😃",
+    "Gracias por comunicarte con M&M Álvarez Agente De Seguros Y De Fianzas. Por favor, haznos saber cómo podemos ayudarte.",
+    "En este momento estamos fuera de horario, te responderemos pronto.",
+  ]) assert.equal(esRespuestaAutomatica(t), true, t);
+  for (const t of [
+    "Lo comparto a Gerencia",
+    "Gracias pero no me interesa joven",
+    "Gracias , por tenernos en cuenta , como le comento ya tenemos quien maneje nuestra publicidad",
+    "Esta bien el jueves a las 9",
+    "¿Cuál es su horario para pasar?",
+  ]) assert.equal(esRespuestaAutomatica(t), false, t);
 });

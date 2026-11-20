@@ -121,6 +121,33 @@ docker run -d -p 3000:3000 --env-file .env -v agente-data:/app/data agente-sebax
 - **Leads:** el CRM, con filtro por etapa y **exportación a CSV** (se abre en Excel).
 - **Pedidos:** cambias el estado y el cliente recibe el aviso.
 - **Citas / Seguimientos:** revisas, cancelas o marcas como realizadas.
+- **Negocios:** das de alta a los negocios que te contratan el agente (ver abajo).
+
+### Varios negocios en una sola instalación
+
+Cada negocio cliente tiene **su propio agente** dentro del mismo servidor, con sus datos por separado:
+
+| Qué | Dónde |
+|---|---|
+| Su panel (entra con su propia clave) | `/n/<negocio>/admin` |
+| Su chat para la web, Instagram o Google | `/n/<negocio>/chat` |
+| Widget para su página | `<script src="https://TU-SERVIDOR/widget.js" data-negocio="<negocio>" defer></script>` |
+| Sus datos (catálogo, chats, citas, sesión de WhatsApp) | `data/negocios/<negocio>/` |
+
+1. En tu panel → **Negocios** → escribe el nombre y el WhatsApp del dueño → **Crear agente**.
+2. Mándale al dueño su **enlace de acceso** (botón "Mandárselo por WhatsApp"). Con ese enlace entra sin escribir clave.
+3. El dueño (o tú) entra a su panel → **WhatsApp** → escanea el QR con el celular del negocio.
+4. En **Ajustes** carga su catálogo, horario y políticas; se valida antes de guardar y el agente lo usa al instante.
+
+Cómo funciona por dentro:
+
+- **Separados de verdad:** cada negocio tiene su base de datos. Sus clientes, pedidos y avisos nunca se mezclan con los tuyos ni con los de otro negocio.
+- **Avisos:** al WhatsApp personal del dueño, desde el chip del negocio (no a tu Telegram ni a tu correo).
+- **Cobros:** transferencia con los datos de su configuración, o **su** Mercado Pago (Ajustes → Cobros). Nunca tu cuenta.
+- **Sin prospección ni tu video:** eso es solo de tu agente. Google Calendar también es solo tuyo.
+- **Pausar:** si un negocio deja de pagar, en **Negocios → Pausar** su agente deja de contestar sin borrar nada.
+- **Respaldo:** con Supabase configurado, cada negocio se respalda en `negocios/<negocio>/` del bucket (solo lo que cambió) y se recupera solo al reiniciar en Render.
+- **Tu clave (`ADMIN_TOKEN`) abre el panel de cualquier negocio.** La clave de un negocio solo abre el suyo.
 
 ## 8. Costos y ajustes de la IA
 

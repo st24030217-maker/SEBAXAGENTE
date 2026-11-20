@@ -7,3 +7,15 @@ n8n/runtime/
 n8n/data/
 n8n/respaldos/
 logs/
+
+# Respaldos locales de datos (base y sesión de WhatsApp): nunca al repo
+data-pc-*/
+# Páginas de clientes y vistas previas generadas
+public/propuestas/
+public/vista-previa/
+# Herramientas locales de diseño (skills) y conexiones del editor
+.agents/
+agent/skills/
+.claude/skills/
+skills-lock.json
+.mcp.json

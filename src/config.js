@@ -3,11 +3,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
+import { negocioActual } from "./contexto.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT = path.resolve(here, "..");
 
 const env = process.env;
+// En las pruebas (npm test) nunca se mandan avisos ni correos reales.
+const enPruebas = Boolean(env.NODE_TEST_CONTEXT);
 const bool = (v, def = false) => (v === undefined || v === "" ? def : /^(1|true|yes|si|sí)$/i.test(v));
 
 export const settings = {
@@ -48,8 +51,8 @@ export const settings = {
     stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET || "",
   },
   owner: {
-    telegramChatId: env.OWNER_TELEGRAM_CHAT_ID || "",
-    webhookUrl: env.OWNER_WEBHOOK_URL || "",
+    telegramChatId: enPruebas ? "" : env.OWNER_TELEGRAM_CHAT_ID || "",
+    webhookUrl: enPruebas ? "" : env.OWNER_WEBHOOK_URL || "",
   },
   prospeccion: {
     configPath: env.PROSPECCION_PATH || path.join(ROOT, "config", "prospeccion.yaml"),
@@ -62,7 +65,7 @@ export const settings = {
     host: env.SMTP_HOST || "smtp.gmail.com",
     port: Number(env.SMTP_PORT || 465),
     user: env.SMTP_USER || "",
-    pass: (env.SMTP_PASS || "").replace(/\s+/g, ""),
+    pass: enPruebas ? "" : (env.SMTP_PASS || "").replace(/\s+/g, ""),
     fromName: env.SMTP_FROM_NAME || "",
   },
 };
@@ -71,17 +74,25 @@ let negocioCache = null;
 
 /** Carga y valida config/negocio.yaml. Se cachea; usa reloadNegocio() para recargar. */
 export function getNegocio() {
+  const t = negocioActual();
+  if (t) return (t.config ||= loadNegocio(t.yamlPath));
   if (!negocioCache) negocioCache = loadNegocio(settings.negocioPath);
   return negocioCache;
 }
 
 export function reloadNegocio() {
+  const t = negocioActual();
+  if (t) return (t.config = loadNegocio(t.yamlPath));
   negocioCache = loadNegocio(settings.negocioPath);
   return negocioCache;
 }
 
 export function loadNegocio(file) {
-  const data = YAML.parse(fs.readFileSync(file, "utf8"));
+  return validarNegocio(YAML.parse(fs.readFileSync(file, "utf8")), file);
+}
+
+/** Valida y completa la configuración de un negocio (ya leída del YAML). Lanza error si algo falta. */
+export function validarNegocio(data, file = "negocio.yaml") {
   if (!data?.negocio?.nombre) throw new Error(`${file}: falta negocio.nombre`);
   if (!Array.isArray(data.catalogo) || data.catalogo.length === 0) {
     throw new Error(`${file}: el catálogo está vacío`);

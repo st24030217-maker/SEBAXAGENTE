@@ -346,10 +346,20 @@ export async function enviarSiguiente(ahora = new Date()) {
   const ultimo = db().prepare("SELECT MAX(creado) t FROM eventos WHERE tipo = 'prospecto_correo'").get().t;
   if (ultimo && ahora.getTime() - new Date(ultimo).getTime() < cfg.envio.minutos_entre_correos * 60_000) return null;
 
+  // WhatsApp va primero (contestan más). Por correo van: los aprobados SIN teléfono y los que
+  // el WhatsApp no pudo contactar porque su número es fijo (nunca se les escribió).
   const p = db()
-    .prepare("SELECT * FROM prospectos WHERE estado = 'aprobado' AND email IS NOT NULL AND email != '' AND fuente != 'ejemplo' ORDER BY puntaje DESC, id LIMIT 1")
+    .prepare(
+      `SELECT * FROM prospectos WHERE email IS NOT NULL AND email != '' AND fuente != 'ejemplo' AND IFNULL(correo,'') != '' AND (
+         (estado = 'aprobado' AND IFNULL(telefono,'') = '')
+         OR (estado = 'fallido' AND envios = 0 AND error LIKE 'Ese número no tiene WhatsApp%'))
+       ORDER BY puntaje DESC, id LIMIT 1`
+    )
     .get();
   if (!p) return null;
+  // El link de la muestra siempre con la dirección pública de hoy (los correos se redactaron antes).
+  if (/^https:\/\//.test(settings.publicUrl)) p.correo = p.correo.replace(/https?:\/\/[^\s/]+\/m\//g, `${settings.publicUrl}/m/`);
+  else if (/\/m\//.test(p.correo)) return null; // sin dirección pública el link no abriría: mejor esperar
   // Se marca antes de enviar para no mandar dos veces si algo se corta a la mitad.
   db().prepare("UPDATE prospectos SET estado = 'enviado', envios = envios + 1, ultimo_envio = ?, actualizado = ? WHERE id = ?").run(now(), now(), p.id);
   try {

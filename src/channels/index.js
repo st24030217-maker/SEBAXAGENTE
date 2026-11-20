@@ -5,6 +5,8 @@ import { sendTelegram } from "./telegram.js";
 import { pushWeb } from "./web.js";
 import { sendEmail } from "./email.js";
 import { sendWaWeb } from "./wa-web.js";
+import { enviarWaNegocio } from "./wa-negocio.js";
+import { negocioActual } from "../contexto.js";
 
 /** Divide un texto largo en partes que respeten el límite del canal, cortando en saltos de línea o espacios. */
 export function splitMessage(texto, max = 4000) {
@@ -26,6 +28,13 @@ export function splitMessage(texto, max = 4000) {
  * @param {{proactivo?: boolean, ultimoMensajeCliente?: string}} opts
  */
 export async function sendToChannel(canal, externoId, texto, opts = {}) {
+  // Negocio cliente: sus clientes le escriben por su chat web o por SU chip de WhatsApp.
+  const n = negocioActual();
+  if (n) {
+    if (canal === "web") return pushWeb(externoId, texto);
+    if (canal === "wa") return enviarWaNegocio(n, externoId, texto);
+    throw new Error(`El canal ${canal} no está disponible para ${n.meta.nombre}`);
+  }
   switch (canal) {
     case "whatsapp":
       return sendWhatsApp(externoId, texto, opts);

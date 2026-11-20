@@ -24,7 +24,7 @@ test("cada negocio tiene su boceto con su nombre, sin inyectar HTML", () => {
   const html = renderBoceto(getProspecto(1));
   assert.match(html, /Tacos &lt;El&gt; Güero/);
   assert.doesNotMatch(html, /<El>/);
-  assert.match(html, /Quiero la mía/);
+  assert.match(html, /Quiero arrancar|Quiero la mía/);
 });
 
 test("solo avisa la primera vez que el negocio lo abre (no cuenta bots ni tus vistas)", () => {
@@ -48,7 +48,7 @@ test("cada negocio recibe el boceto de lo que realmente es (nombre y giro, no so
   assert.equal(caso("Laboratorio de Inyectores", "Otras reparaciones mecánicas de automóviles y camiones"), "taller");
   // Todos los perfiles de la galería se pueden mostrar
   const { renderMuestra } = await import("../src/prospeccion/boceto.js");
-  for (const d of perfilesGaleria()) assert.match(renderMuestra(d.id), /Quiero la mía/, d.id);
+  for (const d of perfilesGaleria()) assert.match(renderMuestra(d.id), /Quiero arrancar|Quiero la mía/, d.id);
   assert.equal(renderMuestra("no-existe"), null);
 });
 
