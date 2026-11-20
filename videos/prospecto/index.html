@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="es" data-resolution="portrait"
+  data-composition-variables='[
+    {"id":"nombre","type":"string","label":"Nombre corto del negocio","default":"Fast Clean"},
+    {"id":"zona","type":"string","label":"Zona","default":"Villa Jacarandas · Torreón"},
+    {"id":"c","type":"color","label":"Color del negocio","default":"#2571b0"},
+    {"id":"img1","type":"string","label":"Captura portada","default":"assets/portada.png"},
+    {"id":"img2","type":"string","label":"Captura tarjeta","default":"assets/tarjeta.png"},
+    {"id":"img3","type":"string","label":"Captura incluye","default":"assets/incluye.png"}
+  ]'>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <style>
+      :root { --c: #2571b0; --ink: #fff; --dark: #0b0f17; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--dark); }
+      #root { position: relative; width: 100%; height: 100%; font-family: "Inter", sans-serif; color: var(--ink); }
+      .full { position: absolute; inset: 0; }
+      .bg-c { background: var(--c); }
+      .bg-d { background: radial-gradient(120% 80% at 50% 30%, #1a2333 0%, var(--dark) 70%); }
+      .big { font-family: "Archivo Black", sans-serif; letter-spacing: -0.04em; line-height: 0.95; }
+      #hook-in { position: absolute; left: 120px; right: 120px; top: 520px; }
+      #hook-kicker { font-size: 44px; font-weight: 700; opacity: .85; letter-spacing: .02em; }
+      #hook-name { font-size: 140px; margin-top: 24px; }
+      #hook-line { font-size: 72px; font-weight: 900; margin-top: 48px; line-height: 1.05; }
+      #hook-zona { font-size: 38px; font-weight: 700; margin-top: 40px; opacity: .8; }
+      #phone { position: absolute; left: 230px; top: 470px; width: 620px; height: 1102px; border-radius: 72px;
+               background: #000; box-shadow: 0 40px 120px rgba(0,0,0,.55), 0 0 0 4px rgba(255,255,255,.12); overflow: hidden; }
+      #phone .scr { position: absolute; left: 18px; top: 18px; width: 584px; height: 1066px; border-radius: 56px; object-fit: cover; }
+      .cap { position: absolute; left: 100px; right: 100px; top: 250px; text-align: center; }
+      .cap .k { font-size: 34px; font-weight: 700; letter-spacing: .14em; color: #8fc1ff; }
+      .cap .t { font-size: 80px; margin-top: 14px; }
+      #end-in { position: absolute; left: 120px; right: 120px; top: 520px; text-align: center; }
+      #end-who { font-size: 96px; }
+      #end-sub { font-size: 44px; font-weight: 700; margin-top: 24px; opacity: .9; }
+      #end-cta { display: inline-block; margin-top: 90px; background: #fff; color: #111; border-radius: 999px;
+                 font-size: 50px; font-weight: 900; padding: 34px 64px; }
+      #end-arrow { font-size: 110px; font-weight: 900; margin-top: 50px; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="15" data-width="1080" data-height="1920">
+      <!-- 1. Gancho (0–3 s): el nombre ya está en el cuadro 0, que es la miniatura en WhatsApp -->
+      <div id="hook" class="clip full bg-c" data-start="0" data-duration="3" data-track-index="1" data-track-kind="graphics">
+        <div id="hook-in">
+          <div id="hook-kicker">HOLA,</div>
+          <div id="hook-name" class="big" data-var-text="nombre">Fast Clean</div>
+          <div id="hook-line">te preparé tu página</div>
+          <div id="hook-zona" data-var-text="zona">Villa Jacarandas · Torreón</div>
+        </div>
+      </div>
+
+      <!-- 2–4. El boceto dentro de un celular (3–12.5 s) -->
+      <div id="demo" class="clip full bg-d" data-start="3" data-duration="9.5" data-track-index="1" data-track-kind="graphics">
+        <div id="cap1" class="cap"><div class="k">TU PÁGINA</div><div class="t big">Así se vería</div></div>
+        <div id="cap2" class="cap"><div class="k">CLIENTE FRECUENTE</div><div class="t big">Que regresen</div></div>
+        <div id="cap3" class="cap"><div class="k">TODO EN UNO</div><div class="t big">Web, app y WhatsApp</div></div>
+        <div id="phone">
+          <img id="scr1" class="scr" src="assets/portada.png" data-var-src="img1" alt="" />
+          <img id="scr2" class="scr" src="assets/tarjeta.png" data-var-src="img2" alt="" />
+          <img id="scr3" class="scr" src="assets/incluye.png" data-var-src="img3" alt="" />
+        </div>
+      </div>
+
+      <!-- 5. Cierre (12.5–15 s) -->
+      <div id="end" class="clip full bg-c" data-start="12.5" data-duration="2.5" data-track-index="1" data-track-kind="graphics">
+        <div id="end-in">
+          <div id="end-who" class="big">Sebastián Salinas</div>
+          <div id="end-sub">sss.solutions · Lerdo, Dgo.</div>
+          <div id="end-cta">Ábrela en el link</div>
+          <div id="end-arrow">↓</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#hook-name", { scale: 1.08 }, { scale: 1, duration: 0.6, ease: "power3.out", transformOrigin: "left center" }, 0);
+      tl.fromTo("#hook-line", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 0.45);
+      tl.fromTo("#hook-zona", { opacity: 0, y: 30 }, { opacity: 0.8, y: 0, duration: 0.4, ease: "power3.out" }, 0.8);
+
+      tl.fromTo("#phone", { y: 900, rotation: 6 }, { y: 0, rotation: 0, duration: 0.8, ease: "power4.out" }, 3);
+      tl.fromTo("#cap1", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 3.3);
+      tl.fromTo("#scr1", { scale: 1 }, { scale: 1.04, duration: 3, ease: "none" }, 3.6);
+
+      tl.fromTo("#cap1", { opacity: 1 }, { opacity: 0, duration: 0.2, immediateRender: false }, 6.6);
+      tl.fromTo("#scr2", { opacity: 0, x: 600 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.inOut" }, 6.6);
+      tl.fromTo("#cap2", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 6.8);
+
+      tl.fromTo("#cap2", { opacity: 1 }, { opacity: 0, duration: 0.2, immediateRender: false }, 9.6);
+      tl.fromTo("#scr3", { opacity: 0, x: 600 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.inOut" }, 9.6);
+      tl.fromTo("#cap3", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 9.8);
+
+      tl.fromTo("#end-who", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 12.5);
+      tl.fromTo("#end-sub", { opacity: 0 }, { opacity: 0.9, duration: 0.4 }, 12.75);
+      tl.fromTo("#end-cta", { opacity: 0, scale: 0.85 }, { opacity: 1, scale: 1, duration: 0.45, ease: "back.out(2)" }, 13);
+      tl.fromTo("#end-arrow", { y: -10 }, { y: 20, duration: 0.45, yoyo: true, repeat: 3, ease: "sine.inOut" }, 13.2);
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

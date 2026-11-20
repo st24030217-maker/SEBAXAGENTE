@@ -173,10 +173,30 @@ export const textoDe = (m) =>
 // Si el cliente manda varios mensajes seguidos, se espera a que termine y se responde una vez.
 const pendientes = new Map();
 
-export const SOLO_IMAGEN = "[El cliente mandó una imagen, sticker o archivo sin texto. Pídele que te lo describa por escrito.]";
-/** ¿En las últimas 48 h el cliente ya mandó una imagen sola y el bot ya le contestó pidiendo texto? */
+// Respuestas automáticas de WhatsApp Business (bienvenida, fuera de horario, "en breve te atendemos").
+// No las escribió una persona: el bot no les contesta (si no, platica con un robot) y el prospecto
+// sigue contando como "no respondió", así le llega su seguimiento normal.
+const PATRONES_AUTOMATICOS = [
+  /gracias por (comunicarte|comunicarse|contactarnos|contactar(te|se)? (a|con)|escribirnos|tu mensaje|su mensaje)/i,
+  /nuestro horario (de (servicio|atenci[oó]n)|es)/i,
+  /en (breve|cuanto (retomemos|podamos|estemos))[^.]{0,40}(atender|responder|contestar)/i,
+  /(mensaje|respuesta) autom[aá]tic/i,
+  /(estamos|nos encontramos) fuera (de|del) horario/i,
+  /(haznos|h[aá]ganos|d[ée]janos) saber (c[oó]mo|en qu[eé]) (podemos|te podemos) ayudar/i,
+];
+export const esRespuestaAutomatica = (texto) => PATRONES_AUTOMATICOS.some((r) => r.test(String(texto || "")));
+
+/** Guarda la respuesta automática en la conversación (para verla en el panel) sin que cuente como respuesta del cliente. */
+function guardarRespuestaAutomatica(id, nombre, texto) {
+  const c = getOrCreateConversation("wa", id, nombre);
+  db().prepare("INSERT INTO mensajes (conversacion_id, rol, texto, creado) VALUES (?, 'cliente', ?, ?)").run(c.id, `[Respuesta automática] ${texto}`, now());
+  logEvent("respuesta_automatica", c.id, { id });
+}
+
+export const SOLO_IMAGEN ="[El cliente mandó una imagen, sticker o archivo sin texto. Pídele que te lo describa por escrito.]";
+/** ¿En los últimos 7 días el cliente ya mandó una imagen sola y el bot ya le contestó pidiendo texto? */
 export function yaPidioTexto(id) {
-  const desde = new Date(Date.now() - 48 * 3600_000).toISOString();
+  const desde = new Date(Date.now() - 7 * 86400_000).toISOString();
   const ult = db()
     .prepare("SELECT id FROM mensajes WHERE conversacion_id = ? AND rol = 'cliente' AND texto LIKE '%imagen, sticker o archivo sin texto%' AND creado >= ? ORDER BY id DESC LIMIT 1")
     .get(`wa:${id}`, desde);
@@ -204,6 +224,13 @@ async function recibir(m) {
   clearTimeout(p.timer);
   p.timer = setTimeout(() => {
     pendientes.delete(id);
+    // Las respuestas automáticas se guardan aparte; si la persona escribió algo más, se responde solo eso.
+    const automaticas = p.textos.filter(esRespuestaAutomatica);
+    if (automaticas.length) {
+      for (const t of automaticas) guardarRespuestaAutomatica(id, p.nombre, t);
+      p.textos = p.textos.filter((t) => !esRespuestaAutomatica(t));
+      if (!p.textos.length) return;
+    }
     // Solo imágenes otra vez (ya se le pidió una vez que lo escribiera): el bot no repite lo mismo;
     // se guarda el mensaje y se le avisa a Sebastián para que las vea en el chip.
     if (p.textos.every((t) => t === SOLO_IMAGEN) && yaPidioTexto(id)) {
@@ -378,6 +405,15 @@ export async function sendWaVideo(id, caption = "") {
   const jid = fila?.jid || (/^\d{10}$/.test(String(id)) ? await resolverJid(id) : null);
   if (!jid) throw new Error("No se encontró el chat de WhatsApp de este contacto");
   await enviarVideo(jid, ruta, caption);
+}
+
+/** Manda un video MP4 (en memoria) a un contacto de WhatsApp, para que se reproduzca en el chat. */
+export async function sendWaVideoArchivo(id, video, caption = "") {
+  if (!waConectado()) throw new Error("El chip de WhatsApp no está conectado");
+  const fila = db().prepare("SELECT jid FROM wa_contactos WHERE id = ?").get(String(id));
+  const jid = fila?.jid || (/^\d{10}$/.test(String(id)) ? await resolverJid(id) : null);
+  if (!jid) throw new Error("No se encontró el chat de WhatsApp de este contacto");
+  await sock.sendMessage(jid, { video, caption, mimetype: "video/mp4" });
 }
 
 /** Manda un archivo (PDF, por ejemplo una cotización) a un contacto de WhatsApp, con un texto abajo. */

@@ -17,7 +17,7 @@ import { setOrderStatus } from "../services/orders.js";
 import { reloadProspeccion, getProspeccion } from "../prospeccion/config.js";
 import { urlBoceto } from "../prospeccion/boceto.js";
 import { probarGcal, gcalConfigurado } from "../services/gcal.js";
-import { estadoWa, desconectarWa, enviadosWaHoy, limiteWaHoy, pedirCodigoVinculacion, avisarDueno, numeroDueno, videoPresentacion, probarPrimerMensaje, sendWaDocumento } from "../channels/wa-web.js";
+import { estadoWa, desconectarWa, enviadosWaHoy, limiteWaHoy, pedirCodigoVinculacion, avisarDueno, numeroDueno, videoPresentacion, probarPrimerMensaje, sendWaDocumento, sendWaVideoArchivo } from "../channels/wa-web.js";
 import {
   ESTADOS as ESTADOS_PROSPECTO,
   getProspecto,
@@ -395,16 +395,23 @@ export function adminRouter({ negocio: esNegocio = false } = {}) {
     res.json({ ok: true, numero: numeroDueno() });
   }));
 
-  // Te manda un PDF (por ejemplo, una cotización) a tu WhatsApp personal (OWNER_WHATSAPP).
-  // Cuerpo: el PDF. Query: ?nombre=Archivo.pdf&texto=Mensaje&numero=10 dígitos (debe coincidir con el tuyo)
-  r.post("/whatsapp/archivo-dueno", express.raw({ type: "application/pdf", limit: "15mb" }), wrap(async (req, res) => {
+  // Te manda un PDF (por ejemplo, una cotización) o un video MP4 a tu WhatsApp personal (OWNER_WHATSAPP).
+  // Cuerpo: el PDF o el MP4. Query: ?nombre=Archivo.pdf&texto=Mensaje&numero=10 dígitos (debe coincidir con el tuyo)
+  r.post("/whatsapp/archivo-dueno", express.raw({ type: ["application/pdf", "video/mp4"], limit: "16mb" }), wrap(async (req, res) => {
     const tel = numeroDueno();
     if (!tel) return res.status(409).json({ error: "No hay número personal configurado (OWNER_WHATSAPP)" });
     if (req.query.numero && String(req.query.numero).replace(/\D/g, "").slice(-10) !== tel) {
       return res.status(409).json({ error: "El número no coincide con tu número personal configurado" });
     }
-    if (!Buffer.isBuffer(req.body) || !req.body.length || req.body.subarray(0, 4).toString() !== "%PDF") {
-      return res.status(400).json({ error: "Manda un PDF (Content-Type: application/pdf)" });
+    const esPdf = Buffer.isBuffer(req.body) && req.body.subarray(0, 4).toString() === "%PDF";
+    const esMp4 = Buffer.isBuffer(req.body) && req.body.subarray(4, 8).toString() === "ftyp";
+    if (!esPdf && !esMp4) {
+      return res.status(400).json({ error: "Manda un PDF (Content-Type: application/pdf) o un MP4 (video/mp4)" });
+    }
+    if (esMp4) {
+      await sendWaVideoArchivo(tel, req.body, String(req.query.texto || "").trim());
+      logEvent("archivo_enviado_dueno", null, { nombre: "video.mp4", bytes: req.body.length });
+      return res.json({ ok: true, numero: tel, nombre: "video.mp4" });
     }
     const nombre = String(req.query.nombre || "Documento.pdf").replace(/[\\/]/g, "-").slice(0, 120);
     await sendWaDocumento(tel, req.body, nombre, String(req.query.texto || "").trim());

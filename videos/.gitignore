@@ -1,0 +1,4 @@
+renders/
+.hyperframes/
+*.wav
+node_modules/
