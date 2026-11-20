@@ -17,6 +17,7 @@ import { getProspeccion } from "../prospeccion/config.js";
 import { dentroDeHorarioEnvio } from "../prospeccion/servicio.js";
 import { redactarPlantilla } from "../prospeccion/redactar.js";
 import { iaDisponible } from "../ia/proveedor.js";
+import { videoDeProspecto, borrarVideoDeProspecto } from "../prospeccion/videos.js";
 
 const CARPETA = path.join(path.dirname(settings.dbPath === ":memory:" ? path.join(ROOT, "data", "x") : settings.dbPath), "whatsapp-sesion");
 const db = () => getDb();
@@ -326,7 +327,7 @@ export async function procesarMensaje({ id, jid, texto, nombre }, enviar = envia
         c.id,
         prospecto.whatsapp_texto,
         "agente",
-        `[Prospección] Le escribimos primero a este negocio (${prospecto.nombre}, ${prospecto.giro || prospecto.rubro || ""}, ${[prospecto.colonia, prospecto.ciudad].filter(Boolean).join(", ")}). Situación detectada: ${razones}. Este fue el mensaje de WhatsApp que se le envió${conVideo ? " (junto con el video de presentación de Sebastián: ya lo vio, no se lo vuelvas a mandar)" : ""} y ahora está respondiendo`
+        `[Prospección] Le escribimos primero a este negocio (${prospecto.nombre}, ${prospecto.giro || prospecto.rubro || ""}, ${[prospecto.colonia, prospecto.ciudad].filter(Boolean).join(", ")}). Situación detectada: ${razones}. Este fue el mensaje de WhatsApp que se le envió${conVideo ? " (junto con un video: ya lo vio, no se lo vuelvas a mandar)" : ""} y ahora está respondiendo`
       );
       if (prospecto.envios > 1) {
         await recordOutgoing(c.id, textoSeguimiento(prospecto), "agente", "[Prospección] Como no respondió, días después se le mandó este seguimiento");
@@ -575,14 +576,17 @@ export async function enviarSiguienteWa(ahora = new Date()) {
       }
       db().prepare("UPDATE prospectos SET estado = 'enviado', envios = envios + 1, ultimo_envio = ?, actualizado = ? WHERE id = ?").run(now(), now(), p.id);
       try {
-        // Si hay video de presentación, el primer mensaje va como video con el texto abajo (más confianza).
-        const video = e.video_en_primer_mensaje !== false ? videoPresentacion() : null;
+        // Si hay video, el primer mensaje va como video con el texto abajo (más confianza): el personalizado
+        // de ese negocio (su nombre y su boceto, hecho en la noche) o, si no está listo, el de presentación.
+        const propio = e.video_en_primer_mensaje !== false ? videoDeProspecto(p.id) : null;
+        const video = propio || (e.video_en_primer_mensaje !== false ? videoPresentacion() : null);
         // El link del boceto siempre sale con la dirección pública actual (Render o túnel pudieron cambiar).
         if (/^https:\/\//.test(settings.publicUrl)) p.whatsapp_texto = p.whatsapp_texto.replace(/https?:\/\/[^\s/]+\/m\//g, `${settings.publicUrl}/m/`);
         if (video) await enviarVideo(jid, video, p.whatsapp_texto);
         else await enviarTexto(jid, p.whatsapp_texto);
         db().prepare("INSERT INTO wa_contactos (id, jid, actualizado) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET jid = excluded.jid").run(p.telefono, jid, now());
-        logEvent("prospecto_whatsapp", null, { prospecto: p.id, telefono: p.telefono, video: !!video });
+        logEvent("prospecto_whatsapp", null, { prospecto: p.id, telefono: p.telefono, video: !!video, personalizado: !!propio });
+        if (propio) borrarVideoDeProspecto(p.id);
         console.log(`[whatsapp] prospección enviada a ${p.nombre}`);
       } catch (err) {
         db().prepare("UPDATE prospectos SET estado = 'fallido', envios = envios - 1, error = ? WHERE id = ?").run(err.message, p.id);

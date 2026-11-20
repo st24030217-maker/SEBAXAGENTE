@@ -14,6 +14,7 @@ import { setOrderStatus } from "./services/orders.js";
 import { fetchMercadoPagoPayment, verifyStripeSignature } from "./services/payments.js";
 import { getProspeccion } from "./prospeccion/config.js";
 import { startProspeccion, darDeBaja, ponerBocetoEnPendientes } from "./prospeccion/servicio.js";
+import { startVideosNocturnos } from "./prospeccion/videos.js";
 import { startTunel } from "./services/tunel.js";
 import { startEmail } from "./channels/email.js";
 import { startWaWeb, detenerWa, avisarDueno } from "./channels/wa-web.js";
@@ -215,6 +216,8 @@ app.listen(settings.port, async () => {
   verificarClaude("claude-haiku-5-5");
   setInterval(() => verificarClaude("claude-haiku-5-5"), 59 * 60_000);
   startProspeccion();
+  // Videos personalizados por prospecto: se generan de 8 pm a 7 am en un proceso aparte.
+  startVideosNocturnos();
   // Túnel gratis (TUNEL=cloudflare): al tener dirección pública, los mensajes pendientes se
   // actualizan con el link nuevo de su boceto.
   startTunel((nueva, antes, cambio) => {
