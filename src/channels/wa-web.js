@@ -18,6 +18,8 @@ import { dentroDeHorarioEnvio } from "../prospeccion/servicio.js";
 import { redactarPlantilla } from "../prospeccion/redactar.js";
 import { iaDisponible } from "../ia/proveedor.js";
 import { videoDeProspecto, borrarVideoDeProspecto } from "../prospeccion/videos.js";
+import { baseBocetos } from "../prospeccion/boceto.js";
+import { asegurarPublicada } from "../prospeccion/publicar.js";
 
 const CARPETA = path.join(path.dirname(settings.dbPath === ":memory:" ? path.join(ROOT, "data", "x") : settings.dbPath), "whatsapp-sesion");
 const db = () => getDb();
@@ -352,7 +354,7 @@ export async function procesarMensaje({ id, jid, texto, nombre }, enviar = envia
     return "error_ia";
   }
   // Si el agente repite un link de boceto viejo (del historial), sale con la dirección pública actual.
-  await enviar(jid, /^https:\/\//.test(settings.publicUrl) ? respuesta.replace(/(?:https?:\/\/)?[a-z0-9.-]+\.(?:onrender\.com|trycloudflare\.com)\/m\//gi, `${settings.publicUrl}/m/`) : respuesta);
+  await enviar(jid, /^https:\/\//.test(baseBocetos()) ? respuesta.replace(/(?:https?:\/\/)?[a-z0-9.-]+\.(?:onrender\.com|trycloudflare\.com)\/m\//gi, `${baseBocetos()}/m/`) : respuesta);
   return "respondido";
 }
 
@@ -568,6 +570,8 @@ export async function enviarSiguienteWa(ahora = new Date()) {
         }
       }
       if (!p) return null;
+      // Su muestra tiene que abrir antes de mandarle el link (GitHub Pages tarda ~1 min en publicarla).
+      if (!(await asegurarPublicada(p))) return null;
       const jid = await resolverJid(p.telefono);
       if (!jid) {
         db().prepare("UPDATE prospectos SET estado = 'fallido', error = ?, actualizado = ? WHERE id = ?").run("Ese número no tiene WhatsApp (puede ser teléfono fijo)", now(), p.id);
@@ -581,7 +585,7 @@ export async function enviarSiguienteWa(ahora = new Date()) {
         const propio = e.video_en_primer_mensaje !== false ? videoDeProspecto(p.id) : null;
         const video = propio || (e.video_en_primer_mensaje !== false ? videoPresentacion() : null);
         // El link del boceto siempre sale con la dirección pública actual (Render o túnel pudieron cambiar).
-        if (/^https:\/\//.test(settings.publicUrl)) p.whatsapp_texto = p.whatsapp_texto.replace(/https?:\/\/[^\s/]+\/m\//g, `${settings.publicUrl}/m/`);
+        if (/^https:\/\//.test(baseBocetos())) p.whatsapp_texto = p.whatsapp_texto.replace(/https?:\/\/[^\s/]+\/m\//g, `${baseBocetos()}/m/`);
         if (video) await enviarVideo(jid, video, p.whatsapp_texto);
         else await enviarTexto(jid, p.whatsapp_texto);
         db().prepare("INSERT INTO wa_contactos (id, jid, actualizado) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET jid = excluded.jid").run(p.telefono, jid, now());

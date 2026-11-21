@@ -21,7 +21,8 @@ import { startWaWeb, detenerWa, avisarDueno } from "./channels/wa-web.js";
 import { startRecordatorios } from "./services/recordatorios.js";
 import { verificarClaude } from "./ia/proveedor.js";
 import { restaurarDesdeNube, startNube, startDespierto, tomarTurno, antesDeApagar } from "./services/nube.js";
-import { buscarPorClave, registrarVisita, regresoVisita, renderBoceto, bocetoNoEncontrado, renderGaleria, renderMuestra } from "./prospeccion/boceto.js";
+import { buscarPorClave, registrarVisita, regresoVisita, renderBoceto, bocetoNoEncontrado, renderGaleria, renderMuestra, urlBoceto, bocetosFijos, baseBocetos } from "./prospeccion/boceto.js";
+import { startMuestrasFijas, publicarBocetos, publicada } from "./prospeccion/publicar.js";
 import { notifyOwner } from "./services/notify.js";
 import { conNegocio } from "./contexto.js";
 import { getNegocioCliente, negociosActivos } from "./negocios.js";
@@ -164,10 +165,7 @@ main{background:#fff;padding:32px;border-radius:16px;max-width:420px;text-align:
 });
 
 // Bocetos: la muestra que se le manda a cada negocio. La primera vez que la abre, te avisa.
-app.get("/m/:clave", (req, res) => {
-  const p = buscarPorClave(req.params.clave);
-  res.set({ "X-Robots-Tag": "noindex, nofollow", "Cache-Control": "no-cache" });
-  if (!p || p.estado === "no_contactar") return res.status(404).send(bocetoNoEncontrado());
+function avisarVisita(p, req) {
   const primera = registrarVisita(p, { userAgent: req.get("user-agent") || "", tuyo: req.query.yo === "1" });
   if (primera) {
     notifyOwner("boceto", `${p.nombre} (${[p.rubro, p.ciudad].filter(Boolean).join(", ")}) acaba de abrir su muestra. Buen momento: si contesta, el agente sigue la plática.${p.telefono ? `\nTel. ${p.telefono}` : ""}`, { prospecto: p.id });
@@ -177,6 +175,23 @@ app.get("/m/:clave", (req, res) => {
       notifyOwner("boceto", `🔥 ${p.nombre} (${[p.rubro, p.ciudad].filter(Boolean).join(", ")}) REGRESÓ a ver su muestra (ya la abrió ${veces} veces). Está interesado: es buen momento para que le marques o le escribas tú.${p.telefono ? `\nTel. ${p.telefono}` : ""}`, { prospecto: p.id });
     }
   }
+}
+
+// Ping de la muestra fija (GitHub Pages): la página avisa aquí que alguien la abrió.
+app.get("/m/:clave/visto", (req, res) => {
+  const p = buscarPorClave(req.params.clave);
+  res.set({ "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" });
+  if (p && p.estado !== "no_contactar") avisarVisita(p, req);
+  res.status(204).end();
+});
+
+app.get("/m/:clave", (req, res) => {
+  const p = buscarPorClave(req.params.clave);
+  res.set({ "X-Robots-Tag": "noindex, nofollow", "Cache-Control": "no-cache" });
+  if (!p || p.estado === "no_contactar") return res.status(404).send(bocetoNoEncontrado());
+  // Con muestras fijas, el link viejo del túnel manda a la página de GitHub (que avisa la visita).
+  if (bocetosFijos() && publicada(p) && !req.query.yo) return res.redirect(302, urlBoceto(p));
+  avisarVisita(p, req);
   res.send(renderBoceto(p));
 });
 
@@ -218,6 +233,8 @@ app.listen(settings.port, async () => {
   startProspeccion();
   // Videos personalizados por prospecto: se generan de 8 pm a 7 am en un proceso aparte.
   startVideosNocturnos();
+  // Muestras fijas en GitHub Pages (BOCETOS_URL/BOCETOS_DIR): links que no mueren con el túnel.
+  startMuestrasFijas();
   // Túnel gratis (TUNEL=cloudflare): al tener dirección pública, los mensajes pendientes se
   // actualizan con el link nuevo de su boceto.
   startTunel((nueva, antes, cambio) => {
@@ -228,8 +245,8 @@ app.listen(settings.port, async () => {
       const upd = getDb().prepare("UPDATE prospectos SET whatsapp_texto = ?, correo = ? WHERE id = ?");
       let cambiados = 0;
       for (const f of filas) {
-        const w = f.whatsapp_texto?.replace(viejo, `${nueva}/m/`) ?? f.whatsapp_texto;
-        const c = f.correo?.replace(viejo, `${nueva}/m/`) ?? f.correo;
+        const w = f.whatsapp_texto?.replace(viejo, `${baseBocetos()}/m/`) ?? f.whatsapp_texto;
+        const c = f.correo?.replace(viejo, `${baseBocetos()}/m/`) ?? f.correo;
         if (w !== f.whatsapp_texto || c !== f.correo) {
           upd.run(w, c, f.id);
           cambiados++;
@@ -237,6 +254,7 @@ app.listen(settings.port, async () => {
       }
       if (cambiados) console.log(`[tunel] ${cambiados} mensajes pendientes con el link nuevo (${antes} → ${nueva})`);
       ponerBocetoEnPendientes();
+      publicarBocetos(); // tunel.json con la dirección nueva, para que las muestras sigan avisando
     } catch (e) {
       console.error("[tunel]", e.message);
     }

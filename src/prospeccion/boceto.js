@@ -32,11 +32,14 @@ export function claveBoceto(p) {
 }
 
 /** ¿El agente tiene una dirección pública (https) donde los negocios puedan abrir su boceto? */
-export const bocetosDisponibles = () => /^https:\/\//.test(settings.publicUrl);
+/** Muestras fijas en GitHub Pages (ver publicar.js): si están configuradas, los links usan esa dirección. */
+export const bocetosFijos = () => /^https:\/\//.test(process.env.BOCETOS_URL || "") && !!process.env.BOCETOS_DIR;
+export const baseBocetos = () => (bocetosFijos() ? process.env.BOCETOS_URL.replace(/\/$/, "") : settings.publicUrl);
+export const bocetosDisponibles = () => /^https:\/\//.test(baseBocetos());
 
 export function urlBoceto(p) {
   if (!p?.id) return null;
-  return `${settings.publicUrl}/m/${slug(p.nombre)}-${claveBoceto(p)}`;
+  return `${baseBocetos()}/m/${slug(p.nombre)}-${claveBoceto(p)}`;
 }
 
 export function buscarPorClave(ruta) {

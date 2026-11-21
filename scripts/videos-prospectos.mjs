@@ -3,6 +3,7 @@
 // del video de presentación genérico. Sin video, todo sigue igual (sale la presentación).
 //
 // Uso:  node scripts/videos-prospectos.mjs [cuántos=20]
+//       node scripts/videos-prospectos.mjs --id=1167   (solo ese prospecto, aunque ya no esté en la fila)
 // Requiere: el agente prendido (para capturar el boceto en localhost), ffmpeg y la plantilla videos/prospecto.
 // El agente lo lanza solo en la noche (ver src/prospeccion/videos.js).
 import fs from "node:fs";
@@ -17,7 +18,8 @@ const PLANTILLA = path.join(ROOT, "videos", "prospecto");
 const SALIDA = path.join(ROOT, "data", "videos");
 const LOCK = path.join(SALIDA, ".generando");
 const PUERTO = process.env.PORT || 3000;
-const CUANTOS = Number(process.argv[2] || 20);
+const SOLO = Number(process.argv.find((a) => a.startsWith("--id="))?.slice(5)) || null;
+const CUANTOS = Number(process.argv.find((a) => /^d+$/.test(a)) || 20);
 const CLI = "hyperframes@0.9.72"; // misma versión que la plantilla: los videos salen siempre iguales
 
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), "[videos]", ...a);
@@ -64,8 +66,20 @@ function siguientes(db, n) {
 const PERFIL = path.join(os.tmpdir(), "sss-videos-chrome");
 function captura(exe, url, archivo) {
   execFileSync(exe, ["--headless", "--disable-gpu", `--user-data-dir=${PERFIL}`, "--hide-scrollbars", "--window-size=414,736", "--force-device-scale-factor=2.6087",
-    "--virtual-time-budget=9000", `--screenshot=${archivo}`, url], { stdio: "ignore", timeout: 90_000 });
+    "--virtual-time-budget=9000", `--screenshot=${archivo}`, url], { stdio: "ignore", timeout: 180_000 });
   if (!fs.existsSync(archivo)) throw new Error("no se pudo capturar el boceto");
+}
+
+/** hyperframes.mjs de la versión fijada en la caché de npx, si ya se descargó alguna vez. */
+function hfLocal() {
+  const cache = path.join(os.homedir(), process.platform === "win32" ? "AppData/Local/npm-cache/_npx" : ".npm/_npx");
+  try {
+    for (const d of fs.readdirSync(cache)) {
+      const pkg = path.join(cache, d, "node_modules", "hyperframes", "package.json");
+      if (fs.existsSync(pkg) && JSON.parse(fs.readFileSync(pkg, "utf8")).version === CLI.split("@")[1]) return path.join(path.dirname(pkg), "bin", "hyperframes.mjs");
+    }
+  } catch {}
+  return null;
 }
 
 async function generar(p, exe) {
@@ -98,7 +112,12 @@ async function generar(p, exe) {
     };
     const varsFile = path.join(dir, "vars.json");
     fs.writeFileSync(varsFile, JSON.stringify(vars));
-    execFileSync(process.platform === "win32" ? "npx.cmd" : "npx", // Rutas relativas a la plantilla: en Windows npx corre en shell y la carpeta tiene espacios.
+    // Si la versión fijada ya está en la caché de npx, se llama directo: npx consulta internet en cada corrida
+    // y con mala señal se queda colgado minutos.
+    const local = hfLocal();
+    if (local) execFileSync(process.execPath, [local, "render", "--variables-file", path.relative(PLANTILLA, varsFile).replaceAll("\\", "/"), "--output", path.relative(PLANTILLA, tmpMp4).replaceAll("\\", "/"), "--fps", "30"],
+      { cwd: PLANTILLA, stdio: "ignore", timeout: 40 * 60_000 });
+    else execFileSync(process.platform === "win32" ? "npx.cmd" : "npx", // Rutas relativas a la plantilla: en Windows npx corre en shell y la carpeta tiene espacios.
       ["--yes", CLI, "render", "--variables-file", path.relative(PLANTILLA, varsFile).replaceAll("\\", "/"), "--output", path.relative(PLANTILLA, tmpMp4).replaceAll("\\", "/"), "--fps", "30"],
       { cwd: PLANTILLA, stdio: "ignore", timeout: 15 * 60_000, shell: process.platform === "win32" });
     if (!fs.existsSync(tmpMp4)) throw new Error("HyperFrames no produjo el video");
@@ -123,10 +142,10 @@ async function main() {
     if (!exe) throw new Error("No encontré el Chrome de HyperFrames (corre: npx hyperframes doctor)");
     try { await fetch(`http://localhost:${PUERTO}/muestras`); } catch { throw new Error("El agente no está prendido en localhost"); }
     const db = new DatabaseSync(process.env.DB_PATH || path.join(ROOT, "data", "agente.db"), { readOnly: true });
-    const lista = siguientes(db, CUANTOS);
+    const lista = SOLO ? db.prepare("SELECT * FROM prospectos WHERE id = ?").all(SOLO) : siguientes(db, CUANTOS);
     // Limpieza: videos de negocios que ya no están en la fila (se les escribió por otro lado, se descartaron…).
     const pendiente = db.prepare("SELECT 1 FROM prospectos WHERE id = ? AND estado IN ('aprobado','por_revisar')");
-    for (const f of fs.readdirSync(SALIDA).filter((f) => /^d+.mp4$/.test(f))) {
+    if (!SOLO) for (const f of fs.readdirSync(SALIDA).filter((f) => /^d+.mp4$/.test(f))) {
       if (!pendiente.get(Number(f.slice(0, -4)))) fs.rmSync(path.join(SALIDA, f), { force: true });
     }
     db.close();

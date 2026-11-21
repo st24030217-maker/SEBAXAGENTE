@@ -3,3 +3,8 @@ renders/
 *.wav
 node_modules/
 assets/p/
+# Clips de stock y base armada (se regeneran con: node videos/base-clips.mjs <proyecto>/clips.json)
+.clips/
+**/assets/base.mp4
+snaps/
+snapshots/

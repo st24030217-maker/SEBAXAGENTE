@@ -214,12 +214,22 @@ export function adminRouter({ negocio: esNegocio = false } = {}) {
 
   // Manda un PDF (por ejemplo, una cotización) a una conversación de WhatsApp.
   // Cuerpo: el PDF tal cual. Query: ?nombre=Archivo.pdf&texto=Mensaje que va abajo
-  r.post("/conversaciones/:id/archivo", express.raw({ type: "application/pdf", limit: "15mb" }), wrap(async (req, res) => {
+  // También acepta un video MP4 (sale como video con el texto abajo).
+  r.post("/conversaciones/:id/archivo", express.raw({ type: ["application/pdf", "video/mp4"], limit: "16mb" }), wrap(async (req, res) => {
     const conv = getConversation(req.params.id);
     if (!conv) return res.status(404).json({ error: "No existe" });
     if (conv.canal !== "wa") return res.status(400).json({ error: "Solo se pueden mandar archivos por WhatsApp" });
-    if (!Buffer.isBuffer(req.body) || !req.body.length || req.body.subarray(0, 4).toString() !== "%PDF") {
-      return res.status(400).json({ error: "Manda un PDF (Content-Type: application/pdf)" });
+    const esPdf = Buffer.isBuffer(req.body) && req.body.subarray(0, 4).toString() === "%PDF";
+    const esMp4 = Buffer.isBuffer(req.body) && req.body.subarray(4, 8).toString() === "ftyp";
+    if (!esPdf && !esMp4) {
+      return res.status(400).json({ error: "Manda un PDF (Content-Type: application/pdf) o un MP4 (video/mp4)" });
+    }
+    if (esMp4) {
+      const texto = String(req.query.texto || "").trim();
+      await sendWaVideoArchivo(conv.externo_id, req.body, texto);
+      await recordOutgoing(conv.id, `${texto ? `${texto}\n` : ""}[Video enviado]`, "humano", "Sebastián (envío de video)");
+      logEvent("archivo_enviado", conv.id, { nombre: "video.mp4", bytes: req.body.length });
+      return res.json({ ok: true, nombre: "video.mp4" });
     }
     const nombre = String(req.query.nombre || "Documento.pdf").replace(/[\\/]/g, "-").slice(0, 120);
     const texto = String(req.query.texto || "").trim();
