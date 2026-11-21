@@ -20,7 +20,7 @@
       #grano { opacity: .07; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>"); }
 
       /* Gancho */
-      #h-sim { position: absolute; left: 840px; top: 240px; width: 240px; height: auto; }
+      #h-sim { position: absolute; left: 820px; top: 200px; width: 280px; height: auto; }
       #h-t { position: absolute; left: 0; right: 0; top: 440px; text-align: center; font-size: 220px; font-weight: 700; letter-spacing: -.06em; line-height: 1; white-space: nowrap; }
       #h-t span { display: inline-block; }
       #h-k { position: absolute; left: 0; right: 0; top: 720px; text-align: center; font-size: 22px; font-weight: 500; letter-spacing: .4em; color: #a1a1aa; }
@@ -36,12 +36,12 @@
              border: 1.5px solid rgba(255,255,255,.55); border-radius: 999px; background: rgba(0,0,0,.35); }
 
       /* Marca de agua y contador fijos */
-      #wm { position: absolute; left: 110px; top: 80px; width: 120px; height: auto; opacity: .9; }
+      #wm { position: absolute; left: 100px; top: 60px; width: 190px; height: auto; opacity: .95; filter: drop-shadow(0 4px 18px rgba(0,0,0,.55)); }
       #cnt { position: absolute; right: 90px; top: 92px; font-size: 24px; font-weight: 600; letter-spacing: .3em; }
 
       /* Cierre */
-      #e-logo { position: absolute; left: 720px; top: 150px; width: 480px; height: auto; }
-      #e-t { position: absolute; left: 0; right: 0; top: 590px; text-align: center; font-size: 120px; font-weight: 700; letter-spacing: -.055em; line-height: 1; }
+      #e-logo { position: absolute; left: 680px; top: 110px; width: 560px; height: auto; filter: drop-shadow(0 0 40px rgba(255,255,255,.18)); }
+      #e-t { position: absolute; left: 0; right: 0; top: 600px; text-align: center; font-size: 120px; font-weight: 700; letter-spacing: -.055em; line-height: 1; }
       #e-cta { position: absolute; left: 610px; top: 760px; width: 700px; height: 104px; border-radius: 999px; background: #fff; color: #000;
                display: flex; align-items: center; justify-content: center; gap: 18px; font-size: 46px; font-weight: 700; }
       #e-cta svg { width: 48px; height: 48px; }
@@ -68,7 +68,7 @@
 
       <!-- 2. Servicios sobre fotos completas (2.6–15.88 s), una por compás -->
       <div id="srv" class="clip full" data-start="2.6" data-duration="13.28" data-track-index="1" data-track-kind="graphics" data-layout-allow-overflow>
-        <img id="wm" src="assets/simbolo.png" alt="" />
+        <img id="wm" src="assets/logo.png" alt="" />
         <div id="cnt">01 / 08</div>
         <div class="sc" id="s1"><div class="n">01 · SISTEMAS</div><div class="ln"><div>Software</div></div><div class="ln"><div class="o">a medida</div></div></div>
         <div class="sc" id="s2"><div class="n">02 · PWA</div><div class="ln"><div>Apps que se</div></div><div class="ln"><div class="o">instalan</div></div></div>
@@ -118,7 +118,7 @@
       tl.fromTo("#sombra", { opacity: 1 }, { opacity: 0, duration: 0.3, immediateRender: false }, 15.7);
 
       // 2. Servicios: el texto entra con cada foto y sale justo antes del corte
-      tl.fromTo("#wm", { opacity: 0, x: -20 }, { opacity: 0.9, x: 0, duration: 0.4 }, 2.8);
+      tl.fromTo("#wm", { opacity: 0, x: -20 }, { opacity: 0.95, x: 0, duration: 0.4 }, 2.8);
       for (let i = 1; i <= 8; i++) {
         const t = T[i], fin = T[i + 1];
         const ln = `#s${i} .ln div`;
