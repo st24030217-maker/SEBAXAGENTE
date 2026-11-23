@@ -156,7 +156,7 @@ export async function extraerMarca(sitio) {
 export function marcaDe(p) {
   try {
     const m = p?.marca ? JSON.parse(p.marca) : null;
-    return m && (m.logo || m.fotos?.length) ? m : null;
+    return m && (m.logo || m.fotos?.length || m.perfil || m.historia) ? m : null;
   } catch {
     return null;
   }

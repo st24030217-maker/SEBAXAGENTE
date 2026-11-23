@@ -202,19 +202,22 @@ function sCitas(d) {
   }
   const nom = (f) => f.toLocaleDateString("es-MX", { weekday: "short", timeZone: "America/Monterrey" }).replace(".", "");
   const num = (f) => f.toLocaleDateString("es-MX", { day: "numeric", timeZone: "America/Monterrey" });
-  const servicio = pant("serv", "claro", 1, "Elige servicio", `${encab("Agenda tu cita", "¿Qué servicio?", "Sin llamadas: eliges y listo.")}
+  // Textos por perfil (p. ej. un restaurante "reserva", un consultorio "agenda cita").
+  const t = { eti: "Agenda tu cita", titulo: "¿Qué servicio?", baj: "Sin llamadas: eliges y listo.", titulo2: "¿Qué día y hora?", confirmar: "Confirmar cita", ...(d.citas || {}) };
+  const detalle = (min, pr) => [typeof min === "number" ? `${min} min` : min, pr != null && pr !== "" ? dinero(pr) : ""].filter(Boolean).join(" · ");
+  const servicio = pant("serv", "claro", 1, "Elige servicio", `${encab(esc(t.eti), esc(t.titulo), esc(t.baj))}
 <div class="servs a" style="--d:3">${d.servicios
-    .map(([n, min, pr], i) => `<button class="serv${i ? "" : " on"}" type="button" data-serv="${esc(n)}" aria-pressed="${i ? "false" : "true"}"><b>${esc(n)}</b><small>${ico("clock", 13)} ${min} min · ${dinero(pr)}</small></button>`)
+    .map(([n, min, pr], i) => `<button class="serv${i ? "" : " on"}" type="button" data-serv="${esc(n)}" aria-pressed="${i ? "false" : "true"}"><b>${esc(n)}</b><small>${ico("clock", 13)} ${esc(detalle(min, pr))}</small></button>`)
     .join("")}</div>
 <button class="cta a" style="--d:4" type="button" data-ir="s-hora">Elegir día y hora ${ico("flecha")}</button>`);
-  const hora = pant("hora", "claro", 1, "Elige día y hora", `${encab("Agenda tu cita", "¿Qué día y hora?")}
+  const hora = pant("hora", "claro", 1, "Elige día y hora", `${encab(esc(t.eti), esc(t.titulo2))}
 <p class="rot a" style="--d:2">Día</p>
 <div class="dias a" style="--d:2">${dias.map((f, i) => `<button class="dia${i ? "" : " on"}" type="button" data-dia="${esc(nom(f))} ${esc(num(f))}" aria-pressed="${i ? "false" : "true"}"><small>${esc(nom(f))}</small><b>${esc(num(f))}</b></button>`).join("")}</div>
 <p class="rot a" style="--d:3">Hora</p>
-<div class="horas a" style="--d:3">${["10:00", "11:00", "12:30", "16:00", "17:00", "18:30"]
+<div class="horas a" style="--d:3">${(d.horas || ["10:00", "11:00", "12:30", "16:00", "17:00", "18:30"])
     .map((h, i) => `<button class="hora${i === 1 ? " on" : ""}${i === 2 ? " ocupada" : ""}" type="button" data-hora="${h}" aria-pressed="${i === 1 ? "true" : "false"}"${i === 2 ? " disabled" : ""}>${h}</button>`)
     .join("")}</div>
-<button class="cta a" style="--d:4" type="button" data-demo="cita">${ico("cal")} Confirmar cita</button>`);
+<button class="cta a" style="--d:4" type="button" data-demo="cita">${ico("cal")} ${esc(t.confirmar)}</button>`);
   return servicio + "\n" + hora;
 }
 
@@ -233,7 +236,8 @@ function sPropiedades(p, d) {
 }
 
 function sServicios(d) {
-  const servicios = pant("servicios", "claro", 1, "Servicios", `${encab("Lo que hacemos", "Servicios")}
+  const ts = { eti: "Lo que hacemos", titulo: "Servicios", cotizaEti: "Sin compromiso", cotizaTitulo: "Cotiza aquí", cotizaQue: "¿Qué necesitas?", ...(d.textosServicios || {}) };
+  const servicios = pant("servicios", "claro", 1, ts.titulo, `${encab(esc(ts.eti), esc(ts.titulo))}
 <div class="lista a" style="--d:2">${d.items.map(([n, desc]) => item(n, desc, null, false)).join("")}</div>`);
   const resenas = pant("resenas", "claro", 1, "Reseñas", `${encab("Reseñas de ejemplo", "Lo que dicen")}
 <div class="resenas a" style="--d:2">${[
@@ -243,8 +247,8 @@ function sServicios(d) {
   ]
     .map(([t, a]) => `<div class="resena"><div class="estrellas">${ico("star", 14).repeat(5)}</div><p>${esc(t)}</p><small>${esc(a)} · reseña de ejemplo</small></div>`)
     .join("")}</div>`);
-  const cotiza = pant("cotiza", "claro", 1, "Cotiza", `${encab("Sin compromiso", "Cotiza aquí")}
-<div class="form a" style="--d:2"><input placeholder="Tu nombre" aria-label="Tu nombre" autocomplete="name"><input placeholder="WhatsApp" aria-label="WhatsApp" type="tel" inputmode="tel" autocomplete="tel"><input placeholder="¿Qué necesitas?" aria-label="¿Qué necesitas?"></div>
+  const cotiza = pant("cotiza", "claro", 1, "Cotiza", `${encab(esc(ts.cotizaEti), esc(ts.cotizaTitulo))}
+<div class="form a" style="--d:2"><input placeholder="Tu nombre" aria-label="Tu nombre" autocomplete="name"><input placeholder="WhatsApp" aria-label="WhatsApp" type="tel" inputmode="tel" autocomplete="tel"><input placeholder="${esc(ts.cotizaQue)}" aria-label="${esc(ts.cotizaQue)}"></div>
 <button class="cta a" style="--d:3" type="button" data-demo="cotizacion">${ico("wa")} Pedir cotización</button>`);
   return [servicios, resenas, cotiza].join("\n");
 }
@@ -258,13 +262,21 @@ function sEscuela(d) {
 
 /** Las pantallas de "su página" según el tipo de negocio. */
 /** "El lugar": mosaico de 3 fotos (las reales del negocio si las hay) con movimiento lento. */
-function sAmbiente(p, d, fotos, reales) {
+function sAmbiente(p, d, fotos, reales, lugar = null) {
   if (fotos.length < 3) return "";
   const chips = ({ menu: ["Para llevar", "A domicilio", "Pago con tarjeta"], cafe: ["Para llevar", "Wi-Fi", "Pago con tarjeta"], catalogo: ["Envíos", "Apartados", "Pago con tarjeta"] }[d.tipo]) || ["Atención personal", "Pago con tarjeta", "Estacionamiento"];
-  const titulo = reales ? ["Tus fotos", "Así se ve lo tuyo", "Tomadas de tu página: así de bien se verían."] : ["El lugar", "Que se antoje venir", "Con tus fotos, se ve como es."];
-  return pant("lugar", "oscuro", 1, "El lugar", `${encab(...titulo)}
+  const titulo = lugar?.titulo ? [lugar.eti || "El lugar", lugar.titulo, lugar.texto || ""] : reales ? ["Tus fotos", "Así se ve lo tuyo", "Tomadas de tu página: así de bien se verían."] : ["El lugar", "Que se antoje venir", "Con tus fotos, se ve como es."];
+  if (lugar?.chips) chips.splice(0, chips.length, ...lugar.chips);
+  return pant("lugar", "oscuro", 1, "El lugar", `${encab(...titulo.map((x) => esc(x)))}
 <div class="mosaico a" style="--d:2">${fotos.slice(0, 3).map((u, i) => `<figure class="mz mz${i}"><img src="${esc(u)}" alt="" loading="lazy" decoding="async"></figure>`).join("")}</div>
 <div class="chips a" style="--d:3">${chips.map((c) => `<span>${ico("check", 14, 2.6)}${esc(c)}</span>`).join("")}</div>`, "lugar");
+}
+
+/** "Historia": lo que hace único al negocio (año, una frase y datos reales), si lo investigamos. */
+function sHistoria(h) {
+  if (!h?.titulo) return "";
+  return pant("historia", "marca", 1, "Historia", `${h.anio ? `<p class="anio a" style="--d:0" aria-hidden="true">${esc(h.anio)}</p>` : ""}${encab(esc(h.eti || "Nuestra historia"), esc(h.titulo), h.texto ? esc(h.texto) : "")}
+${h.datos?.length ? `<div class="chips claro a" style="--d:3">${h.datos.map((x) => `<span>${ico("check", 14, 2.6)}${esc(x)}</span>`).join("")}</div>` : ""}`, "historia");
 }
 
 /** Sello redondo con el nombre del negocio alrededor (cuando no tenemos su logo). */
@@ -285,7 +297,7 @@ function pantallasNegocio(p, d) {
     case "catalogo":
       return [sDestacados(d.items, platos, "Catálogo"), sCatalogo(d), sellos];
     case "citas":
-      return [sCitas(d), sellos];
+      return [sCitas(d), d.items ? sServicios(d) : "", sellos];
     case "fidelidad":
       return [sellos, sPlanes(d)];
     case "inmobiliaria":
@@ -456,7 +468,9 @@ ${video(p, d)}`),
 /** HTML completo del boceto de un prospecto: un recorrido a pantalla completa que se desliza como historias. */
 export function renderBoceto(p) {
   const cfg = getProspeccion();
-  const d = p.perfil || perfilDe(p);
+  // marca.perfil ajusta el perfil para UN negocio (textos, servicios, horarios) sin tocar el de su giro.
+  const marcaP = marcaDe(p);
+  const d = p.perfil || (marcaP?.perfil ? { ...perfilDe(p), ...marcaP.perfil } : perfilDe(p));
   const chip = String(process.env.WA_NUMERO || cfg.remitente.whatsapp || "").replace(/\D/g, "").slice(-10);
   const quiero = `https://wa.me/52${chip}?text=${encodeURIComponent(p.demo ? `Hola, vi la muestra de ${d.nombre.toLowerCase()} y me interesa una para mi negocio.` : `Hola, vi la propuesta que me hicieron para ${p.nombre} y me interesa arrancar.`)}`;
   const mapa = p.lat && p.lon ? `https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lon}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${p.nombre} ${p.ciudad || ""}`)}`;
@@ -586,6 +600,8 @@ img.cargando{opacity:0}
 .mosaico{display:grid;grid-template-columns:1.25fr 1fr;grid-template-rows:1fr 1fr;gap:8px;height:min(46svh,440px);margin-top:20px}
 .mz{margin:0;border-radius:20px;overflow:hidden;background:var(--k2)}.mz0{grid-row:1/3}
 .mz img{width:100%;height:100%;object-fit:cover;display:block}
+.anio{margin:0 0 -6px;font:800 clamp(88px,30vw,150px)/.85 var(--fd);letter-spacing:-.06em;color:#ffffff38}
+.chips.claro span{background:#ffffff26;color:#fff}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
 .chips span{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:99px;background:#ffffff14;color:var(--kfo);font-size:13.5px;font-weight:600}
 .galeria{--gh:min(42svh,420px);position:relative;width:min(100%,calc(var(--gh) * .8));aspect-ratio:4/5;margin:20px auto 0;border-radius:28px;overflow:hidden;background:var(--chip);box-shadow:0 30px 50px -30px #000000b3;cursor:pointer}
@@ -890,7 +906,8 @@ ${logoHtml}
 </div>
 <p class="pista a" style="--d:5">Desliza para ver más ${ico("flecha", 16)}</p>
 </div></section>
-${sAmbiente(p, d, ambiente, reales.length > 1)}
+${sHistoria(marca?.historia)}
+${sAmbiente(p, d, ambiente, reales.length > 1, marca?.lugar)}
 ${negocio.join("\n")}
 ${d.ia ? sIA(p, d) : ""}
 ${sApp(p)}
