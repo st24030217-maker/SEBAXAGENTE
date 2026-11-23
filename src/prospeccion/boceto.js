@@ -6,7 +6,8 @@ import { settings } from "../config.js";
 import { getDb, now, logEvent } from "../db.js";
 import { getProspeccion } from "./config.js";
 import { perfilDe, perfilesGaleria } from "./perfiles.js";
-import { fotosDe } from "./fotos.js";
+import { fotosDe, fotosParaNegocio } from "./fotos.js";
+import { marcaDe } from "./marca.js";
 
 const db = () => getDb();
 
@@ -256,6 +257,23 @@ function sEscuela(d) {
 }
 
 /** Las pantallas de "su página" según el tipo de negocio. */
+/** "El lugar": mosaico de 3 fotos (las reales del negocio si las hay) con movimiento lento. */
+function sAmbiente(p, d, fotos, reales) {
+  if (fotos.length < 3) return "";
+  const chips = ({ menu: ["Para llevar", "A domicilio", "Pago con tarjeta"], cafe: ["Para llevar", "Wi-Fi", "Pago con tarjeta"], catalogo: ["Envíos", "Apartados", "Pago con tarjeta"] }[d.tipo]) || ["Atención personal", "Pago con tarjeta", "Estacionamiento"];
+  const titulo = reales ? ["Tus fotos", "Así se ve lo tuyo", "Tomadas de tu página: así de bien se verían."] : ["El lugar", "Que se antoje venir", "Con tus fotos, se ve como es."];
+  return pant("lugar", "oscuro", 1, "El lugar", `${encab(...titulo)}
+<div class="mosaico a" style="--d:2">${fotos.slice(0, 3).map((u, i) => `<figure class="mz mz${i}"><img src="${esc(u)}" alt="" loading="lazy" decoding="async"></figure>`).join("")}</div>
+<div class="chips a" style="--d:3">${chips.map((c) => `<span>${ico("check", 14, 2.6)}${esc(c)}</span>`).join("")}</div>`, "lugar");
+}
+
+/** Sello redondo con el nombre del negocio alrededor (cuando no tenemos su logo). */
+function sello(p, ini) {
+  const texto = `${p.nombre} · ${p.ciudad || "La Laguna"} · `.toUpperCase();
+  const veces = Math.max(1, Math.floor(62 / texto.length));
+  return `<div class="mono sello a" style="--d:1" aria-hidden="true"><svg viewBox="0 0 120 120" width="88" height="88"><defs><path id="circ" d="M60 60m-46 0a46 46 0 1 1 92 0a46 46 0 1 1-92 0"/></defs><circle cx="60" cy="60" r="58" fill="var(--c-f)"/><circle cx="60" cy="60" r="35" fill="none" stroke="#ffffff66" stroke-width="1"/><g class="anillo"><text fill="#fff" font-size="10.5" font-weight="700" letter-spacing="2.2"><textPath href="#circ">${esc(texto.repeat(veces))}</textPath></text></g><text x="60" y="68" text-anchor="middle" fill="#fff" font-size="24" font-weight="800" font-family="Bricolage Grotesque,sans-serif">${ini}</text></svg></div>`;
+}
+
 function pantallasNegocio(p, d) {
   const platos = fotosDe(d.id).platos || [];
   const sellos = d.sellos ? sTarjeta(p, d) : "";
@@ -446,8 +464,16 @@ export function renderBoceto(p) {
   const tel = String(p.telefono || "").replace(/\D/g, "");
   const accion = d.accion || { menu: "Pedir", cafe: "Pedir", catalogo: "Pedir", citas: "Agendar", fidelidad: "Escribir", inmobiliaria: "Preguntar", escuela: "Informes", servicios: "Cotizar" }[d.tipo] || "Escribir";
   const titulo = `${p.nombre} · muestra de ${d.que}`;
-  const fx = fotosDe(d.id);
+  const marca = marcaDe(p);
+  const fs0 = fotosParaNegocio(d.id, p.id ?? p.nombre);
+  const reales = (marca?.fotos || []).map((x) => (typeof x === "string" ? x : x.u));
+  const fx = { ...fs0, portada: reales[0] || fs0.portada };
+  const ambiente = reales.length >= 4 ? reales.slice(1, 4) : reales.length ? [...reales.slice(1), ...fs0.ambiente].slice(0, 3) : fs0.ambiente;
   const ini = esc(iniciales(p.nombre));
+  const logoHtml = marca?.logo
+    ? `<div class="mono logo-real a" style="--d:1"><img src="${esc(marca.logo)}" alt="Logo de ${esc(p.nombre)}" decoding="async"></div>`
+    : sello(p, ini);
+
   const negocio = pantallasNegocio(p, d).filter(Boolean);
   const primera = (negocio[0] || "").match(/id="(s-[a-z]+)"/)?.[1] || "s-app";
   const visita = pant("visita", "marca", 1, "Visítanos", `${encab(esc(lugar || "Encuéntranos"), "Visítanos")}
@@ -455,7 +481,7 @@ export function renderBoceto(p) {
 <a class="maps a" style="--d:3" href="${esc(mapa)}" target="_blank" rel="noopener">${ico("pin", 20)} Abrir en Google Maps</a>`, "visita").replace('class="pant visita"', `class="pant visita" data-ini="${ini}"`);
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>${esc(titulo)}</title><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="${d.color}">
-<meta property="og:title" content="${esc(p.nombre)}"><meta property="og:description" content="Una muestra de ${esc(d.que)} hecha para ${esc(p.nombre)}.">${fx.portada ? `<meta property="og:image" content="${fx.portada}"><meta property="og:image:width" content="1400"><meta property="og:image:height" content="933">` : ""}<link rel="preconnect" href="https://images.unsplash.com">
+<meta property="og:title" content="${esc(p.nombre)}"><meta property="og:description" content="Una muestra de ${esc(d.que)} hecha para ${esc(p.nombre)}.">${fx.portada ? `<meta property="og:image" content="${fx.portada}">` : ""}<link rel="preconnect" href="https://images.unsplash.com">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -541,6 +567,10 @@ img.cargando{opacity:0}
 .sello{margin:0;align-self:center;font-size:12px;line-height:1.35;padding:6px 12px;border-radius:99px;background:#0000006b;border:1px solid #ffffff2e;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);text-align:center;max-width:34ch;color:#fffffff0}
 .sello b{color:#fff}
 .mono{margin-top:auto;width:60px;height:60px;border-radius:18px;background:var(--c-f);display:grid;place-items:center;font:800 20px/1 var(--fd);box-shadow:0 0 0 2px #ffffff80,0 14px 28px -10px #000;margin-bottom:18px}
+.mono.logo-real{width:auto;height:auto;max-width:180px;padding:0;background:none;box-shadow:none;border-radius:0}
+.mono.logo-real img{display:block;max-width:180px;max-height:96px;width:auto;height:auto;filter:drop-shadow(0 6px 18px #0009)}
+.mono.sello{width:88px;height:88px;padding:0;background:none;border-radius:50%;box-shadow:0 14px 28px -10px #000}
+.mono.sello svg{display:block}
 .portada h1{margin:0;font:800 clamp(54px,16.5vw,92px)/.88 var(--fd);letter-spacing:-.05em;text-wrap:balance;overflow-wrap:anywhere;text-shadow:0 2px 30px #00000040}
 .meta{margin:14px 0 0;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:15px;color:#fffffff0}
 .ab{display:inline-flex;align-items:center;gap:7px;font-weight:700;color:#bbf7d0}
@@ -553,6 +583,11 @@ img.cargando{opacity:0}
 .pista{margin:16px 0 0;display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:#ffffffcc}
 
 /* ---------- Lo más pedido ---------- */
+.mosaico{display:grid;grid-template-columns:1.25fr 1fr;grid-template-rows:1fr 1fr;gap:8px;height:min(46svh,440px);margin-top:20px}
+.mz{margin:0;border-radius:20px;overflow:hidden;background:var(--k2)}.mz0{grid-row:1/3}
+.mz img{width:100%;height:100%;object-fit:cover;display:block}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.chips span{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:99px;background:#ffffff14;color:var(--kfo);font-size:13.5px;font-weight:600}
 .galeria{--gh:min(42svh,420px);position:relative;width:min(100%,calc(var(--gh) * .8));aspect-ratio:4/5;margin:20px auto 0;border-radius:28px;overflow:hidden;background:var(--chip);box-shadow:0 30px 50px -30px #000000b3;cursor:pointer}
 .g-item{position:absolute;inset:0;margin:0;opacity:0;visibility:hidden;transition:opacity .35s,visibility .35s}
 .g-item.on{opacity:1;visibility:visible}
@@ -773,7 +808,12 @@ dialog.hoja[open]::backdrop{background-color:rgb(0 0 0 / .6)}
   .g-item .mas:hover{background:var(--c-f);color:#fff}
   .tab:not(.on):hover,.g-sel button:not(.on):hover,.b2:hover{background:color-mix(in srgb,var(--chip) 82%,var(--tx))}
 }
-@media (max-height:640px){.mini,.vs-pista,.inc small{display:none}.t{font-size:clamp(36px,10.4vw,48px)}.galeria{--gh:min(38svh,360px)}}
+@media (max-height:640px){.mini,.vs-pista,.inc small{display:none}.t{font-size:clamp(36px,10.4vw,48px)}.mosaico{display:grid;grid-template-columns:1.25fr 1fr;grid-template-rows:1fr 1fr;gap:8px;height:min(46svh,440px);margin-top:20px}
+.mz{margin:0;border-radius:20px;overflow:hidden;background:var(--k2)}.mz0{grid-row:1/3}
+.mz img{width:100%;height:100%;object-fit:cover;display:block}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.chips span{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:99px;background:#ffffff14;color:var(--kfo);font-size:13.5px;font-weight:600}
+.galeria{--gh:min(38svh,360px)}}
 
 /* ---------- Movimiento ---------- */
 @media (prefers-reduced-motion:no-preference){
@@ -784,6 +824,10 @@ dialog.hoja[open]::backdrop{background-color:rgb(0 0 0 / .6)}
   .js .portada.on h1{animation:entra-t .6s var(--ease) both .15s}
   @keyframes entra-t{from{opacity:0;transform:translateY(40px) scale(.96);letter-spacing:-.02em}}
   .js .portada .fondo{transition:transform 1.2s var(--ease)}
+  .js .lugar.on .mz img{animation:kb 9s ease-out both}.js .lugar.on .mz1 img{animation-delay:.2s;animation-name:kb2}.js .lugar.on .mz2 img{animation-delay:.4s}
+  @keyframes kb{from{transform:scale(1.14) translate(2%,2%)}}@keyframes kb2{from{transform:scale(1.14) translate(-2%,-1%)}}
+  .js .portada.on .sello .anillo{animation:gira 30s linear infinite;transform-origin:60px 60px}
+
   .js .portada:not(.on) .fondo{transform:scale(1.08)}
   .g-item.on img{animation:acerca .7s var(--ease) both}
   @keyframes acerca{from{transform:scale(1.08)}}
@@ -836,7 +880,7 @@ dialog.hoja[open]::backdrop{background-color:rgb(0 0 0 / .6)}
 <section class="pant portada" id="s-portada" data-parte="1" data-tono="foto" aria-label="Portada">
 ${fx.portada ? `<img class="fondo" src="${fx.portada}" alt="" fetchpriority="high" decoding="async" width="1400" height="933">` : ""}
 <div class="p-in">
-<div class="mono a" style="--d:1" aria-hidden="true">${ini}</div>
+${logoHtml}
 <h1>${esc(p.nombre)}</h1>
 <p class="meta a" style="--d:3"><span class="ab">Abierto ahora</span><span>${esc(d.nombre)}${lugar ? ` · ${esc(lugar)}` : ""}</span></p>
 <div class="acciones a" style="--d:4">
@@ -846,6 +890,7 @@ ${fx.portada ? `<img class="fondo" src="${fx.portada}" alt="" fetchpriority="hig
 </div>
 <p class="pista a" style="--d:5">Desliza para ver más ${ico("flecha", 16)}</p>
 </div></section>
+${sAmbiente(p, d, ambiente, reales.length > 1)}
 ${negocio.join("\n")}
 ${d.ia ? sIA(p, d) : ""}
 ${sApp(p)}

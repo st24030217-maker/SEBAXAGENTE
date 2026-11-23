@@ -6,6 +6,7 @@ import { getDb, now, logEvent } from "../db.js";
 import { localParts } from "../services/calendar.js";
 import { getProspeccion } from "./config.js";
 import { buscarDenue, desdeDenue, medirPagina, buscarCorreoEnWeb, esRedSocial } from "./fuentes.js";
+import { extraerMarca } from "./marca.js";
 import { calificar, redactar, redactarPlantilla, pieCorreo } from "./redactar.js";
 import { bocetosDisponibles, baseBocetos } from "./boceto.js";
 import { estadoIA, iaDisponible } from "../ia/proveedor.js";
@@ -124,6 +125,14 @@ export async function analizarProspecto(id, { forzarMedicion = false } = {}) {
     }
     d.prepare("UPDATE prospectos SET web_puntaje = ?, web_detalle = ? WHERE id = ?").run(detalle.puntaje ?? null, JSON.stringify(detalle), p.id);
     p = getProspecto(id);
+  }
+  // Logo y fotos reales de su página, para que su boceto no se vea genérico.
+  if (p.sitio_web && !p.marca && !esRedSocial(p.sitio_web)) {
+    const marca = await extraerMarca(p.sitio_web);
+    if (marca) {
+      d.prepare("UPDATE prospectos SET marca = ? WHERE id = ?").run(JSON.stringify(marca), p.id);
+      p = getProspecto(id);
+    }
   }
   const { puntaje, razones } = calificar(p, cfg);
   // Con Gemini gratis, el análisis masivo usa plantillas para no gastar la cuota diaria:

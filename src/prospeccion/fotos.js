@@ -67,3 +67,31 @@ export function fotosDe(perfilId) {
   const ids = F[perfilId] || [];
   return { portada: ids[0] ? U(ids[0], 1400) : null, platos: ids.slice(1).map((id) => U(id, 720)) };
 }
+
+// Giros parecidos cuyas fotos también sirven (para tener más variedad entre negocios del mismo giro).
+const PARIENTES = {
+  cafeteria: ["pasteleria"], pasteleria: ["cafeteria"], restaurante: ["loncheria", "taqueria"], loncheria: ["restaurante"],
+  taqueria: ["restaurante"], jugos: ["neveria"], neveria: ["jugos"], hamburguesas: ["restaurante"], pizzeria: ["restaurante"],
+};
+
+const numero = (s) => [...String(s)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+
+/**
+ * Fotos de muestra para UN negocio: la portada cambia según el negocio (dos cafeterías no salen
+ * con la misma foto) y "ambiente" trae 3 fotos para el mosaico de "El lugar".
+ * @returns {{portada: string|null, platos: string[], ambiente: string[]}}
+ */
+export function fotosParaNegocio(perfilId, semilla) {
+  const propias = F[perfilId] || [];
+  if (!propias.length) return { portada: null, platos: [], ambiente: [] };
+  // Todas las fotos del giro y de sus parientes; cada negocio arranca en un punto distinto de la lista.
+  const pool = [...propias, ...(PARIENTES[perfilId] || []).flatMap((k) => F[k] || []).filter((id) => !propias.includes(id))];
+  const n = Number.isInteger(Number(semilla)) ? Number(semilla) : numero(semilla);
+  const k = n % pool.length;
+  const todas = pool.slice(k).concat(pool.slice(0, k));
+  return {
+    portada: U(todas[0], 1400),
+    platos: (F[perfilId] || []).slice(1).map((id) => U(id, 720)), // mismas que antes: van con los nombres del menú
+    ambiente: todas.slice(1, 4).map((id) => U(id, 900)),
+  };
+}
