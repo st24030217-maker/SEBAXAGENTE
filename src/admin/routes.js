@@ -60,18 +60,42 @@ const claveIgual = (token, esperado) =>
   token.length === esperado.length &&
   crypto.timingSafeEqual(Buffer.from(token), Buffer.from(esperado));
 
+// Contra adivinar la clave a lo bruto: 10 claves equivocadas en 15 min desde la misma IP la bloquean 15 min.
+// (Solo cuentan los intentos que sí mandan una clave: el panel sin sesión no se bloquea a sí mismo.)
+const FALLOS_MAX = Number(process.env.ADMIN_FALLOS_MAX || 10);
+const VENTANA_FALLOS = 15 * 60_000;
+const fallos = new Map(); // ip -> [tiempos]
+export function bloqueadoPorFallos(ip, ahora = Date.now()) {
+  const xs = (fallos.get(ip) || []).filter((t) => ahora - t < VENTANA_FALLOS);
+  fallos.set(ip, xs);
+  return xs.length >= FALLOS_MAX;
+}
+export function registrarFallo(ip, ahora = Date.now()) {
+  const xs = (fallos.get(ip) || []).filter((t) => ahora - t < VENTANA_FALLOS);
+  xs.push(ahora);
+  fallos.set(ip, xs);
+  if (fallos.size > 5000) fallos.clear();
+  if (xs.length === FALLOS_MAX) console.warn(`[admin] ${ip} bloqueada 15 min por ${FALLOS_MAX} claves equivocadas`);
+}
+
 function auth(req, res, next) {
   if (esRedLocal(req)) return next();
   const token = req.get("x-admin-token") || "";
+  const ip = req.ip || "?";
+  if (bloqueadoPorFallos(ip)) return res.status(429).json({ error: "Demasiadas claves equivocadas. Espera 15 minutos." });
+  const rechazar = (status, cuerpo) => {
+    if (token) registrarFallo(ip);
+    return res.status(status).json(cuerpo);
+  };
   const n = negocioActual();
   if (n) {
     // Panel de un negocio cliente: entra su dueño con su clave, o tú con la tuya (ADMIN_TOKEN).
     // ADMIN_ABIERTO no aplica aquí: el panel de cada negocio siempre pide clave.
     if (claveIgual(token, n.meta.token) || claveIgual(token, settings.adminToken)) return next();
-    return res.status(401).json({ error: "Clave incorrecta. Pídele a sss.solutions la clave de tu panel." });
+    return rechazar(401, { error: "Clave incorrecta. Pídele a sss.solutions la clave de tu panel." });
   }
   if (panelAbierto() && !SIEMPRE_CON_CLAVE.includes(req.path)) return next();
-  if (!claveIgual(token, settings.adminToken)) return res.status(401).json({ error: "No autorizado. Revisa ADMIN_TOKEN en .env (y que no sea el valor de ejemplo)." });
+  if (!claveIgual(token, settings.adminToken)) return rechazar(401, { error: "No autorizado. Revisa ADMIN_TOKEN en .env (y que no sea el valor de ejemplo)." });
   next();
 }
 
