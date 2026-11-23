@@ -17,8 +17,9 @@ import { startProspeccion, darDeBaja, ponerBocetoEnPendientes } from "./prospecc
 import { startVideosNocturnos } from "./prospeccion/videos.js";
 import { startTunel } from "./services/tunel.js";
 import { startEmail } from "./channels/email.js";
-import { startWaWeb, detenerWa, avisarDueno } from "./channels/wa-web.js";
+import { startWaWeb, detenerWa, avisarDueno, avisarDuenoMedia } from "./channels/wa-web.js";
 import { startRecordatorios } from "./services/recordatorios.js";
+import { startContenidoIG } from "./services/contenido-ig.js";
 import { verificarClaude } from "./ia/proveedor.js";
 import { restaurarDesdeNube, startNube, startDespierto, tomarTurno, antesDeApagar } from "./services/nube.js";
 import { buscarPorClave, registrarVisita, regresoVisita, renderBoceto, bocetoNoEncontrado, renderGaleria, renderMuestra, urlBoceto, bocetosFijos, baseBocetos } from "./prospeccion/boceto.js";
@@ -275,4 +276,6 @@ app.listen(settings.port, async () => {
   iniciarWaNegocios(clientes).catch((e) => console.error("[negocios]", e.message));
   // Tu agenda del día (8:00) y un aviso 1 hora antes de cada cita, a tu WhatsApp personal.
   startRecordatorios(avisarDueno);
+  // Contenido de Instagram ya hecho (reel + carrusel + caption) cada mañana a tu WhatsApp.
+  startContenidoIG({ texto: avisarDueno, video: (b, c) => avisarDuenoMedia({ video: b }, c), imagen: (b, c) => avisarDuenoMedia({ image: b }, c) });
 });

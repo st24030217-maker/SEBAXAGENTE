@@ -275,6 +275,21 @@ export async function avisarDueno(texto) {
   }
 }
 
+/** Manda un video o una imagen al WhatsApp personal del dueño. `media` = { video: Buffer } o { image: Buffer }. */
+export async function avisarDuenoMedia(media, caption = "") {
+  const tel = numeroDueno();
+  if (!tel || !waConectado() || tel === numero) return false;
+  try {
+    jidDueno ||= await resolverJid(tel);
+    if (!jidDueno) return false;
+    await sock.sendMessage(jidDueno, { ...media, caption, ...(media.video ? { mimetype: "video/mp4" } : {}) });
+    return true;
+  } catch (e) {
+    console.error("[whatsapp] no se pudo mandar el archivo al dueño:", e.message);
+    return false;
+  }
+}
+
 /**
  * Te manda a TI el primer mensaje tal como lo recibiría un negocio (video + texto del siguiente en la
  * fila), para que veas cómo llega. No cuenta en el límite diario ni marca al negocio como contactado.
