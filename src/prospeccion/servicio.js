@@ -72,6 +72,8 @@ export async function buscarProspectos({ rubros = [], ciudades = [] } = {}) {
             sinContacto++;
             continue;
           }
+          // Gobierno, sindicatos y organizaciones no compran una página: no se guardan.
+          if (noEsCliente(p)) continue;
           if (/sin nombre/i.test(p.nombre)) p.nombre = `${rubro.nombre.replace(/s$/, "")} en ${p.colonia || ciudad.nombre}`;
           candidatos.push([calificar(p, cfg).puntaje, p]);
         }
@@ -95,6 +97,16 @@ export async function buscarProspectos({ rubros = [], ciudades = [] } = {}) {
   logEvent("prospeccion_busqueda", null, { encontrados, nuevos, sinContacto, errores: errores.length });
   despertarAnalizador();
   return { encontrados, nuevos, sinContacto, errores };
+}
+
+/** Oficinas de gobierno (IMSS, DIF, municipio...), sindicatos y asociaciones: no son clientes. */
+export function noEsCliente(p) {
+  const g = String(p.giro || "");
+  const n = String(p.nombre || "");
+  return (
+    /sector p[uú]blico|asociaciones y organizaciones|sindicat|organismos? (?:p[uú]blico|internacional)|administraci[oó]n p[uú]blica|partidos? pol[ií]tic/i.test(g) ||
+    /\b(?:imss|issste|dif|sindicato|secretar[ií]a de|gobierno|municipal|ayuntamiento|presidencia municipal|sedena|cfe|pemex|conalep|cecyt|cbtis|cetis)\b/i.test(n)
+  );
 }
 
 // ---------- Analizar (PageSpeed + correo en su web + puntaje + borrador) ----------
