@@ -36,8 +36,8 @@
       #base { position: absolute; inset: 0; width: 1080px; height: 1920px; object-fit: cover; }
       #sombra { background: linear-gradient(180deg, rgba(7,10,18,.55) 0%, rgba(7,10,18,0) 28%, rgba(7,10,18,0) 48%, rgba(7,10,18,.82) 100%); }
       [data-sombra="toda"] #sombra { background: rgba(7,10,18,.5); }
-      [data-sombra="arriba"] #sombra { background: linear-gradient(180deg, rgba(7,10,18,.85) 0%, rgba(7,10,18,.35) 45%, rgba(7,10,18,.1) 100%); }
-      [data-sombra="ninguna"] #sombra { background: linear-gradient(180deg, rgba(7,10,18,.4) 0%, rgba(7,10,18,0) 20%); }
+      [data-sombra="arriba"] #sombra { background: linear-gradient(180deg, rgba(7,10,18,.85) 0%, rgba(7,10,18,.35) 45%, rgba(7,10,18,.1) 80%, rgba(7,10,18,.5) 100%); }
+      [data-sombra="ninguna"] #sombra { background: linear-gradient(180deg, rgba(7,10,18,.4) 0%, rgba(7,10,18,0) 20%, rgba(7,10,18,0) 82%, rgba(7,10,18,.45) 100%); }
 
       .cap { position: absolute; left: 90px; right: 90px; top: 1140px; }
       [data-pos="centro"] .cap { top: 640px; text-align: center; }
@@ -52,22 +52,16 @@
       [data-caja="1"] .cap .t { text-shadow: none; line-height: 1.22; }
       [data-caja="1"] .cap .t .w { background: #fff; padding: 2px 18px 8px; margin: 0 8px 12px 0; border-radius: 8px; }
       [data-caja="1"] .cap .t .w.hl { background: var(--hl); color: #fff; }
-      #marca { position: absolute; left: 90px; top: 130px; width: 110px; height: auto; opacity: .95; }
-      #handle { position: absolute; left: 220px; top: 162px; font-size: 38px; font-weight: 800; letter-spacing: .02em; }
-
-      /* Barra de progreso tipo historia: un segmento por texto */
-      #barra { position: absolute; left: 60px; right: 60px; top: 70px; display: flex; gap: 12px; }
-      #barra .seg { flex: 1; height: 8px; border-radius: 8px; background: rgba(255,255,255,.3); overflow: hidden; }
-      #barra .fill { width: 100%; height: 100%; background: var(--hl); transform-origin: left center; }
+      /* Logo y @ abajo (arriba estorbaban con la interfaz de Instagram) */
+      #marca { position: absolute; left: 90px; top: 1690px; width: 96px; height: auto; opacity: .95; filter: drop-shadow(0 3px 12px rgba(0,0,0,.45)); }
+      #handle { position: absolute; left: 204px; top: 1718px; font-size: 38px; font-weight: 800; letter-spacing: .02em; text-shadow: 0 2px 14px rgba(0,0,0,.5); }
       #flash { background: #fff; opacity: 0; }
-      /* Estilos tranquilos (minimalistas): etiqueta en texto simple, letra más fina, barra delgada */
+      /* Estilos tranquilos (minimalistas): etiqueta en texto simple, letra más fina */
       [data-etiqueta="texto"] .cap .k { background: none; padding: 0; color: #fff; opacity: .8; font-weight: 600; font-size: 28px; letter-spacing: .32em; }
       [data-calma="1"] .cap .t { font-weight: 500; letter-spacing: -0.02em; line-height: 1.08; text-shadow: 0 2px 24px rgba(0,0,0,.35); }
       [data-calma="1"] #end-q { font-weight: 500; letter-spacing: -0.02em; }
-      [data-calma="1"] #barra .seg { height: 4px; background: rgba(255,255,255,.25); }
-      [data-calma="1"] #barra .fill { background: #fff; }
       [data-calma="1"] #end-cta { font-size: 46px; font-weight: 700; padding: 28px 52px; }
-      [data-calma="1"] #handle { font-weight: 600; font-size: 32px; top: 168px; opacity: .9; }
+      [data-calma="1"] #handle { font-weight: 600; font-size: 32px; top: 1722px; opacity: .9; }
       .wipe { position: absolute; left: 0; top: -10%; width: 100%; height: 120%; z-index: 50; }
       #w1 { background: var(--w1); } #w2 { background: var(--w2); } #w3 { background: var(--w3); } #w4 { background: var(--w4); }
 
@@ -90,10 +84,6 @@
       <div id="hud" class="clip full" data-start="0" data-duration="12.2" data-track-index="2" data-track-kind="graphics">
         <img id="marca" src="assets/logo-simbolo.png" alt="sss.solutions" />
         <div id="handle">@ssss.olutions</div>
-        <div id="barra">
-          <div class="seg"><div class="fill" id="p1"></div></div><div class="seg"><div class="fill" id="p2"></div></div>
-          <div class="seg"><div class="fill" id="p3"></div></div><div class="seg"><div class="fill" id="p4"></div></div>
-        </div>
       </div>
       <div id="flash" class="clip full" data-start="0" data-duration="12.2" data-track-index="7" data-layout-ignore></div>
 
@@ -222,8 +212,6 @@
         const giro = calma ? 0 : i % 2 ? -0.6 : 0.6;
         tl.fromTo("#base", { scale: a, rotation: giro }, { scale: b, rotation: 0, duration: cortes[i + 1] - cortes[i], ease: "power1.out", immediateRender: i === 0 }, cortes[i]);
       }
-      // Barra de progreso: se llena con cada texto
-      ["#p1", "#p2", "#p3", "#p4"].forEach((p, i) => tl.fromTo(p, { scaleX: 0 }, { scaleX: 1, duration: i === 3 ? 3.2 : 3, ease: "none" }, i * 3));
       // Destello corto en los cortes intermedios (los de cada escena ya llevan cortinilla)
       if (!calma) [1.5, 4.5, 7.5, 10.6].forEach((t) => {
         tl.fromTo("#flash", { opacity: 0 }, { opacity: 0.55, duration: 0.05, ease: "none", immediateRender: false }, t - 0.05);
