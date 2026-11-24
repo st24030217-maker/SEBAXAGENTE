@@ -287,7 +287,8 @@ function sello(p, ini) {
 }
 
 function pantallasNegocio(p, d) {
-  const platos = fotosDe(d.id).platos || [];
+  // marca.perfil.platos: fotos reales de SUS platillos (en el orden de los primeros del menú).
+  const platos = d.platos?.length ? d.platos : fotosDe(d.id).platos || [];
   const sellos = d.sellos ? sTarjeta(p, d) : "";
   switch (d.tipo) {
     case "menu":
