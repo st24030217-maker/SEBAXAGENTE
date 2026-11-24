@@ -1,8 +1,8 @@
 // Herramientas del agente de ventas. Claude decide cuándo usarlas; este archivo
 // define qué hacen y valida TODO del lado del servidor (precios, descuentos, stock,
 // horarios). El agente nunca puede saltarse estas reglas, aunque un cliente se lo pida.
-import { getDb, getLead, upsertLead, logEvent, setBotActive, now } from "../db.js";
-import { availableSlots, bookAppointment, formatLocal, prepararDia } from "../services/calendar.js";
+import { getDb, getLead, upsertLead, logEvent, setBotActive, now, getOrCreateConversation } from "../db.js";
+import { availableSlots, bookAppointment, formatLocal, prepararDia, zonedToUtc } from "../services/calendar.js";
 import { gcalConfigurado, crearEventoGoogle } from "../services/gcal.js";
 import { createPaymentLink } from "../services/payments.js";
 import { notifyOwner } from "../services/notify.js";
@@ -122,14 +122,16 @@ export const TOOL_DEFINITIONS = [
   {
     name: "programar_seguimiento",
     description:
-      "Programa un mensaje de seguimiento automático a este cliente (por ejemplo, si dijo que lo pensará o que le escribas otro día).",
+      "Programa un mensaje de seguimiento automático a este cliente (por ejemplo, si dijo que lo pensará o que le escribas otro día). Si le prometiste un día y hora ('el lunes a las 3'), usa fecha y hora exactas (hora local del negocio) para que salga justo a esa hora; en_horas solo para plazos aproximados ('en un par de días').",
     input_schema: {
       type: "object",
       properties: {
-        en_horas: { type: "number", minimum: 1, maximum: 720, description: "En cuántas horas escribirle." },
+        fecha: { type: "string", description: "YYYY-MM-DD, día local en que se le escribe (junto con hora)." },
+        hora: { type: "string", description: "HH:MM en formato 24 h, hora local del negocio (por ejemplo 15:00 para las 3 pm)." },
+        en_horas: { type: "number", minimum: 1, maximum: 720, description: "En cuántas horas escribirle (solo si no hay fecha y hora exactas)." },
         motivo: { type: "string", description: "Qué retomar en el seguimiento." },
       },
-      required: ["en_horas", "motivo"],
+      required: ["motivo"],
       additionalProperties: false,
     },
   },
@@ -142,6 +144,21 @@ export const TOOL_DEFINITIONS = [
       properties: {
         mensaje: { type: "string", description: "Texto corto que va abajo del video, por ejemplo: 'Te dejo un video corto para que nos conozcas.'" },
       },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "mandar_propuesta_a_otro_numero",
+    description:
+      "Cuando en este chat te pidan mandar la propuesta, la información o la muestra a OTRO número de WhatsApp (por ejemplo 'este número es de ventas, mándalo al 871...', 'escríbele al encargado a este número'), úsala de inmediato con ese número: abre el chat nuevo y le manda la propuesta con su muestra y el video. No preguntes a nombre de quién: si te dieron el nombre del encargado, ponlo; si no, mándala igual. La persona de ESTE chat no es el encargado: nunca la llames por el nombre del encargado. Solo WhatsApp.",
+    input_schema: {
+      type: "object",
+      properties: {
+        telefono: { type: "string", description: "El otro número, tal como lo dieron (10 dígitos de México)." },
+        nombre_contacto: { type: "string", description: "Nombre de la persona de ese número, si lo dieron (por ejemplo 'Guillermo Gutiérrez')." },
+        cargo: { type: "string", description: "Su puesto, si lo dijeron (dueño, gerente, encargado de marketing...)." },
+      },
+      required: ["telefono"],
       additionalProperties: false,
     },
   },
@@ -303,7 +320,8 @@ const HANDLERS = {
     upsertLead(convId, { etapa: "negociacion" });
     logEvent("pedido", convId, { id: pedido.id, total: cot.total, metodo: pago.metodo });
     const lead = getLead(convId);
-    notifyOwner("pedido", `Pedido #${pedido.id} por ${formatMoney(cot.total, cot.moneda)} (${lead?.nombre || convId}) · pago: ${pago.metodo}`, {
+    const esAnticipo = items.some((it) => it.id === "ANTICIPO");
+    notifyOwner("pedido", `${esAnticipo ? "¡Dijo que va! " : ""}Pedido #${pedido.id} por ${formatMoney(cot.total, cot.moneda)} (${[lead?.nombre, lead?.empresa].filter(Boolean).join(" · ") || convId}) · pago: ${pago.metodo}${pago.link ? `\nYa le mandé el link de pago: ${pago.link}` : "\nNo hay link de pago configurado: mándale tú los datos para el depósito."}`, {
       pedido_id: pedido.id,
       total: cot.total,
       entrega,
@@ -376,14 +394,27 @@ Notas: ${input.notas}` : ""}`,
     return r;
   },
 
-  programar_seguimiento(input, { convId }) {
-    const horas = Math.max(1, Math.min(720, Number(input.en_horas)));
-    if (!Number.isFinite(horas)) throw new Error("en_horas debe ser un número");
-    const cuando = new Date(Date.now() + horas * 3600_000).toISOString();
+  programar_seguimiento(input, { convId, negocio }) {
+    const tz = negocio.negocio.zona_horaria;
+    let cuando;
+    if (input.fecha || input.hora) {
+      const fecha = str(input.fecha);
+      const hora = str(input.hora);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha || "") || !/^\d{1,2}:\d{2}$/.test(hora || "")) throw new Error("Usa fecha YYYY-MM-DD y hora HH:MM (24 h), o solo en_horas");
+      const t = zonedToUtc(fecha, hora.padStart(5, "0"), tz);
+      if (Number.isNaN(t.getTime())) throw new Error("Fecha u hora inválida");
+      if (t.getTime() < Date.now() + 10 * 60_000) throw new Error("Esa fecha y hora ya pasó o es en menos de 10 minutos");
+      if (t.getTime() > Date.now() + 720 * 3600_000) throw new Error("El seguimiento puede ser a lo mucho en 30 días");
+      cuando = t.toISOString();
+    } else {
+      const horas = Math.max(1, Math.min(720, Number(input.en_horas)));
+      if (!Number.isFinite(horas)) throw new Error("Falta en_horas, o fecha y hora");
+      cuando = new Date(Date.now() + horas * 3600_000).toISOString();
+    }
     getDb()
       .prepare("INSERT INTO seguimientos (conversacion_id, ejecutar_en, contexto, origen, creado) VALUES (?, ?, ?, 'agente', ?)")
       .run(convId, cuando, str(input.motivo), now());
-    return { ok: true, programado_para: cuando };
+    return { ok: true, programado_para: formatLocal(cuando, tz) };
   },
 
   async enviar_video_presentacion(input, { convId, canal, conv }) {
@@ -402,6 +433,81 @@ Notas: ${input.notas}` : ""}`,
     await wa.sendWaVideo(tel, str(input.mensaje) || "");
     logEvent("video_enviado", convId, {});
     return { ok: true, mensaje: "Video enviado. No lo repitas; sigue la conversación y busca agendar la llamada." };
+  },
+
+  async mandar_propuesta_a_otro_numero(input, { convId, canal, conv }) {
+    if (negocioActual()) return { ok: false, motivo: "Esta herramienta no está disponible para este negocio." };
+    if (canal !== "wa") return { ok: false, motivo: "Solo funciona en WhatsApp. Dile que Sebastián le escribe a ese número." };
+    const wa = await import("../channels/wa-web.js");
+    const tel = wa.diezDigitos(input.telefono);
+    if (!/^\d{10}$/.test(tel)) throw new Error("El número debe tener 10 dígitos. Pídeselo completo.");
+    if (tel === wa.diezDigitos(conv.externo_id)) return { ok: false, motivo: "Es el mismo número de este chat." };
+    if (tel === wa.numeroDueno() || tel === wa.numeroChip()) return { ok: false, motivo: "Ese número es de Sebastián; no se le manda la propuesta." };
+    const d = getDb();
+    const reenvios = d.prepare("SELECT COUNT(*) n FROM eventos WHERE tipo = 'propuesta_otro_numero' AND conversacion_id = ?").get(convId).n;
+    if (reenvios >= 2) return { ok: false, motivo: "Ya se mandó la propuesta a otros números desde este chat. Usa derivar_a_humano." };
+    const destinoId = `wa:${tel}`;
+    const existente = d.prepare("SELECT historial FROM conversaciones WHERE id = ?").get(destinoId);
+    if (existente && existente.historial && existente.historial !== "[]") {
+      return { ok: true, ya_existia: true, mensaje: "Ya había un chat con ese número, así que no se le volvió a escribir. Agradece y dile que Sebastián da seguimiento por ahí." };
+    }
+    if (d.prepare("SELECT 1 FROM prospectos WHERE telefono = ? AND estado = 'no_contactar'").get(tel)) {
+      return { ok: false, motivo: "Ese número pidió no ser contactado. Usa derivar_a_humano." };
+    }
+
+    const nombre = str(input.nombre_contacto);
+    const primer = nombre ? nombre.split(/\s+/)[0] : "";
+    const p = d.prepare("SELECT * FROM prospectos WHERE telefono = ? ORDER BY id DESC LIMIT 1").get(wa.diezDigitos(conv.externo_id));
+    const lead = getLead(convId);
+    const negocioNombre = p?.nombre || lead?.empresa || conv.nombre || "su negocio";
+    let texto;
+    if (p?.whatsapp_texto) {
+      // El mismo mensaje que recibió el negocio, presentándose con el encargado y diciendo de dónde salió su número.
+      const partes = p.whatsapp_texto.split(/\n\s*\n/);
+      const saludo = partes[0].startsWith("Hola")
+        ? partes.shift().replace(/^Hola, buen día\./, `Hola, buen día${primer ? `, ${primer}` : ""}.`)
+        : `Hola, buen día${primer ? `, ${primer}` : ""}. Soy Sebastián.`;
+      texto = [`${saludo} Me pasaron su número del WhatsApp de ${negocioNombre} para enviarle la propuesta.`, ...partes].join("\n\n");
+    } else {
+      texto = `Hola, buen día${primer ? `, ${primer}` : ""}. Soy Sebastián, de sss.solutions (páginas web, apps y menús digitales con pedidos por WhatsApp). Me pasaron su número del WhatsApp de ${negocioNombre} para enviarle la propuesta.\n\nAquí puede ver algunos de nuestros trabajos: https://www.instagram.com/ssss.olutions\n\n¿Le parece si lo platicamos 10 minutos?`;
+    }
+    if (p?.boceto) {
+      const { asegurarPublicada } = await import("../prospeccion/publicar.js");
+      await asegurarPublicada(p);
+    }
+
+    const conVideo = !!wa.videoPresentacion();
+    try {
+      if (conVideo) await wa.sendWaVideo(tel, texto);
+      else await wa.sendWaWeb(tel, texto);
+    } catch (e) {
+      notifyOwner("error", `No pude mandar la propuesta de ${negocioNombre} al ${tel}: ${e.message}. Mándasela tú.`, { tel });
+      return { ok: false, motivo: `No se pudo enviar (${e.message}). Dile que Sebastián le escribe personalmente a ese número.` };
+    }
+
+    const { recordOutgoing } = await import("./agent.js");
+    const c =getOrCreateConversation("wa", tel, nombre ? `${nombre} (${negocioNombre})` : `Encargado de ${negocioNombre}`);
+    const quien = [nombre, str(input.cargo)].filter(Boolean).join(", ") || "la persona encargada";
+    await recordOutgoing(
+      c.id,
+      texto,
+      "agente",
+      `[Prospección] Este chat es con ${quien} de ${negocioNombre}${p ? ` (${p.giro || p.rubro || ""}, ${[p.colonia, p.ciudad].filter(Boolean).join(", ")})` : ""}. En el WhatsApp del negocio (${wa.diezDigitos(conv.externo_id)}) pidieron mandarle la propuesta a este número. Ya recibió${conVideo ? " el video de presentación y" : ""} la muestra: no se los vuelvas a mandar. El asistente`
+    );
+    upsertLead(c.id, { nombre: nombre || undefined, empresa: negocioNombre, telefono: tel, necesidad: lead?.necesidad || undefined, etapa: "interesado" });
+    logEvent("propuesta_otro_numero", convId, { telefono: tel, nombre, prospecto: p?.id || null, video: conVideo });
+    notifyOwner(
+      "lead_nuevo",
+      `${negocioNombre} pidió mandar la propuesta a otro número: ${nombre || "el encargado"}${input.cargo ? ` (${input.cargo})` : ""}, tel. ${tel}. Ya se la mandé${conVideo ? " con el video" : ""}; si contesta, el agente lo atiende.`,
+      { convId, telefono: tel }
+    );
+    // En el número original ya no hay nada que vender: el agente se despide y ahí se queda en pausa.
+    setBotActive(convId, false);
+    return {
+      ok: true,
+      enviado_a: tel,
+      mensaje: `Propuesta enviada a ${nombre || "ese número"}. Ahora agradece en UNA frase corta y confirma que ya se la mandaste${nombre ? ` a ${nombre}` : ""}. La persona de este chat NO es ${nombre || "el encargado"}: no la llames así. No propongas visitas ni hagas preguntas aquí; este chat queda en pausa.`,
+    };
   },
 
   derivar_a_humano(input, { convId, canal }) {

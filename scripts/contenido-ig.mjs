@@ -147,6 +147,8 @@ async function elegirClips() {
       const lista = nuevos.length ? nuevos : ids;
       if (lista.length) { id = lista[Math.floor(Math.random() * Math.min(lista.length, 16))]; break; }
     }
+    // Sin internet o sin resultados: una de las tomas guardadas en la laptop.
+    if (!id) id = Number(azar(respaldoLista().map((f) => f.replace(".mp4", "")).filter((x) => !hoy.has(Number(x))))) || null;
     if (!id) throw new Error(`sin clips para la escena ${i + 1}`);
     hoy.add(id);
     elegidos.push(id);
@@ -155,16 +157,52 @@ async function elegirClips() {
   return elegidos;
 }
 
-/** Baja solo los segundos que se usan (1080p, o 720p si no hay) y recorta a vertical. */
+// Respaldo en la laptop: cada toma que sí se baja se guarda ya recortada a vertical. Si Mixkit niega
+// un clip (403) o no hay internet, se usa una de estas en su lugar y el reel sale igual.
+const RESPALDO_DIR = path.join(ROOT, "data", "clips-respaldo");
+const RESPALDO_MAX = 150;
+// Mixkit a veces rechaza al "agente" de ffmpeg: se presenta como navegador.
+const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
+const respaldoLista = () => {
+  try { return fs.readdirSync(RESPALDO_DIR).filter((f) => /^\d+\.mp4$/.test(f)); } catch { return []; }
+};
+function guardarRespaldo(id, archivo) {
+  try {
+    fs.mkdirSync(RESPALDO_DIR, { recursive: true });
+    fs.copyFileSync(archivo, path.join(RESPALDO_DIR, `${id}.mp4`));
+    const viejos = respaldoLista().map((f) => ({ f, t: fs.statSync(path.join(RESPALDO_DIR, f)).mtimeMs })).sort((a, b) => b.t - a.t).slice(RESPALDO_MAX);
+    for (const { f } of viejos) fs.rmSync(path.join(RESPALDO_DIR, f), { force: true });
+  } catch {}
+}
+const usadosHoy = new Set();
+
+/** Baja solo los segundos que se usan (1080p, o 720p si no hay) y recorta a vertical. Devuelve el id que quedó. */
 function bajarClip(id, dur, out) {
   const vf = `setpts=PTS/${VELOCIDAD},crop='min(iw,ih*${W}/${H})':'min(ih,iw*${H}/${W})':'(iw-min(iw,ih*${W}/${H}))/2':'(ih-min(ih,iw*${H}/${W}))/2',scale=${W}:${H}:flags=lanczos,fps=30,eq=contrast=1.08:saturation=0.95:brightness=-0.02,setsar=1`;
   for (const q of ["1080", "720", "2160"]) {
     try {
-      ff(["-ss", "1", "-t", (dur * VELOCIDAD).toFixed(3), "-i", `https://assets.mixkit.co/videos/${id}/${id}-${q}.mp4`, "-vf", vf, "-an", "-c:v", "libx264", "-crf", "17", "-preset", "veryfast", "-pix_fmt", "yuv420p", out]);
-      if (fs.existsSync(out)) return;
+      ff(["-user_agent", UA, "-headers", "Referer: https://mixkit.co/\r\n", "-ss", "1", "-t", (dur * VELOCIDAD).toFixed(3), "-i", `https://assets.mixkit.co/videos/${id}/${id}-${q}.mp4`, "-vf", vf, "-an", "-c:v", "libx264", "-crf", "17", "-preset", "veryfast", "-pix_fmt", "yuv420p", out]);
+      if (fs.existsSync(out)) {
+        guardarRespaldo(id, out);
+        usadosHoy.add(String(id));
+        return id;
+      }
     } catch {}
   }
-  throw new Error(`no se pudo bajar el clip ${id}`);
+  // No se pudo bajar: una toma guardada (que no salga dos veces en el mismo reel), repetida si es corta.
+  const usados = clipsUsados();
+  const lista = respaldoLista().map((f) => f.replace(".mp4", "")).filter((x) => !usadosHoy.has(x));
+  const frescos = lista.filter((x) => !usados.has(Number(x)));
+  const otro = lista.includes(String(id)) ? String(id) : azar(frescos.length ? frescos : lista);
+  if (otro) {
+    ff(["-stream_loop", "-1", "-i", path.join(RESPALDO_DIR, `${otro}.mp4`), "-t", dur.toFixed(3), "-an", "-c:v", "libx264", "-crf", "17", "-preset", "veryfast", "-pix_fmt", "yuv420p", out]);
+    if (fs.existsSync(out)) {
+      log(`clip ${id} no se pudo bajar: se usó el ${otro} guardado en la laptop`);
+      usadosHoy.add(otro);
+      return Number(otro);
+    }
+  }
+  throw new Error(`no se pudo bajar el clip ${id} y no hay tomas guardadas`);
 }
 
 function armarBase(ids, trabajo, FX) {
@@ -173,7 +211,7 @@ function armarBase(ids, trabajo, FX) {
     const ini = i === 0 ? 0 : T[i] - d / 2;
     const fin = i === ids.length - 1 ? T[T.length - 1] : T[i + 1] + d / 2;
     const out = path.join(trabajo, `clip${i}.mp4`);
-    bajarClip(id, +(fin - ini).toFixed(3), out);
+    ids[i] = bajarClip(id, +(fin - ini).toFixed(3), out); // si se usó una toma guardada, queda anotada esa
     return out;
   });
   let f = "", prev = "[0:v]";

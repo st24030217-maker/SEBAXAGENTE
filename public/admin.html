@@ -729,7 +729,7 @@ async function abrirProspecto(id) {
       <div>${ico("pin")}<span>${esc([p.direccion, p.colonia, p.ciudad].filter(Boolean).join(", ")) || "Sin dirección"}</span></div>
       ${p.empleados ? `<div>${ico("people")}<span>${esc(p.empleados)}</span></div>` : ""}
       <div>${ico("globe")}<span>${p.sitio_web ? `<a href="${esc(p.sitio_web)}" target="_blank" rel="noopener">${esc(p.sitio_web)}</a>${velocidad}` : "Sin página web"}</span></div>
-      ${p.boceto_url ? `<div>${ico("star")}<span><a href="${esc(p.boceto_url)}" target="_blank" rel="noopener">Ver su boceto</a> · ${p.boceto_vistas ? `<b>lo abrió ${p.boceto_vistas} ${p.boceto_vistas === 1 ? "vez" : "veces"}</b>` : "aún no lo abre"}</span></div>` : ""}
+      ${p.boceto_url ? `<div>${ico("star")}<span><a href="${esc(p.boceto_url)}" target="_blank" rel="noopener">Ver su boceto</a> · ${p.boceto_vistas ? `<b>lo abrió ${p.boceto_vistas} ${p.boceto_vistas === 1 ? "vez" : "veces"}</b>` : "aún no lo abre"}${p.boceto_fijo ? ` · <a href="#" id="copiar-fijo" data-url="${esc(p.boceto_fijo)}">copiar link fijo</a>` : " · todavía sin link fijo"}</span></div>` : ""}
       ${p.estado === "cliente" ? `<div>${ico("check")}<span>Venta: <b>${p.venta_monto ? pesos(p.venta_monto) : "sin monto"}</b>${p.venta_servicio ? ` · ${esc(p.venta_servicio)}` : ""}</span></div>` : ""}
     </div>
     <div class="razones">${chip(et, cl)}${raz.map((r) => chip(r)).join("")}</div>
@@ -756,6 +756,7 @@ async function abrirProspecto(id) {
     <div class="acciones">
       ${(p.telefono || p.email) && !["enviado", "aprobado", "no_contactar"].includes(p.estado) ? `<button class="b p full btn-big" id="ap">${ico("send")} ${p.telefono ? (chipWa ? "Aprobar y enviar por WhatsApp" : "Aprobar (sale al conectar el chip)") : "Aprobar y enviar correo"}</button>` : ""}
       ${p.estado === "aprobado" ? `<button class="b full" id="desap">${ico("undo")} Sacar de la cola de envío</button>` : ""}
+      ${p.boceto && !p.boceto_fijo && !["no_contactar", "descartado"].includes(p.estado) ? `<button class="b full" id="pub">${ico("globe")} Publicar muestra sin enviar</button>` : ""}
       ${p.telefono && p.estado !== "no_contactar" ? `<a class="b full" id="wa" href="${waLink(p.telefono, p.whatsapp_texto)}" target="_blank" rel="noopener">${ico("phone")} Enviar yo desde mi celular</a>` : ""}
       <button class="b" id="resp">${ico("hand")} Respondió</button>
       <button class="b" id="cli">${ico("star")} ${p.estado === "cliente" ? "Editar venta" : "Es cliente"}</button>
@@ -789,6 +790,16 @@ async function abrirProspecto(id) {
     await guardar(); await post(`/prospectos/${id}/aprobar`); toast("Aprobado: queda en la cola de envío"); cerrar();
   });
   accion("#desap", async () => { await guardar({ estado: "por_revisar" }); toast("Lo sacaste de la cola"); cerrar(); });
+  accion("#pub", async (e) => {
+    const b = e.currentTarget; b.disabled = true; b.innerHTML = `<div class="ring anim" style="width:18px;height:18px"></div> Publicando… (tarda 1 o 2 min)`;
+    try {
+      const r = await post(`/prospectos/${id}/publicar`);
+      try { await navigator.clipboard.writeText(r.url); } catch {}
+      toast(r.abre ? "Publicada (no se le mandó nada). Link fijo copiado" : "Se subió, pero GitHub aún no la muestra: revisa en unos minutos", r.abre ? "" : "bad");
+      cerrar();
+    } finally { b.disabled = false; }
+  });
+  accion("#copiar-fijo", async (e) => { e.preventDefault(); await navigator.clipboard.writeText(e.currentTarget.dataset.url); toast("Link fijo copiado"); });
   accion("#wa", async () => { await guardar({ estado: "whatsapp" }); toast("Marcado como contactado por WhatsApp"); setTimeout(cerrar, 300); });
   accion("#re", async (e) => {
     const b = e.currentTarget; b.disabled = true; b.innerHTML = `<div class="ring anim" style="width:18px;height:18px"></div> Redactando…`;
