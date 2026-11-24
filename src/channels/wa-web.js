@@ -276,13 +276,18 @@ export async function avisarDueno(texto) {
 }
 
 /** Manda un video o una imagen al WhatsApp personal del dueño. `media` = { video: Buffer } o { image: Buffer }. */
+const esPng = (b) => Buffer.isBuffer(b) && b.length > 8 && b.readUInt32BE(0) === 0x89504e47;
+
 export async function avisarDuenoMedia(media, caption = "") {
   const tel = numeroDueno();
   if (!tel || !waConectado() || tel === numero) return false;
   try {
     jidDueno ||= await resolverJid(tel);
     if (!jidDueno) return false;
-    await sock.sendMessage(jidDueno, { ...media, caption, ...(media.video ? { mimetype: "video/mp4" } : {}) });
+    // Las imágenes con su tipo real (los carruseles son PNG): sin eso WhatsApp las supone JPG y en
+    // algunos teléfonos llegan como archivo en vez de como foto lista para guardar y publicar.
+    const tipo = media.video ? "video/mp4" : media.image ? (esPng(media.image) ? "image/png" : "image/jpeg") : null;
+    await sock.sendMessage(jidDueno, { ...media, caption, ...(tipo ? { mimetype: tipo } : {}) });
     return true;
   } catch (e) {
     console.error("[whatsapp] no se pudo mandar el archivo al dueño:", e.message);
