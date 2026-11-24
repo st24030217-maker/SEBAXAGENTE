@@ -49,6 +49,7 @@ function migrar(d) {
       ["venta_servicio", "TEXT"],
       ["venta_fecha", "TEXT"],
       ["marca", "TEXT"], // JSON {logo, fotos[], fuente}: logo y fotos reales del negocio (de su página o subidas a mano)
+      ["publicado", "INTEGER NOT NULL DEFAULT 0"], // 1 = su muestra va en GitHub Pages aunque aún no se le mande nada
     ],
   };
   for (const [tabla, cols] of Object.entries(nuevas)) {

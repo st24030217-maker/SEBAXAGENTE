@@ -15,7 +15,8 @@ import { ETAPAS } from "../agent/tools.js";
 import { sendToChannel } from "../channels/index.js";
 import { setOrderStatus } from "../services/orders.js";
 import { reloadProspeccion, getProspeccion } from "../prospeccion/config.js";
-import { urlBoceto } from "../prospeccion/boceto.js";
+import { urlBoceto, baseBocetos, bocetosFijos } from "../prospeccion/boceto.js";
+import { publicada, asegurarPublicada } from "../prospeccion/publicar.js";
 import { probarGcal, gcalConfigurado } from "../services/gcal.js";
 import { estadoWa, desconectarWa, enviadosWaHoy, limiteWaHoy, pedirCodigoVinculacion, avisarDueno, numeroDueno, videoPresentacion, probarPrimerMensaje, sendWaDocumento, sendWaVideoArchivo } from "../channels/wa-web.js";
 import {
@@ -495,7 +496,22 @@ export function adminRouter({ negocio: esNegocio = false } = {}) {
     if (!p) return res.status(404).json({ error: "No existe" });
     const vistas = db().prepare("SELECT COUNT(*) n FROM eventos WHERE tipo = 'boceto_visto' AND json_extract(datos, '$.prospecto') = ?").get(p.id).n;
     // Desde el panel se abre con ?yo=1 para que tus propias vistas no cuenten como del negocio.
-    res.json({ ...p, boceto_url: `${urlBoceto(p)}?yo=1`, boceto_vistas: vistas });
+    // Si aún no está en GitHub Pages, se abre desde el agente (el link fijo todavía no existe).
+    const fija = publicada(p);
+    const url = fija ? urlBoceto(p) : urlBoceto(p).replace(baseBocetos(), settings.publicUrl);
+    res.json({ ...p, boceto_url: `${url}?yo=1`, boceto_fijo: fija ? urlBoceto(p) : null, boceto_vistas: vistas });
+  }));
+
+  // Publica la muestra en su link fijo (GitHub Pages) SIN aprobar ni mandarle nada al negocio.
+  r.post("/prospectos/:id/publicar", wrap(async (req, res) => {
+    const p = getProspecto(req.params.id);
+    if (!p) return res.status(404).json({ error: "No existe" });
+    if (["no_contactar", "descartado"].includes(p.estado)) throw new Error("Este negocio está descartado o pidió no ser contactado.");
+    if (!p.boceto) throw new Error("Este negocio todavía no tiene boceto.");
+    if (!bocetosFijos()) throw new Error("Las muestras fijas (GitHub Pages) no están configuradas.");
+    db().prepare("UPDATE prospectos SET publicado = 1, actualizado = ? WHERE id = ?").run(now(), p.id);
+    const abre = await asegurarPublicada(getProspecto(p.id));
+    res.json({ ok: true, abre, url: urlBoceto(p) });
   }));
 
   r.patch("/prospectos/:id", wrap((req, res) => {

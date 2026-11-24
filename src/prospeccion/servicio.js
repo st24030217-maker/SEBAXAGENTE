@@ -108,6 +108,7 @@ export async function analizarProspecto(id, { forzarMedicion = false } = {}) {
   if (p.sitio_web && !esRedSocial(p.sitio_web) && (forzarMedicion || p.web_puntaje === null)) {
     const web = await buscarCorreoEnWeb(p.sitio_web);
     detalle.carga = web.carga;
+    if (typeof web.pedidos === "boolean") detalle.pedidos = web.pedidos;
     if (web.email && !p.email) d.prepare("UPDATE prospectos SET email = ? WHERE id = ?").run(web.email, p.id);
     if (web.carga && Date.now() < pageSpeedPausadoHasta) {
       detalle.estado = "sin_medir";

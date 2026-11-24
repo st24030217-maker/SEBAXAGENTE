@@ -13,8 +13,10 @@ import { renderBoceto, urlBoceto, bocetosFijos, baseBocetos } from "./boceto.js"
 
 const run = promisify(execFile);
 const ESTADOS = ["aprobado", "enviado", "respondio", "fallido", "whatsapp"];
-/** ¿Esta muestra está (o debe estar) en GitHub Pages? */
-export const publicada = (p) => !!p?.boceto && ESTADOS.includes(p.estado);
+// Las que pidieron no ser contactadas o se descartaron nunca se publican, aunque se hayan marcado.
+const NUNCA = ["no_contactar", "descartado"];
+/** ¿Esta muestra está (o debe estar) en GitHub Pages? (por su estado, o porque la publicaste sin mandarla) */
+export const publicada = (p) => !!p?.boceto && (ESTADOS.includes(p.estado) || (!!p.publicado && !NUNCA.includes(p.estado)));
 
 export { bocetosFijos, baseBocetos };
 
@@ -40,8 +42,11 @@ async function publicar() {
   if (!fs.existsSync(path.join(dir, ".git"))) throw new Error(`BOCETOS_DIR no es un repo git: ${dir}`);
   let cambios = 0;
   const filas = db()
-    .prepare(`SELECT * FROM prospectos WHERE boceto IS NOT NULL AND estado IN (${ESTADOS.map(() => "?").join(",")})`)
-    .all(...ESTADOS);
+    .prepare(
+      `SELECT * FROM prospectos WHERE boceto IS NOT NULL AND (estado IN (${ESTADOS.map(() => "?").join(",")})
+         OR (IFNULL(publicado, 0) = 1 AND estado NOT IN (${NUNCA.map(() => "?").join(",")})))`
+    )
+    .all(...ESTADOS, ...NUNCA);
   const vivas = new Set();
   for (const p of filas) {
     const ruta = urlBoceto(p).split("/m/").pop();

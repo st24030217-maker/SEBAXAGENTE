@@ -19,7 +19,7 @@ import { redactarPlantilla } from "../prospeccion/redactar.js";
 import { iaDisponible } from "../ia/proveedor.js";
 import { videoDeProspecto, borrarVideoDeProspecto } from "../prospeccion/videos.js";
 import { baseBocetos } from "../prospeccion/boceto.js";
-import { asegurarPublicada } from "../prospeccion/publicar.js";
+import { asegurarPublicada, publicada, publicarBocetos } from "../prospeccion/publicar.js";
 
 const CARPETA = path.join(path.dirname(settings.dbPath === ":memory:" ? path.join(ROOT, "data", "x") : settings.dbPath), "whatsapp-sesion");
 const db = () => getDb();
@@ -378,9 +378,36 @@ export async function procesarMensaje({ id, jid, texto, nombre }, enviar = envia
   return "respondido";
 }
 
+/**
+ * Todo lo que sale por WhatsApp (respuestas, seguimientos, mensajes del panel, pies de video) lleva
+ * el link FIJO de la muestra (GitHub Pages), nunca el del túnel, que cambia al reiniciar la laptop.
+ * Si la muestra que se menciona aún no está publicada (por ejemplo, un prospecto por revisar),
+ * se marca para publicar y se sube.
+ */
+export function conLinkFijo(texto) {
+  if (!texto || !/^https:\/\//.test(baseBocetos()) || baseBocetos() === settings.publicUrl) return texto;
+  const t = String(texto).replace(/(?:https?:\/\/)?(?:[a-z0-9.-]+\.(?:onrender\.com|trycloudflare\.com)|localhost:\d+|127\.0\.0\.1:\d+)\/m\//gi, `${baseBocetos()}/m/`);
+  try {
+    const claves = [...t.matchAll(/\/m\/[a-z0-9-]*?-?([a-f0-9]{8})\b/gi)].map((m) => m[1].toLowerCase());
+    let falta = false;
+    for (const clave of new Set(claves)) {
+      const p = db().prepare("SELECT * FROM prospectos WHERE boceto = ?").get(clave);
+      if (p && !publicada(p)) {
+        db().prepare("UPDATE prospectos SET publicado = 1, actualizado = ? WHERE id = ?").run(now(), p.id);
+        falta = true;
+      }
+    }
+    if (falta) publicarBocetos();
+  } catch (e) {
+    console.error("[muestras] no se pudo revisar la muestra del mensaje:", e.message);
+  }
+  return t;
+}
+
 /** Envía texto simulando que se escribe (pausa proporcional al largo). */
 async function enviarTexto(jid, texto) {
   if (!waConectado()) throw new Error("El chip de WhatsApp no está conectado");
+  texto = conLinkFijo(texto);
   try {
     await sock.presenceSubscribe(jid);
     await sock.sendPresenceUpdate("composing", jid);
@@ -414,7 +441,7 @@ async function enviarVideo(jid, ruta, caption) {
     await sock.sendPresenceUpdate("composing", jid);
   } catch {}
   await espera(azar(2500, 5000));
-  await sock.sendMessage(jid, { video: fs.readFileSync(ruta), caption, mimetype: "video/mp4" });
+  await sock.sendMessage(jid, { video: fs.readFileSync(ruta), caption: conLinkFijo(caption), mimetype: "video/mp4" });
   try {
     await sock.sendPresenceUpdate("paused", jid);
   } catch {}
@@ -436,7 +463,7 @@ export async function sendWaVideoArchivo(id, video, caption = "") {
   const fila = db().prepare("SELECT jid FROM wa_contactos WHERE id = ?").get(String(id));
   const jid = fila?.jid || (/^\d{10}$/.test(String(id)) ? await resolverJid(id) : null);
   if (!jid) throw new Error("No se encontró el chat de WhatsApp de este contacto");
-  await sock.sendMessage(jid, { video, caption, mimetype: "video/mp4" });
+  await sock.sendMessage(jid, { video, caption: conLinkFijo(caption), mimetype: "video/mp4" });
 }
 
 /** Manda un archivo (PDF, por ejemplo una cotización) a un contacto de WhatsApp, con un texto abajo. */
@@ -450,7 +477,7 @@ export async function sendWaDocumento(id, archivo, nombre, caption = "", mimetyp
     await sock.sendPresenceUpdate("composing", jid);
   } catch {}
   await espera(azar(1500, 3500));
-  await sock.sendMessage(jid, { document: archivo, fileName: nombre, mimetype, caption });
+  await sock.sendMessage(jid, { document: archivo, fileName: nombre, mimetype, caption: conLinkFijo(caption) });
   try {
     await sock.sendPresenceUpdate("paused", jid);
   } catch {}

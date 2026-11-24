@@ -128,6 +128,20 @@ export async function medirPagina(url) {
 }
 
 /** Revisa la página de inicio del negocio buscando un correo de contacto. */
+/**
+ * ¿Su página ya recibe pedidos, reservas o cotizaciones en línea? (botón de WhatsApp con mensaje,
+ * carrito, plataforma de pedidos o de reservas). Si no, aunque tenga página, nuestro paquete le suma.
+ */
+export function recibePedidos(html) {
+  const h = String(html || "");
+  return (
+    /(?:wa\.me\/|api\.whatsapp\.com\/send|web\.whatsapp\.com\/send|whatsapp:\/\/send)/i.test(h) ||
+    /(?:add[-_ ]to[-_ ]cart|agregar al carrito|añadir al carrito|woocommerce|shopify|tiendanube|jumpseller|wix-stores|data-cart|\/cart\b|\/carrito\b)/i.test(h) ||
+    /(?:ubereats\.com|didi-food|didifood|rappi\.com|parrot\.rest|toteat|olaclick|cluvi|menu\.ninja|ordenaenlinea|pidedirecto|opentable|resy\.com|covermanager|fresha\.com|agendapro|booksy|calendly)/i.test(h) ||
+    /(?:ordena(?:r)? en l[ií]nea|haz tu pedido|pide en l[ií]nea|pedir en l[ií]nea|reserva(?:r)? en l[ií]nea|agenda tu cita)/i.test(h)
+  );
+}
+
 export async function buscarCorreoEnWeb(url) {
   try {
     const res = await fetch(url, {
@@ -140,7 +154,7 @@ export async function buscarCorreoEnWeb(url) {
     const mailtos = [...html.matchAll(/mailto:([^"'?>\s]+)/gi)].map((m) => decodeURIComponent(m[1]));
     const sueltos = html.match(EMAIL_RE) || [];
     const email = [...mailtos, ...sueltos].map(limpiarEmail).find(Boolean) || "";
-    return { carga: true, email };
+    return { carga: true, email, pedidos: recibePedidos(html) };
   } catch {
     return { carga: false, email: "" };
   }

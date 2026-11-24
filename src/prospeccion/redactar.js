@@ -45,8 +45,13 @@ export function calificar(p, cfg = null) {
   else if (web === "solo_redes") suma(4, "Solo tiene redes sociales, no página propia");
   else if (web === "no_carga") suma(3, "Su página no abre");
   else if (web === "lenta") suma(3, `Su página es lenta en celular (${p.web_puntaje}/100)`);
-  else if (web === "regular") suma(1, `Su página se puede mejorar (${p.web_puntaje}/100)`);
-  else if (web === "buena") suma(-1, `Su página ya está bien (${p.web_puntaje}/100)`);
+  // Tener página no lo descarta: si no recibe pedidos, reservas ni cotizaciones en línea, el
+  // paquete (menú/catálogo con pedidos a WhatsApp) le suma igual. Ya invierte en internet.
+  const sinPedidos = ["lenta", "regular", "buena", "con_web"].includes(web) && parseJson(p.web_detalle)?.pedidos === false;
+  if (web === "regular") suma(1, `Su página se puede mejorar (${p.web_puntaje}/100)`);
+  else if (web === "buena" && !sinPedidos) suma(-1, `Su página ya está bien (${p.web_puntaje}/100)`);
+  else if (web === "buena") razones.push(`Su página ya está bien (${p.web_puntaje}/100)`);
+  if (sinPedidos) suma(web === "lenta" ? 1 : 3, "Su página no recibe pedidos, reservas ni cotizaciones en línea");
 
   const emp = String(p.empleados || "");
   if (/^(6|11)\b/.test(emp)) suma(1, `Tamaño: ${emp}`);

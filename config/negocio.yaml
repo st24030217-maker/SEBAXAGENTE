@@ -67,6 +67,11 @@ citas:
       dias: [martes, jueves, sabado, domingo]
 
 catalogo:
+  - id: ANTICIPO
+    nombre: "Anticipo para arrancar el paquete completo (primer pago de 2)"
+    categoria: "Paquete"
+    precio: 2000
+    descripcion: "Primer pago de $2,000 del paquete completo de $4,000. Con este pago Sebastián arranca el proyecto; los otros $2,000 se pagan al entregarlo terminado. Es lo que se cobra cuando el cliente dice 'va'."
   - id: PAQUETE
     nombre: "Paquete completo: página web + app + menú digital conectado a WhatsApp"
     categoria: "Paquete"
@@ -131,7 +136,9 @@ descuentos:
   reglas: "No se ofrecen descuentos por chat. Si el cliente pregunta, Sebastián lo revisa en la propuesta."
 
 pagos:
-  instrucciones_transferencia: "Los pagos se acuerdan directamente con Sebastián en la propuesta."
+  # Si hay MERCADOPAGO_ACCESS_TOKEN y PAYMENT_PROVIDER=mercadopago en .env, el agente manda un link
+  # de pago real. Si no, manda este texto (pon aquí tu banco, CLABE y a nombre de quién).
+  instrucciones_transferencia: "Sebastián te manda hoy mismo los datos para depositar el anticipo de $2,000 y te confirma en cuanto lo reciba."
 
 seguimientos:
   activo: true
@@ -156,7 +163,9 @@ reglas_extra:
   - "Tu meta es CERRAR el paquete completo de $4,000 (2 pagos de $2,000: al iniciar y al entregar). Cuando pregunten precio, dalo directo y claro, sin rodeos, y ofrece de inmediato el siguiente paso."
   - "Cada respuesta tuya termina con una pregunta que avance la venta: proponer 2 horarios concretos para la visita o llamada (por ejemplo 'el jueves a las 11 o a las 4'), o preguntar si arrancamos con el paquete. Nunca termines con 'quedo a la orden' sin proponer algo."
   - "Si el cliente dice 'lo pienso', 'lo reviso' o 'luego te digo', no lo sueltes: resuelve su duda principal, recuérdale que solo arranca con $2,000 y propone una fecha concreta para verse; si aun así pide tiempo, acuerda un día exacto para volver a escribirle."
-  - "Si el cliente acepta el paquete ('va', 'sí', 'me interesa arrancar'), felicítalo, guarda sus datos con guardar_cliente, actualiza la etapa a 'negociacion' y agenda la visita con agendar_cita para que Sebastián arranque y reciba el primer pago de $2,000."
+  - "Si el cliente acepta el paquete ('va', 'sí', 'arrancamos', 'me interesa arrancar'), felicítalo y CIERRA en ese momento: guarda sus datos con guardar_cliente, actualiza la etapa a 'negociacion', crea la cotización del ANTICIPO ($2,000, entrega sin_envio) con crear_cotizacion y luego crear_pedido, y mándale el link de pago (o las instrucciones de pago que te devuelva) en el mismo mensaje. Aclara que los otros $2,000 se pagan al entregar. Después ofrece la visita o llamada para arrancar (agendar_cita). Nunca cotices el PAQUETE completo de $4,000 para cobrar: siempre el ANTICIPO."
+  - "Si en el chat te piden mandar la propuesta a otro número ('este número es de ventas', 'mándalo al encargado a este número'), usa mandar_propuesta_a_otro_numero en ese mismo turno, sin preguntar a nombre de quién. Luego solo agradece en una frase: no propongas visitas en ese chat."
+  - "Cuando prometas escribirle un día y hora concretos ('el lunes a las 3'), programa el seguimiento con programar_seguimiento usando fecha y hora exactas, y menciona la misma hora que programaste."
   - "Para servicios fuera del paquete (sistemas a la medida, agente de IA, tienda en línea), no des precio: agenda la llamada con Sebastián."
   - "Antes de agendar, pide el nombre de la persona y un teléfono o WhatsApp, y guárdalos con guardar_cliente junto con el nombre del negocio."
   - "Cuando agendes, confirma día, hora y tipo de cita, y di que Sebastián le escribirá antes para confirmar."
