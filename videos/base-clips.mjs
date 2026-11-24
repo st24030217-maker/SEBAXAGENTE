@@ -29,6 +29,13 @@ const fin = clips.map((_, i) => (i === clips.length - 1 ? T[T.length - 1] : T[i 
 const partes = clips.map((c, i) => {
   const dur = +(fin[i] - inicio[i]).toFixed(3);
   const out = path.join(tmp, `c${i}-${c.id}-${c.desde}-${c.x}-${dur}.mp4`);
+  if (!fs.existsSync(out) && c.foto) {
+    // Foto real (no de stock): cubre el cuadro un poco más grande y se desliza hacia arriba, como al hacer scroll
+    const sw = Math.round(w * 1.12), sh = Math.round(h * 1.12);
+    const vf = `scale=${sw}:${sh}:force_original_aspect_ratio=increase:flags=lanczos,crop=${sw}:${sh},fps=30,crop=${w}:${h}:'(iw-ow)*${c.x ?? 0.5}':'(ih-oh)*(1-t/${dur})',eq=contrast=1.06:saturation=0.95,setsar=1`;
+    ff(["-loop", "1", "-t", String(dur), "-i", path.resolve(dir, c.foto), "-vf", vf, "-an", "-c:v", "libx264", "-crf", "16", "-preset", "veryfast", "-pix_fmt", "yuv420p", out]);
+    console.log(`foto ${i + 1}/${clips.length} · ${c.foto} · ${dur}s`);
+  }
   if (!fs.existsSync(out)) {
     // Recorte al formato de salida centrado en x, escalado, 30 fps y un grado de color de cine (contraste + menos saturación)
     const vf = `crop='min(iw,ih*${w}/${h})':'min(ih,iw*${h}/${w})':'(iw-min(iw,ih*${w}/${h}))*${c.x ?? 0.5}':'(ih-min(ih,iw*${h}/${w}))/2',scale=${w}:${h}:flags=lanczos,fps=30,eq=contrast=1.08:saturation=0.92:brightness=-0.02,setsar=1`;
