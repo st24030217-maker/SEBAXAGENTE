@@ -69,3 +69,21 @@ test("la herramienta de otro número no se usa fuera de WhatsApp ni con números
   const mismo = await executeTool("mandar_propuesta_a_otro_numero", { telefono: "871 000 0000" }, { convId: conv.id, canal: "wa", conv, negocio });
   assert.equal(mismo.ok, false);
 });
+
+test("gobierno, escuelas públicas y sindicatos no entran como prospectos", async () => {
+  const { noEsCliente } = await import("../src/prospeccion/servicio.js");
+  assert.equal(noEsCliente({ nombre: "Guarderia Imss", giro: "Guarderías del sector público" }), true);
+  assert.equal(noEsCliente({ nombre: "Sindicato Nacional de Trabajadores", giro: "Asociaciones y organizaciones laborales y sindicales" }), true);
+  assert.equal(noEsCliente({ nombre: "Primaria España", giro: "Escuelas de educación primaria del sector público" }), true);
+  assert.equal(noEsCliente({ nombre: "Guardería Pequeños Pasos", giro: "Guarderías del sector privado" }), false);
+  assert.equal(noEsCliente({ nombre: "Tacos Difuntos", giro: "Restaurantes" }), false);
+});
+
+test("el boceto: precios con unidad legibles, hotel con habitaciones y fotos en pantallas blancas", async () => {
+  const { renderBoceto } = await import("../src/prospeccion/boceto.js");
+  const html = renderBoceto({ id: 99001, nombre: "Hotel Prueba", giro: "Hoteles sin otros servicios integrados", rubro: "Hoteles", ciudad: "Lerdo", boceto: "ab12cd34" });
+  assert.match(html, /Habitaciones/);
+  assert.doesNotMatch(html, /Arma tu pedido/);
+  assert.match(html, /\$850<small class="u">\/noche<\/small>/);
+  assert.match(html, /class="pant con-foto" style="--foto:url\('https:/);
+});

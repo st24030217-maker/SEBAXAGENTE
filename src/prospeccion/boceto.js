@@ -90,7 +90,12 @@ export function regresoVisita(p) {
 // ---------- Página ----------
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-const dinero = (n) => (typeof n === "number" ? (n === 0 ? "Sin costo" : `$${n.toLocaleString("es-MX")}`) : esc(n));
+// "$850 / noche": la unidad va chica, para que el precio se lea primero y quepa en la tarjeta.
+const dinero = (n) => {
+  if (typeof n === "number") return n === 0 ? "Sin costo" : `$${n.toLocaleString("es-MX")}`;
+  const [monto, ...unidad] = String(n ?? "").split(/\s*\/\s*/);
+  return unidad.length ? `${esc(monto)}<small class="u">/${esc(unidad.join("/"))}</small>` : esc(n);
+};
 const iniciales = (n) =>
   String(n || "?")
     .replace(/[^\p{L}\p{N} ]/gu, "")
@@ -172,7 +177,9 @@ ${tabs.map((t, i) => `<div class="lista" data-lista="${i}"${i ? " hidden" : ""}>
 }
 
 function sCatalogo(d) {
-  return pant("cat", "claro", 1, "Catálogo", `${encab("Pide aquí", "Catálogo", "Arma tu pedido o cotiza por WhatsApp.")}
+  // Cada giro con sus palabras: un hotel no "arma un pedido", reserva una habitación.
+  const t = { eti: "Pide aquí", titulo: "Catálogo", sub: "Arma tu pedido o cotiza por WhatsApp.", ...(d.textosCatalogo || {}) };
+  return pant("cat", "claro", 1, t.titulo, `${encab(esc(t.eti), esc(t.titulo), esc(t.sub))}
 <div class="cat a" style="--d:3">${d.items
     .map(([n, desc, pr]) => `<div class="tile"><b>${esc(n)}</b><small>${esc(desc)}</small><div class="tile-pie"><span class="precio">${dinero(pr)}</span>${mas(n, pr)}</div></div>`)
     .join("")}</div>`);
@@ -467,6 +474,22 @@ ${video(p, d)}`),
 }
 
 /** HTML completo del boceto de un prospecto: un recorrido a pantalla completa que se desliza como historias. */
+/**
+ * Las pantallas blancas (servicios, reseñas, cotiza, catálogo, tu app) llevan abajo una foto del
+ * negocio (o de su giro) que se desvanece hacia arriba: así no se ven vacías y se siente su lugar.
+ * "Lo más pedido" no, porque ya es una galería de fotos.
+ */
+function conFoto(html, fotos) {
+  const lista = fotos.filter((f) => typeof f === "string" && /^https?:\/\//.test(f));
+  if (!lista.length) return html;
+  let k = 0;
+  return html.replace(/<section class="pant" id="s-([a-z]+)" data-parte="1" data-tono="claro"/g, (m, id) => {
+    if (id === "dest") return m;
+    const f = lista[k++ % lista.length].replace(/["'()\\\s]/g, encodeURIComponent);
+    return m.replace('class="pant"', `class="pant con-foto" style="--foto:url('${esc(f)}')"`);
+  });
+}
+
 export function renderBoceto(p) {
   const cfg = getProspeccion();
   // marca.perfil ajusta el perfil para UN negocio (textos, servicios, horarios) sin tocar el de su giro.
@@ -629,12 +652,17 @@ img.cargando{opacity:0}
 .info b{font-size:18px;font-weight:700;line-height:1.25;letter-spacing:-.01em;min-width:0}
 .info small{grid-column:1/-1;color:var(--mu);font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .info .precio{grid-column:2;grid-row:1}
-.precio{font-weight:800;font-size:18px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.precio{font-weight:800;font-size:18px;font-variant-numeric:proportional-nums;white-space:nowrap}
 .mas{flex:none;width:48px;height:48px;border-radius:50%;border:0;background:var(--tx);color:var(--bg);font-size:26px;line-height:1;display:grid;place-items:center;transition:transform .15s var(--ease),background .2s,color .2s}
 .mas:active{transform:scale(.88)}
 .mas.listo{background:var(--c-f);color:#fff}
-.cat{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
-.tile{display:flex;flex-direction:column;gap:2px;min-height:124px;padding:14px;border-radius:20px;background:var(--card);border:1.5px solid var(--ln)}
+.pant.con-foto:before{content:"";position:absolute;left:0;right:0;bottom:0;height:36%;z-index:-1;pointer-events:none;background:var(--foto) center 40%/cover no-repeat;opacity:.6;-webkit-mask-image:linear-gradient(transparent,#000 75%);mask-image:linear-gradient(transparent,#000 75%)}
+.cat{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:20px}
+.tile{min-width:0;display:flex;flex-direction:column;gap:2px;min-height:124px;padding:14px;border-radius:20px;background:var(--card);border:1.5px solid var(--ln)}
+.tile .precio{font-size:17px;min-width:0;line-height:1.15}
+.tile .precio .u{display:block;margin-left:0}
+.precio .u{font-size:.72em;font-weight:600;color:var(--mu);margin-left:2px;letter-spacing:0}
+.g-item .precio .u{color:#ffffffc7}
 .tile b{font-size:16px;line-height:1.2;font-weight:700;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .tile small{color:var(--mu);font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tile-pie{margin-top:auto;padding-top:8px;display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -696,7 +724,12 @@ img.cargando{opacity:0}
 .app-fila{display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:center;margin-top:24px}
 .cel{width:124px;aspect-ratio:9/17;border-radius:26px;border:5px solid #141414;background:linear-gradient(180deg,color-mix(in srgb,var(--c) 40%,#1e1e24),#0f0f12);padding:16px 10px;display:grid;grid-template-columns:repeat(3,1fr);gap:9px;align-content:start;box-shadow:0 30px 50px -28px #000}
 .cel i{aspect-ratio:1;border-radius:8px;background:#ffffff1f}
-.cel i.mio{display:grid;place-items:center;background:transparent;color:transparent;outline:2px dashed #ffffff59;outline-offset:-2px;font-style:normal;font-weight:800;font-size:11px}
+/* Íconos de colores, como un celular de verdad (sin marcas): así no se ve vacío. */
+.cel i:nth-child(6n+1){background:linear-gradient(160deg,#5ac8fa,#2f7cf6)}.cel i:nth-child(6n+2){background:linear-gradient(160deg,#ffd166,#f59f00)}
+.cel i:nth-child(6n+3){background:linear-gradient(160deg,#8ce99a,#2f9e44)}.cel i:nth-child(6n+4){background:linear-gradient(160deg,#f783ac,#d6336c)}
+.cel i:nth-child(6n+5){background:linear-gradient(160deg,#b197fc,#7048e8)}.cel i:nth-child(6n){background:linear-gradient(160deg,#ced4da,#868e96)}
+.cel i:not(.mio){opacity:.55}
+.cel i.mio{display:grid;place-items:center;background:color-mix(in srgb,var(--c) 30%,transparent);color:#ffffffd9;outline:2px dashed #ffffffb3;outline-offset:-2px;font-style:normal;font-weight:800;font-size:11px}
 .cel.instalada i.mio{background:var(--c-f);color:#fff;outline:0;box-shadow:0 0 0 2px #ffffff8c}
 .oks{list-style:none;margin:0;padding:0;display:grid;gap:14px}
 .oks li{display:flex;gap:10px;align-items:flex-start;font-size:16px;font-weight:600;line-height:1.3}
@@ -854,6 +887,8 @@ dialog.hoja[open]::backdrop{background-color:rgb(0 0 0 / .6)}
   @keyframes bump{40%{scale:1.08}}
   .mas.listo{animation:pop .35s var(--rebote)}
   @keyframes pop{from{transform:scale(.6)}}
+  .pant.on .cel:not(.instalada) i.mio{animation:late 1.6s ease-in-out infinite}
+  @keyframes late{50%{transform:scale(1.12);outline-color:#fff}}
   .sellos i.nuevo{animation:sello .5s var(--rebote)}
   @keyframes sello{from{opacity:0;transform:scale(2.2) rotate(-25deg)}}
   .cel.instalada i.mio{animation:pop .5s var(--rebote)}
@@ -909,9 +944,9 @@ ${logoHtml}
 </div></section>
 ${sHistoria(marca?.historia)}
 ${sAmbiente(p, d, ambiente, reales.length > 1, marca?.lugar)}
-${negocio.join("\n")}
+${conFoto(negocio.join("\n"), [fx.portada, ...(ambiente || [])])}
 ${d.ia ? sIA(p, d) : ""}
-${sApp(p)}
+${conFoto(sApp(p), [...(ambiente || []), fx.portada].reverse())}
 ${visita}
 ${pantallasPropuesta(p, d, quiero, cfg)}
 </main>
