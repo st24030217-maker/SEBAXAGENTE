@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="es" data-resolution="portrait">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <style>
+      /* Reel general de Instagram. El texto importante va dentro de la zona segura de Reels (288–1248 px de alto). */
+      :root { --a: #2f7cf6; --wa: #25d366; --ink: #fff; --dark: #070a12; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--dark); }
+      #root { position: relative; width: 100%; height: 100%; font-family: "Inter", sans-serif; color: var(--ink); overflow: hidden; }
+      .full { position: absolute; inset: 0; }
+      .big { font-family: "Archivo Black", sans-serif; letter-spacing: -0.045em; line-height: 0.96; }
+
+      /* Fondo vivo: manchas de color que se mueven todo el video */
+      #bg { position: absolute; inset: 0; background: var(--dark); overflow: hidden; }
+      .blob { position: absolute; width: 900px; height: 900px; border-radius: 50%; filter: blur(140px); opacity: .55; }
+      #b1 { background: var(--a); left: -300px; top: -200px; }
+      #b2 { background: #7c3aed; left: 500px; top: 1200px; }
+      #b3 { background: var(--wa); left: 400px; top: 500px; opacity: .22; }
+
+      /* Gancho */
+      #hook-in { position: absolute; left: 120px; right: 120px; top: 310px; }
+      #hook-logo { width: 230px; height: auto; display: block; }
+      #hook-t { font-size: 118px; margin-top: 30px; }
+      #hook-t .w { display: inline-block; margin-right: 26px; }
+      #hook-t .g { color: var(--wa); }
+      #hook-bar { height: 16px; width: 520px; background: var(--wa); border-radius: 8px; margin-top: 56px; transform-origin: left center; }
+
+      /* Barridos entre escenas */
+      .wipe { position: absolute; left: 0; top: -10%; width: 100%; height: 120%; z-index: 50; }
+      #wipe1 { background: var(--a); }
+      #wipe2 { background: var(--wa); }
+      #wipe3 { background: #fff; }
+
+      /* Servicios */
+      .ghost { position: absolute; top: 760px; left: 0; white-space: nowrap; font-family: "Archivo Black", sans-serif;
+               font-size: 420px; letter-spacing: -0.05em; color: transparent; -webkit-text-stroke: 3px rgba(255,255,255,.14); }
+      #stage { position: absolute; inset: 0; perspective: 1800px; }
+      #phone { position: absolute; left: 320px; top: 545px; width: 440px; height: 782px; border-radius: 54px;
+               background: #000; box-shadow: 0 50px 140px rgba(0,0,0,.6), 0 0 0 4px rgba(255,255,255,.14); overflow: hidden; }
+      #phone .scr { position: absolute; left: 12px; top: 12px; width: 416px; height: 758px; border-radius: 44px; object-fit: cover; }
+      .cap { position: absolute; left: 120px; right: 120px; top: 296px; text-align: center; }
+      .cap .k { font-size: 32px; font-weight: 700; letter-spacing: .18em; color: #8fc1ff; }
+      .cap .t { font-size: 76px; margin-top: 12px; }
+      #wm { position: absolute; left: 130px; top: 1350px; width: 96px; height: auto; opacity: .9; }
+      #count { position: absolute; right: 130px; top: 1375px; font-size: 40px; font-weight: 900; opacity: .7; letter-spacing: .1em; }
+
+      /* La Laguna */
+      #lag { background: var(--a); }
+      #lag-in { position: absolute; left: 120px; right: 120px; top: 330px; }
+      #lag-logo { position: absolute; left: 540px; top: 880px; width: 340px; height: auto; opacity: .95; }
+      .ln { overflow: hidden; }
+      .ln > div { font-size: 112px; }
+      #lag-s { font-size: 48px; font-weight: 700; margin-top: 44px; line-height: 1.25; }
+
+      /* Cierre */
+      #end-in { position: absolute; left: 120px; right: 120px; top: 300px; text-align: center; }
+      #end-logo { width: 470px; height: auto; display: block; margin: 0 auto; }
+      #end-who { font-size: 46px; font-weight: 700; margin-top: 30px; opacity: .9; }
+      #end-cta { display: inline-block; margin-top: 60px; background: var(--wa); color: #06210f; border-radius: 999px;
+                 font-size: 50px; font-weight: 900; padding: 30px 52px; }
+      #end-ig { font-size: 42px; font-weight: 700; margin-top: 44px; opacity: .85; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="16" data-width="1080" data-height="1920">
+      <div id="bg" class="clip" data-start="0" data-duration="16" data-track-index="0" data-layout-ignore>
+        <div id="b1" class="blob"></div><div id="b2" class="blob"></div><div id="b3" class="blob"></div>
+      </div>
+
+      <!-- 1. Gancho (0–2.6 s) -->
+      <div id="hook" class="clip full" data-start="0" data-duration="2.6" data-track-index="1" data-track-kind="graphics">
+        <div id="hook-in">
+          <img id="hook-logo" src="assets/logo-simbolo.png" alt="sss.solutions" />
+          <div id="hook-t" class="big"><span class="w">¿Tienes</span><span class="w">un</span><span class="w">negocio</span><span class="w">en</span><span class="w g">La Laguna?</span></div>
+          <div id="hook-bar"></div>
+        </div>
+      </div>
+
+      <!-- 2. Lo que hacemos (2.6–11.1 s) -->
+      <div id="demo" class="clip full" data-start="2.6" data-duration="8.5" data-track-index="1" data-track-kind="graphics" data-layout-allow-overflow>
+        <div id="g1" class="ghost">WEB WEB WEB</div>
+        <div id="g2" class="ghost">PEDIDOS PEDIDOS</div>
+        <div id="g3" class="ghost">CITAS CITAS CITAS</div>
+        <div id="g4" class="ghost">LEALTAD LEALTAD</div>
+        <div id="g5" class="ghost">APP APP APP APP</div>
+        <div id="c1" class="cap"><div class="k">LO QUE HACEMOS</div><div class="t big">Páginas web</div></div>
+        <div id="c2" class="cap"><div class="k">LO QUE HACEMOS</div><div class="t big">Pedidos a tu WhatsApp</div></div>
+        <div id="c3" class="cap"><div class="k">LO QUE HACEMOS</div><div class="t big">Citas en línea</div></div>
+        <div id="c4" class="cap"><div class="k">LO QUE HACEMOS</div><div class="t big">Cliente frecuente</div></div>
+        <div id="c5" class="cap"><div class="k">LO QUE HACEMOS</div><div class="t big">Tu propia app</div></div>
+        <div id="stage">
+          <div id="phone">
+            <img id="s1" class="scr" src="assets/web.png" alt="" />
+            <img id="s2" class="scr" src="assets/menu.png" alt="" />
+            <img id="s3" class="scr" src="assets/citas.png" alt="" />
+            <img id="s4" class="scr" src="assets/tarjeta.png" alt="" />
+            <img id="s5" class="scr" src="assets/app.png" alt="" />
+          </div>
+        </div>
+        <img id="wm" src="assets/logo-simbolo.png" alt="" />
+        <div id="count">01 / 05</div>
+      </div>
+
+      <!-- 3. Hecho en La Laguna (11.1–13.6 s) -->
+      <div id="lag" class="clip full" data-start="11.1" data-duration="2.5" data-track-index="1" data-track-kind="graphics">
+        <div id="lag-in">
+          <div class="ln"><div id="l1" class="big">A la medida,</div></div>
+          <div class="ln"><div id="l2" class="big">aquí en</div></div>
+          <div class="ln"><div id="l3" class="big">La Laguna</div></div>
+          <div id="lag-s">Te visitamos en Torreón, Gómez Palacio y Lerdo</div>
+        </div>
+        <img id="lag-logo" src="assets/logo-simbolo.png" alt="" />
+      </div>
+
+      <!-- 4. Cierre (13.6–16 s) -->
+      <div id="end" class="clip full" data-start="13.6" data-duration="2.4" data-track-index="1" data-track-kind="graphics">
+        <div id="end-in">
+          <img id="end-logo" src="assets/logo.png" alt="sss.solutions" />
+          <div id="end-who">Sebastián Salinas · Lerdo, Dgo.</div>
+          <div id="end-cta">Escríbeme: 871 916 4677</div>
+          <div id="end-ig">@ssss.olutions</div>
+        </div>
+      </div>
+
+      <!-- Música original (musica.mjs) -->
+      <audio id="musica" src="assets/musica.m4a" data-start="0" data-duration="16" data-track-index="3" data-volume="1"></audio>
+
+      <!-- Barridos (encima de todo) -->
+      <div id="wipe1" class="clip wipe" data-start="2.3" data-duration="0.6" data-track-index="2" data-layout-ignore></div>
+      <div id="wipe2" class="clip wipe" data-start="10.8" data-duration="0.6" data-track-index="2" data-layout-ignore></div>
+      <div id="wipe3" class="clip wipe" data-start="13.3" data-duration="0.6" data-track-index="2" data-layout-ignore></div>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+
+      // Fondo: las manchas se mueven todo el video
+      tl.fromTo("#b1", { x: 0, y: 0 }, { x: 520, y: 700, duration: 16, ease: "sine.inOut" }, 0);
+      tl.fromTo("#b2", { x: 0, y: 0 }, { x: -620, y: -900, duration: 16, ease: "sine.inOut" }, 0);
+      tl.fromTo("#b3", { x: 0, scale: 1 }, { x: -500, scale: 1.4, duration: 16, ease: "sine.inOut" }, 0);
+
+      // 1. Gancho: "Tu negocio," ya está en el cuadro 0; el resto entra palabra por palabra
+      tl.fromTo("#hook-logo", { rotation: -12, scale: 0.9 }, { rotation: 0, scale: 1, duration: 0.6, ease: "back.out(2)" }, 0);
+      const words = gsap.utils.toArray("#hook-t .w");
+      tl.fromTo(words.slice(0, 2), { opacity: 1, scale: 1 }, { opacity: 1, scale: 1, duration: 0.01 }, 0);
+      tl.fromTo(words.slice(2), { opacity: 0, y: 80, scale: 1.3 }, { opacity: 1, y: 0, scale: 1, duration: 0.32, stagger: 0.12, ease: "power4.out" }, 0.15);
+      tl.fromTo("#hook-t .g", { color: "#ffffff" }, { color: "#25d366", duration: 0.25 }, 0.75);
+      tl.fromTo("#hook-bar", { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: "power3.inOut" }, 1.2);
+      tl.fromTo("#hook-in", { scale: 1 }, { scale: 1.06, duration: 1.2, ease: "power1.in" }, 1.3);
+
+      // Barridos: entran por la izquierda, tapan, salen por la derecha
+      [["#wipe1", 2.3], ["#wipe2", 10.8], ["#wipe3", 13.3]].forEach(([w, t]) => {
+        tl.fromTo(w, { xPercent: -100, skewX: -12 }, { xPercent: 0, skewX: 0, duration: 0.28, ease: "power3.in" }, t);
+        tl.fromTo(w, { xPercent: 0 }, { xPercent: 105, duration: 0.3, ease: "power3.out", immediateRender: false }, t + 0.28);
+      });
+
+      // 2. Servicios: el celular entra girando y cambia de pantalla con un giro 3D en cada servicio
+      tl.fromTo("#phone", { y: 1100, rotationX: 35, rotationZ: -8 }, { y: 0, rotationX: 0, rotationZ: 0, duration: 0.8, ease: "power4.out" }, 2.6);
+      tl.fromTo("#phone", { scale: 1 }, { scale: 1.03, duration: 0.85, yoyo: true, repeat: 9, ease: "sine.inOut" }, 3.4);
+      const caps = ["#c1", "#c2", "#c3", "#c4", "#c5"];
+      const scrs = ["#s1", "#s2", "#s3", "#s4", "#s5"];
+      const ghosts = ["#g1", "#g2", "#g3", "#g4", "#g5"];
+      caps.forEach((c, i) => {
+        const t = 2.75 + i * 1.66;
+        if (i > 0) {
+          tl.fromTo(caps[i - 1], { opacity: 1, y: 0 }, { opacity: 0, y: -40, duration: 0.15, immediateRender: false }, t - 0.1);
+          tl.fromTo(ghosts[i - 1], { opacity: 1 }, { opacity: 0, duration: 0.15, immediateRender: false }, t - 0.1);
+          tl.fromTo("#phone", { rotationY: 0 }, { rotationY: i % 2 ? 360 : -360, duration: 0.55, ease: "power3.inOut", immediateRender: false }, t - 0.15);
+          tl.fromTo(scrs[i], { opacity: 0 }, { opacity: 1, duration: 0.01 }, t + 0.12);
+          tl.set("#count", { textContent: `0${i + 1} / 05` }, t);
+        }
+        tl.fromTo(ghosts[i], { opacity: 0, x: 200 }, { opacity: 1, x: -1400, duration: 1.8, ease: "none" }, t - 0.1);
+        tl.fromTo(c, { opacity: 0, y: 60, scale: 1.25 }, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: "back.out(2.2)" }, t);
+      });
+
+      // 3. La Laguna: líneas suben desde una máscara y el logo entra girando
+      tl.fromTo(["#l1", "#l2", "#l3"], { yPercent: 110 }, { yPercent: 0, duration: 0.4, stagger: 0.1, ease: "power4.out" }, 11.15);
+      tl.fromTo("#lag-s", { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: 0.35, ease: "power3.out" }, 11.55);
+      tl.fromTo("#lag-logo", { opacity: 0, scale: 0.3, rotation: -90 }, { opacity: 0.95, scale: 1, rotation: 0, duration: 0.6, ease: "back.out(1.8)" }, 11.6);
+      tl.fromTo("#lag-logo", { rotation: 0 }, { rotation: 8, duration: 1.3, ease: "sine.inOut", immediateRender: false }, 12.2);
+      tl.fromTo("#wm", { opacity: 0, x: -30 }, { opacity: 0.9, x: 0, duration: 0.4, ease: "power3.out" }, 3.2);
+
+      // 4. Cierre: el logo entra girando, el botón late
+      tl.fromTo("#end-logo", { opacity: 0, scale: 0.4, rotation: -20 }, { opacity: 1, scale: 1, rotation: 0, duration: 0.55, ease: "back.out(2)" }, 13.6);
+      tl.fromTo("#end-who", { opacity: 0 }, { opacity: 0.9, duration: 0.3 }, 14.0);
+      tl.fromTo("#end-cta", { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(2.5)" }, 14.15);
+      tl.fromTo("#end-cta", { scale: 1 }, { scale: 1.07, duration: 0.3, yoyo: true, repeat: 3, ease: "sine.inOut", immediateRender: false }, 14.6);
+      tl.fromTo("#end-ig", { opacity: 0, y: 20 }, { opacity: 0.85, y: 0, duration: 0.3 }, 14.4);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

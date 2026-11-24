@@ -1,102 +1,189 @@
 <!doctype html>
 <html lang="es" data-resolution="portrait"
   data-composition-variables='[
-    {"id":"nombre","type":"string","label":"Nombre corto del negocio","default":"Fast Clean"},
-    {"id":"zona","type":"string","label":"Zona","default":"Villa Jacarandas · Torreón"},
+    {"id":"nombre","type":"string","label":"Nombre del negocio","default":"Fast Clean Lavanderia y Planchado"},
+    {"id":"zona","type":"string","label":"Zona","default":"Villa Jacarandas, Torreón"},
     {"id":"c","type":"color","label":"Color del negocio","default":"#2571b0"},
     {"id":"img1","type":"string","label":"Captura portada","default":"assets/portada.png"},
     {"id":"img2","type":"string","label":"Captura tarjeta","default":"assets/tarjeta.png"},
-    {"id":"img3","type":"string","label":"Captura incluye","default":"assets/incluye.png"}
+    {"id":"img3","type":"string","label":"Captura incluye","default":"assets/incluye.png"},
+    {"id":"cap2k","type":"string","label":"Pantalla 2: etiqueta","default":"CLIENTE FRECUENTE"},
+    {"id":"cap2t","type":"string","label":"Pantalla 2: título","default":"Que regresen"},
+    {"id":"ghost2","type":"string","label":"Pantalla 2: palabra de fondo","default":"LEALTAD LEALTAD"}
   ]'>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=1080, height=1920" />
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <script src="assets/gsap.min.js"></script>
     <style>
-      :root { --c: #2571b0; --ink: #fff; --dark: #0b0f17; }
+      /* Video personalizado para cada prospecto. Se llena con --variables (ver scripts/videos-prospectos.mjs). */
+      :root { --c: #2571b0; --wa: #25d366; --ink: #fff; --dark: #070a12; }
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--dark); }
-      #root { position: relative; width: 100%; height: 100%; font-family: "Inter", sans-serif; color: var(--ink); }
+      #root { position: relative; width: 100%; height: 100%; font-family: "Inter", sans-serif; color: var(--ink); overflow: hidden; }
       .full { position: absolute; inset: 0; }
-      .bg-c { background: var(--c); }
-      .bg-d { background: radial-gradient(120% 80% at 50% 30%, #1a2333 0%, var(--dark) 70%); }
-      .big { font-family: "Archivo Black", sans-serif; letter-spacing: -0.04em; line-height: 0.95; }
-      #hook-in { position: absolute; left: 120px; right: 120px; top: 520px; }
-      #hook-kicker { font-size: 44px; font-weight: 700; opacity: .85; letter-spacing: .02em; }
-      #hook-name { font-size: 140px; margin-top: 24px; }
-      #hook-line { font-size: 72px; font-weight: 900; margin-top: 48px; line-height: 1.05; }
-      #hook-zona { font-size: 38px; font-weight: 700; margin-top: 40px; opacity: .8; }
-      #phone { position: absolute; left: 230px; top: 470px; width: 620px; height: 1102px; border-radius: 72px;
-               background: #000; box-shadow: 0 40px 120px rgba(0,0,0,.55), 0 0 0 4px rgba(255,255,255,.12); overflow: hidden; }
-      #phone .scr { position: absolute; left: 18px; top: 18px; width: 584px; height: 1066px; border-radius: 56px; object-fit: cover; }
-      .cap { position: absolute; left: 100px; right: 100px; top: 250px; text-align: center; }
-      .cap .k { font-size: 34px; font-weight: 700; letter-spacing: .14em; color: #8fc1ff; }
-      .cap .t { font-size: 80px; margin-top: 14px; }
-      #end-in { position: absolute; left: 120px; right: 120px; top: 520px; text-align: center; }
-      #end-who { font-size: 96px; }
-      #end-sub { font-size: 44px; font-weight: 700; margin-top: 24px; opacity: .9; }
-      #end-cta { display: inline-block; margin-top: 90px; background: #fff; color: #111; border-radius: 999px;
-                 font-size: 50px; font-weight: 900; padding: 34px 64px; }
-      #end-arrow { font-size: 110px; font-weight: 900; margin-top: 50px; }
+      .big { font-family: "Archivo Black", sans-serif; letter-spacing: -0.045em; line-height: 0.96; }
+
+      #bg { position: absolute; inset: 0; background: var(--dark); overflow: hidden; }
+      .blob { position: absolute; width: 900px; height: 900px; border-radius: 50%; filter: blur(140px); opacity: .6; }
+      #b1 { background: var(--c); left: -300px; top: -200px; }
+      #b2 { background: #7c3aed; left: 500px; top: 1200px; opacity: .45; }
+      #b3 { background: var(--wa); left: 400px; top: 500px; opacity: .18; }
+
+      #hook-in { position: absolute; left: 100px; right: 100px; top: 360px; }
+      #hook-logo { width: 150px; height: auto; display: block; opacity: .95; }
+      #hook-hola { font-size: 60px; font-weight: 900; margin-top: 50px; color: #8fc1ff; }
+      #hook-name { font-size: 140px; margin-top: 18px; overflow-wrap: break-word; }
+      #hook-line { font-size: 84px; margin-top: 50px; }
+      #hook-line .w { display: inline-block; margin-right: 18px; }
+      #hook-line .g { color: var(--wa); }
+
+      .wipe { position: absolute; left: 0; top: -10%; width: 100%; height: 120%; z-index: 50; }
+      #wipe1 { background: var(--c); }
+      #wipe2 { background: var(--wa); }
+      #wipe3 { background: #fff; }
+
+      .ghost { position: absolute; top: 760px; left: 0; white-space: nowrap; font-family: "Archivo Black", sans-serif;
+               font-size: 420px; letter-spacing: -0.05em; color: transparent; -webkit-text-stroke: 3px rgba(255,255,255,.14); }
+      #stage { position: absolute; inset: 0; perspective: 1800px; }
+      #phone { position: absolute; left: 250px; top: 560px; width: 580px; height: 1030px; border-radius: 68px;
+               background: #000; box-shadow: 0 50px 140px rgba(0,0,0,.6), 0 0 0 4px rgba(255,255,255,.14); overflow: hidden; }
+      #phone .scr { position: absolute; left: 16px; top: 16px; width: 548px; height: 998px; border-radius: 54px; object-fit: cover; }
+      .cap { position: absolute; left: 70px; right: 70px; top: 250px; text-align: center; }
+      .cap .k { font-size: 32px; font-weight: 700; letter-spacing: .18em; color: #8fc1ff; }
+      .cap .t { font-size: 96px; margin-top: 16px; }
+      #wm { position: absolute; left: 90px; top: 1610px; width: 96px; height: auto; opacity: .9; }
+      #count { position: absolute; right: 90px; top: 1640px; font-size: 40px; font-weight: 900; opacity: .7; letter-spacing: .1em; }
+
+      #lag { background: var(--c); }
+      #lag-in { position: absolute; left: 100px; right: 100px; top: 360px; }
+      .ln { overflow: hidden; }
+      .ln > div { font-size: 128px; }
+      #lag-s { font-size: 48px; font-weight: 700; margin-top: 44px; line-height: 1.25; }
+      #lag-logo { position: absolute; left: 560px; top: 1180px; width: 420px; height: auto; opacity: .95; }
+
+      #end-in { position: absolute; left: 80px; right: 80px; top: 330px; text-align: center; }
+      #end-logo { width: 560px; height: auto; display: block; margin: 0 auto; }
+      #end-who { font-size: 46px; font-weight: 700; margin-top: 30px; opacity: .9; }
+      #end-cta { display: inline-block; margin-top: 80px; background: var(--wa); color: #06210f; border-radius: 999px;
+                 font-size: 58px; font-weight: 900; padding: 36px 66px; }
+      #end-arrow { font-size: 120px; font-weight: 900; margin-top: 40px; }
     </style>
   </head>
   <body>
-    <div id="root" data-composition-id="main" data-start="0" data-duration="15" data-width="1080" data-height="1920">
-      <!-- 1. Gancho (0–3 s): el nombre ya está en el cuadro 0, que es la miniatura en WhatsApp -->
-      <div id="hook" class="clip full bg-c" data-start="0" data-duration="3" data-track-index="1" data-track-kind="graphics">
+    <div id="root" data-composition-id="main" data-start="0" data-duration="16" data-width="1080" data-height="1920">
+      <div id="bg" class="clip" data-start="0" data-duration="16" data-track-index="0" data-layout-ignore>
+        <div id="b1" class="blob"></div><div id="b2" class="blob"></div><div id="b3" class="blob"></div>
+      </div>
+
+      <!-- 1. Gancho (0–2.6 s): el nombre del negocio ya está en el cuadro 0 (miniatura en WhatsApp) -->
+      <div id="hook" class="clip full" data-start="0" data-duration="2.6" data-track-index="1" data-track-kind="graphics">
         <div id="hook-in">
-          <div id="hook-kicker">HOLA,</div>
-          <div id="hook-name" class="big" data-var-text="nombre">Fast Clean</div>
-          <div id="hook-line">te preparé tu página</div>
-          <div id="hook-zona" data-var-text="zona">Villa Jacarandas · Torreón</div>
+          <img id="hook-logo" src="assets/logo-simbolo.png" alt="sss.solutions" />
+          <div id="hook-hola">Hola,</div>
+          <div id="hook-name" class="big" data-var-text="nombre">Fast Clean Lavanderia y Planchado</div>
+          <div id="hook-line" class="big"><span class="w">te</span><span class="w">preparé</span><span class="w">tu</span><span class="w g">página</span></div>
         </div>
       </div>
 
-      <!-- 2–4. El boceto dentro de un celular (3–12.5 s) -->
-      <div id="demo" class="clip full bg-d" data-start="3" data-duration="9.5" data-track-index="1" data-track-kind="graphics">
-        <div id="cap1" class="cap"><div class="k">TU PÁGINA</div><div class="t big">Así se vería</div></div>
-        <div id="cap2" class="cap"><div class="k">CLIENTE FRECUENTE</div><div class="t big">Que regresen</div></div>
-        <div id="cap3" class="cap"><div class="k">TODO EN UNO</div><div class="t big">Web, app y WhatsApp</div></div>
-        <div id="phone">
-          <img id="scr1" class="scr" src="assets/portada.png" data-var-src="img1" alt="" />
-          <img id="scr2" class="scr" src="assets/tarjeta.png" data-var-src="img2" alt="" />
-          <img id="scr3" class="scr" src="assets/incluye.png" data-var-src="img3" alt="" />
+      <!-- 2. Su boceto en el celular (2.6–11.1 s) -->
+      <div id="demo" class="clip full" data-start="2.6" data-duration="8.5" data-track-index="1" data-track-kind="graphics" data-layout-allow-overflow>
+        <div id="g1" class="ghost">TU PÁGINA TU PÁGINA</div>
+        <div id="g2" class="ghost" data-var-text="ghost2">LEALTAD LEALTAD</div>
+        <div id="g3" class="ghost">WHATSAPP WHATSAPP</div>
+        <div id="c1" class="cap"><div class="k">TU PÁGINA</div><div class="t big">Así se vería</div></div>
+        <div id="c2" class="cap"><div class="k" data-var-text="cap2k">CLIENTE FRECUENTE</div><div class="t big" data-var-text="cap2t">Que regresen</div></div>
+        <div id="c3" class="cap"><div class="k">TODO EN UNO</div><div class="t big">Web, app y WhatsApp</div></div>
+        <div id="stage">
+          <div id="phone">
+            <img id="s1" class="scr" src="assets/portada.png" data-var-src="img1" alt="" />
+            <img id="s2" class="scr" src="assets/tarjeta.png" data-var-src="img2" alt="" />
+            <img id="s3" class="scr" src="assets/incluye.png" data-var-src="img3" alt="" />
+          </div>
         </div>
+        <img id="wm" src="assets/logo-simbolo.png" alt="" />
+        <div id="count">01 / 03</div>
       </div>
 
-      <!-- 5. Cierre (12.5–15 s) -->
-      <div id="end" class="clip full bg-c" data-start="12.5" data-duration="2.5" data-track-index="1" data-track-kind="graphics">
+      <!-- 3. A la medida (11.1–13.6 s) -->
+      <div id="lag" class="clip full" data-start="11.1" data-duration="2.5" data-track-index="1" data-track-kind="graphics">
+        <div id="lag-in">
+          <div class="ln"><div id="l1" class="big">Hecha a</div></div>
+          <div class="ln"><div id="l2" class="big">la medida,</div></div>
+          <div class="ln"><div id="l3" class="big">sin plantillas</div></div>
+          <div id="lag-s">Te visito en <span data-var-text="zona">Villa Jacarandas, Torreón</span></div>
+        </div>
+        <img id="lag-logo" src="assets/logo-simbolo.png" alt="" />
+      </div>
+
+      <!-- 4. Cierre (13.6–16 s) -->
+      <div id="end" class="clip full" data-start="13.6" data-duration="2.4" data-track-index="1" data-track-kind="graphics">
         <div id="end-in">
-          <div id="end-who" class="big">Sebastián Salinas</div>
-          <div id="end-sub">sss.solutions · Lerdo, Dgo.</div>
+          <img id="end-logo" src="assets/logo.png" alt="sss.solutions" />
+          <div id="end-who">Sebastián Salinas · Lerdo, Dgo.</div>
           <div id="end-cta">Ábrela en el link</div>
           <div id="end-arrow">↓</div>
         </div>
       </div>
+
+      <audio id="musica" src="assets/musica.m4a" data-start="0" data-duration="16" data-track-index="3" data-volume="1"></audio>
+
+      <div id="wipe1" class="clip wipe" data-start="2.3" data-duration="0.6" data-track-index="2" data-layout-ignore></div>
+      <div id="wipe2" class="clip wipe" data-start="10.8" data-duration="0.6" data-track-index="2" data-layout-ignore></div>
+      <div id="wipe3" class="clip wipe" data-start="13.3" data-duration="0.6" data-track-index="2" data-layout-ignore></div>
     </div>
 
     <script>
+      // El tamaño del nombre se ajusta a su largo (los nombres del DENUE van de 6 a 50+ letras).
+      const vars = (window.__hyperframes && window.__hyperframes.getVariables && window.__hyperframes.getVariables()) || {};
+      const nombre = String(vars.nombre || document.getElementById("hook-name").textContent);
+      const L = nombre.length;
+      document.getElementById("hook-name").style.fontSize = (L <= 10 ? 170 : L <= 16 ? 140 : L <= 24 ? 116 : L <= 34 ? 96 : 80) + "px";
+
       const tl = gsap.timeline({ paused: true });
-      tl.fromTo("#hook-name", { scale: 1.08 }, { scale: 1, duration: 0.6, ease: "power3.out", transformOrigin: "left center" }, 0);
-      tl.fromTo("#hook-line", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 0.45);
-      tl.fromTo("#hook-zona", { opacity: 0, y: 30 }, { opacity: 0.8, y: 0, duration: 0.4, ease: "power3.out" }, 0.8);
+      tl.fromTo("#b1", { x: 0, y: 0 }, { x: 520, y: 700, duration: 16, ease: "sine.inOut" }, 0);
+      tl.fromTo("#b2", { x: 0, y: 0 }, { x: -620, y: -900, duration: 16, ease: "sine.inOut" }, 0);
+      tl.fromTo("#b3", { x: 0, scale: 1 }, { x: -500, scale: 1.4, duration: 16, ease: "sine.inOut" }, 0);
 
-      tl.fromTo("#phone", { y: 900, rotation: 6 }, { y: 0, rotation: 0, duration: 0.8, ease: "power4.out" }, 3);
-      tl.fromTo("#cap1", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 3.3);
-      tl.fromTo("#scr1", { scale: 1 }, { scale: 1.04, duration: 3, ease: "none" }, 3.6);
+      tl.fromTo("#hook-logo", { rotation: -12, scale: 0.9 }, { rotation: 0, scale: 1, duration: 0.6, ease: "back.out(2)" }, 0);
+      tl.fromTo("#hook-name", { scale: 1.06 }, { scale: 1, duration: 0.6, ease: "power3.out", transformOrigin: "left center" }, 0);
+      tl.fromTo("#hook-line .w", { opacity: 0, y: 70, scale: 1.3 }, { opacity: 1, y: 0, scale: 1, duration: 0.3, stagger: 0.12, ease: "power4.out" }, 0.5);
+      tl.fromTo("#hook-in", { scale: 1 }, { scale: 1.05, duration: 1.2, ease: "power1.in" }, 1.3);
 
-      tl.fromTo("#cap1", { opacity: 1 }, { opacity: 0, duration: 0.2, immediateRender: false }, 6.6);
-      tl.fromTo("#scr2", { opacity: 0, x: 600 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.inOut" }, 6.6);
-      tl.fromTo("#cap2", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 6.8);
+      [["#wipe1", 2.3], ["#wipe2", 10.8], ["#wipe3", 13.3]].forEach(([w, t]) => {
+        tl.fromTo(w, { xPercent: -100, skewX: -12 }, { xPercent: 0, skewX: 0, duration: 0.28, ease: "power3.in" }, t);
+        tl.fromTo(w, { xPercent: 0 }, { xPercent: 105, duration: 0.3, ease: "power3.out", immediateRender: false }, t + 0.28);
+      });
 
-      tl.fromTo("#cap2", { opacity: 1 }, { opacity: 0, duration: 0.2, immediateRender: false }, 9.6);
-      tl.fromTo("#scr3", { opacity: 0, x: 600 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.inOut" }, 9.6);
-      tl.fromTo("#cap3", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 9.8);
+      tl.fromTo("#phone", { y: 1100, rotationX: 35, rotationZ: -8 }, { y: 0, rotationX: 0, rotationZ: 0, duration: 0.8, ease: "power4.out" }, 2.6);
+      tl.fromTo("#phone", { scale: 1 }, { scale: 1.03, duration: 0.85, yoyo: true, repeat: 9, ease: "sine.inOut" }, 3.4);
+      tl.fromTo("#wm", { opacity: 0, x: -30 }, { opacity: 0.9, x: 0, duration: 0.4, ease: "power3.out" }, 3.2);
+      const caps = ["#c1", "#c2", "#c3"], scrs = ["#s1", "#s2", "#s3"], ghosts = ["#g1", "#g2", "#g3"];
+      caps.forEach((c, i) => {
+        const t = 2.75 + i * 2.8;
+        if (i > 0) {
+          tl.fromTo(caps[i - 1], { opacity: 1, y: 0 }, { opacity: 0, y: -40, duration: 0.15, immediateRender: false }, t - 0.1);
+          tl.fromTo(ghosts[i - 1], { opacity: 1 }, { opacity: 0, duration: 0.15, immediateRender: false }, t - 0.1);
+          tl.fromTo("#phone", { rotationY: 0 }, { rotationY: i % 2 ? 360 : -360, duration: 0.55, ease: "power3.inOut", immediateRender: false }, t - 0.15);
+          tl.fromTo(scrs[i], { opacity: 0 }, { opacity: 1, duration: 0.01 }, t + 0.12);
+          tl.set("#count", { textContent: `0${i + 1} / 03` }, t);
+        }
+        tl.fromTo(ghosts[i], { opacity: 0, x: 200 }, { opacity: 1, x: -1600, duration: 2.9, ease: "none" }, t - 0.1);
+        tl.fromTo(c, { opacity: 0, y: 60, scale: 1.25 }, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: "back.out(2.2)" }, t);
+      });
+      // El boceto se recorre despacio mientras está en pantalla
+      scrs.forEach((s, i) => tl.fromTo(s, { scale: 1 }, { scale: 1.05, duration: 2.8, ease: "none" }, 2.75 + i * 2.8));
 
-      tl.fromTo("#end-who", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 12.5);
-      tl.fromTo("#end-sub", { opacity: 0 }, { opacity: 0.9, duration: 0.4 }, 12.75);
-      tl.fromTo("#end-cta", { opacity: 0, scale: 0.85 }, { opacity: 1, scale: 1, duration: 0.45, ease: "back.out(2)" }, 13);
-      tl.fromTo("#end-arrow", { y: -10 }, { y: 20, duration: 0.45, yoyo: true, repeat: 3, ease: "sine.inOut" }, 13.2);
+      tl.fromTo(["#l1", "#l2", "#l3"], { yPercent: 110 }, { yPercent: 0, duration: 0.4, stagger: 0.1, ease: "power4.out" }, 11.15);
+      tl.fromTo("#lag-s", { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: 0.35, ease: "power3.out" }, 11.55);
+      tl.fromTo("#lag-logo", { opacity: 0, scale: 0.3, rotation: -90 }, { opacity: 0.95, scale: 1, rotation: 0, duration: 0.6, ease: "back.out(1.8)" }, 11.6);
+      tl.fromTo("#lag-logo", { rotation: 0 }, { rotation: 8, duration: 1.3, ease: "sine.inOut", immediateRender: false }, 12.2);
+
+      tl.fromTo("#end-logo", { opacity: 0, scale: 0.4, rotation: -20 }, { opacity: 1, scale: 1, rotation: 0, duration: 0.55, ease: "back.out(2)" }, 13.6);
+      tl.fromTo("#end-who", { opacity: 0 }, { opacity: 0.9, duration: 0.3 }, 14.0);
+      tl.fromTo("#end-cta", { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(2.5)" }, 14.15);
+      tl.fromTo("#end-arrow", { y: -10 }, { y: 24, duration: 0.35, yoyo: true, repeat: 3, ease: "sine.inOut" }, 14.4);
+
       window.__timelines["main"] = tl;
     </script>
   </body>

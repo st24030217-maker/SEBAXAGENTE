@@ -6,8 +6,9 @@ import { getDb, now, logEvent } from "../db.js";
 import { localParts } from "../services/calendar.js";
 import { getProspeccion } from "./config.js";
 import { buscarDenue, desdeDenue, medirPagina, buscarCorreoEnWeb, esRedSocial } from "./fuentes.js";
+import { extraerMarca } from "./marca.js";
 import { calificar, redactar, redactarPlantilla, pieCorreo } from "./redactar.js";
-import { bocetosDisponibles } from "./boceto.js";
+import { bocetosDisponibles, baseBocetos } from "./boceto.js";
 import { estadoIA, iaDisponible } from "../ia/proveedor.js";
 
 export const ESTADOS = ["nuevo", "por_revisar", "aprobado", "enviado", "whatsapp", "respondio", "cliente", "descartado", "no_contactar", "fallido"];
@@ -124,6 +125,14 @@ export async function analizarProspecto(id, { forzarMedicion = false } = {}) {
     }
     d.prepare("UPDATE prospectos SET web_puntaje = ?, web_detalle = ? WHERE id = ?").run(detalle.puntaje ?? null, JSON.stringify(detalle), p.id);
     p = getProspecto(id);
+  }
+  // Logo y fotos reales de su página, para que su boceto no se vea genérico.
+  if (p.sitio_web && !p.marca && !esRedSocial(p.sitio_web)) {
+    const marca = await extraerMarca(p.sitio_web);
+    if (marca) {
+      d.prepare("UPDATE prospectos SET marca = ? WHERE id = ?").run(JSON.stringify(marca), p.id);
+      p = getProspecto(id);
+    }
   }
   const { puntaje, razones } = calificar(p, cfg);
   // Con Gemini gratis, el análisis masivo usa plantillas para no gastar la cuota diaria:
@@ -358,7 +367,7 @@ export async function enviarSiguiente(ahora = new Date()) {
     .get();
   if (!p) return null;
   // El link de la muestra siempre con la dirección pública de hoy (los correos se redactaron antes).
-  if (/^https:\/\//.test(settings.publicUrl)) p.correo = p.correo.replace(/https?:\/\/[^\s/]+\/m\//g, `${settings.publicUrl}/m/`);
+  if (/^https:\/\//.test(baseBocetos())) p.correo = p.correo.replace(/https?:\/\/[^\s/]+\/m\//g, `${baseBocetos()}/m/`);
   else if (/\/m\//.test(p.correo)) return null; // sin dirección pública el link no abriría: mejor esperar
   // Se marca antes de enviar para no mandar dos veces si algo se corta a la mitad.
   db().prepare("UPDATE prospectos SET estado = 'enviado', envios = envios + 1, ultimo_envio = ?, actualizado = ? WHERE id = ?").run(now(), now(), p.id);

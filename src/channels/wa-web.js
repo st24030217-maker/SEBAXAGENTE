@@ -17,6 +17,9 @@ import { getProspeccion } from "../prospeccion/config.js";
 import { dentroDeHorarioEnvio } from "../prospeccion/servicio.js";
 import { redactarPlantilla } from "../prospeccion/redactar.js";
 import { iaDisponible } from "../ia/proveedor.js";
+import { videoDeProspecto, borrarVideoDeProspecto } from "../prospeccion/videos.js";
+import { baseBocetos } from "../prospeccion/boceto.js";
+import { asegurarPublicada } from "../prospeccion/publicar.js";
 
 const CARPETA = path.join(path.dirname(settings.dbPath === ":memory:" ? path.join(ROOT, "data", "x") : settings.dbPath), "whatsapp-sesion");
 const db = () => getDb();
@@ -272,6 +275,26 @@ export async function avisarDueno(texto) {
   }
 }
 
+/** Manda un video o una imagen al WhatsApp personal del dueño. `media` = { video: Buffer } o { image: Buffer }. */
+const esPng = (b) => Buffer.isBuffer(b) && b.length > 8 && b.readUInt32BE(0) === 0x89504e47;
+
+export async function avisarDuenoMedia(media, caption = "") {
+  const tel = numeroDueno();
+  if (!tel || !waConectado() || tel === numero) return false;
+  try {
+    jidDueno ||= await resolverJid(tel);
+    if (!jidDueno) return false;
+    // Las imágenes con su tipo real (los carruseles son PNG): sin eso WhatsApp las supone JPG y en
+    // algunos teléfonos llegan como archivo en vez de como foto lista para guardar y publicar.
+    const tipo = media.video ? "video/mp4" : media.image ? (esPng(media.image) ? "image/png" : "image/jpeg") : null;
+    await sock.sendMessage(jidDueno, { ...media, caption, ...(tipo ? { mimetype: tipo } : {}) });
+    return true;
+  } catch (e) {
+    console.error("[whatsapp] no se pudo mandar el archivo al dueño:", e.message);
+    return false;
+  }
+}
+
 /**
  * Te manda a TI el primer mensaje tal como lo recibiría un negocio (video + texto del siguiente en la
  * fila), para que veas cómo llega. No cuenta en el límite diario ni marca al negocio como contactado.
@@ -326,7 +349,7 @@ export async function procesarMensaje({ id, jid, texto, nombre }, enviar = envia
         c.id,
         prospecto.whatsapp_texto,
         "agente",
-        `[Prospección] Le escribimos primero a este negocio (${prospecto.nombre}, ${prospecto.giro || prospecto.rubro || ""}, ${[prospecto.colonia, prospecto.ciudad].filter(Boolean).join(", ")}). Situación detectada: ${razones}. Este fue el mensaje de WhatsApp que se le envió${conVideo ? " (junto con el video de presentación de Sebastián: ya lo vio, no se lo vuelvas a mandar)" : ""} y ahora está respondiendo`
+        `[Prospección] Le escribimos primero a este negocio (${prospecto.nombre}, ${prospecto.giro || prospecto.rubro || ""}, ${[prospecto.colonia, prospecto.ciudad].filter(Boolean).join(", ")}). Situación detectada: ${razones}. Este fue el mensaje de WhatsApp que se le envió${conVideo ? " (junto con un video: ya lo vio, no se lo vuelvas a mandar)" : ""} y ahora está respondiendo`
       );
       if (prospecto.envios > 1) {
         await recordOutgoing(c.id, textoSeguimiento(prospecto), "agente", "[Prospección] Como no respondió, días después se le mandó este seguimiento");
@@ -351,7 +374,7 @@ export async function procesarMensaje({ id, jid, texto, nombre }, enviar = envia
     return "error_ia";
   }
   // Si el agente repite un link de boceto viejo (del historial), sale con la dirección pública actual.
-  await enviar(jid, /^https:\/\//.test(settings.publicUrl) ? respuesta.replace(/(?:https?:\/\/)?[a-z0-9.-]+\.(?:onrender\.com|trycloudflare\.com)\/m\//gi, `${settings.publicUrl}/m/`) : respuesta);
+  await enviar(jid, /^https:\/\//.test(baseBocetos()) ? respuesta.replace(/(?:https?:\/\/)?[a-z0-9.-]+\.(?:onrender\.com|trycloudflare\.com)\/m\//gi, `${baseBocetos()}/m/`) : respuesta);
   return "respondido";
 }
 
@@ -567,6 +590,8 @@ export async function enviarSiguienteWa(ahora = new Date()) {
         }
       }
       if (!p) return null;
+      // Su muestra tiene que abrir antes de mandarle el link (GitHub Pages tarda ~1 min en publicarla).
+      if (!(await asegurarPublicada(p))) return null;
       const jid = await resolverJid(p.telefono);
       if (!jid) {
         db().prepare("UPDATE prospectos SET estado = 'fallido', error = ?, actualizado = ? WHERE id = ?").run("Ese número no tiene WhatsApp (puede ser teléfono fijo)", now(), p.id);
@@ -575,14 +600,17 @@ export async function enviarSiguienteWa(ahora = new Date()) {
       }
       db().prepare("UPDATE prospectos SET estado = 'enviado', envios = envios + 1, ultimo_envio = ?, actualizado = ? WHERE id = ?").run(now(), now(), p.id);
       try {
-        // Si hay video de presentación, el primer mensaje va como video con el texto abajo (más confianza).
-        const video = e.video_en_primer_mensaje !== false ? videoPresentacion() : null;
+        // Si hay video, el primer mensaje va como video con el texto abajo (más confianza): el personalizado
+        // de ese negocio (su nombre y su boceto, hecho en la noche) o, si no está listo, el de presentación.
+        const propio = e.video_en_primer_mensaje !== false ? videoDeProspecto(p.id) : null;
+        const video = propio || (e.video_en_primer_mensaje !== false ? videoPresentacion() : null);
         // El link del boceto siempre sale con la dirección pública actual (Render o túnel pudieron cambiar).
-        if (/^https:\/\//.test(settings.publicUrl)) p.whatsapp_texto = p.whatsapp_texto.replace(/https?:\/\/[^\s/]+\/m\//g, `${settings.publicUrl}/m/`);
+        if (/^https:\/\//.test(baseBocetos())) p.whatsapp_texto = p.whatsapp_texto.replace(/https?:\/\/[^\s/]+\/m\//g, `${baseBocetos()}/m/`);
         if (video) await enviarVideo(jid, video, p.whatsapp_texto);
         else await enviarTexto(jid, p.whatsapp_texto);
         db().prepare("INSERT INTO wa_contactos (id, jid, actualizado) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET jid = excluded.jid").run(p.telefono, jid, now());
-        logEvent("prospecto_whatsapp", null, { prospecto: p.id, telefono: p.telefono, video: !!video });
+        logEvent("prospecto_whatsapp", null, { prospecto: p.id, telefono: p.telefono, video: !!video, personalizado: !!propio });
+        if (propio) borrarVideoDeProspecto(p.id);
         console.log(`[whatsapp] prospección enviada a ${p.nombre}`);
       } catch (err) {
         db().prepare("UPDATE prospectos SET estado = 'fallido', envios = envios - 1, error = ? WHERE id = ?").run(err.message, p.id);

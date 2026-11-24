@@ -21,6 +21,12 @@ export function webRouter() {
     if (!SESION_OK.test(sesion || "")) return res.status(400).json({ error: "sesion inválida" });
     if (!mensaje || typeof mensaje !== "string" || !mensaje.trim()) return res.status(400).json({ error: "mensaje vacío" });
     if (rateLimited(`web:${sesion}`) || rateLimited(`ip:${req.ip}`, 60)) return res.status(429).json({ error: "Demasiados mensajes, espera un momento." });
+    // Techo diario del chat público: si alguien lo bombardea desde muchas IPs, no se acaba la IA
+    // (y con ella la atención por WhatsApp a los clientes de verdad).
+    if (superaTechoDiario()) {
+      const tel = getNegocio().negocio.telefono;
+      return res.status(429).json({ error: `Por hoy el chat está saturado. Escríbenos por WhatsApp${tel ? ` al ${tel}` : ""} y te atendemos.` });
+    }
     try {
       const { respuesta } = await handleIncoming({ canal: "web", externoId: sesion, texto: mensaje.slice(0, 2000), nombre: nombre || null });
       res.json({ respuesta, ultimoId: ultimoId(sesion) });
@@ -42,6 +48,15 @@ export function webRouter() {
   });
 
   return r;
+}
+
+/** Mensajes del chat web en las últimas 24 h (de todos) contra CHAT_WEB_MAX_DIA (400 por defecto). */
+export function superaTechoDiario(ahora = Date.now()) {
+  const max = Number(process.env.CHAT_WEB_MAX_DIA || 400);
+  if (!max) return false;
+  const desde = new Date(ahora - 24 * 3600_000).toISOString();
+  const n = getDb().prepare("SELECT COUNT(*) n FROM mensajes WHERE rol = 'cliente' AND conversacion_id LIKE 'web:%' AND creado >= ?").get(desde).n;
+  return n >= max;
 }
 
 function ultimoId(sesion) {

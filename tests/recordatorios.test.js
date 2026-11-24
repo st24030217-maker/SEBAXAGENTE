@@ -36,8 +36,11 @@ test("antes de las 8 no manda la agenda; a las 8 manda la agenda y el aviso de l
 
   assert.deepEqual(await revisarRecordatorios(new Date("2026-11-09T14:05:00Z"), enviar), [], "no se repite");
   const tarde = await revisarRecordatorios(new Date("2026-11-09T20:00:00Z"), enviar); // 14:00 local: la de las 15:00
-  assert.equal(tarde.length, 1);
-  assert.match(tarde[0], /Cita en 1 hora/);
+  // A las 14:00 también sale "A quién llamar hoy": la cita de las 8:50 ya pasó y nadie la cerró.
+  assert.equal(tarde.length, 2);
+  assert.match(tarde[0], /A quién llamar hoy/);
+  assert.match(tarde[0], /Tacos Rigo[\s\S]*Tuvo cita contigo/);
+  assert.match(tarde[1], /Cita en 1 hora/);
 });
 
 test("si el chip está desconectado, lo reintenta en la siguiente vuelta", async () => {

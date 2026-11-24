@@ -1,13 +1,16 @@
 // Recordatorios para TI por WhatsApp (en lugar de un calendario):
 //  - Tu agenda del día, cada mañana a las 8:00, solo si ese día tienes citas.
 //  - Un aviso una hora antes de cada cita, con el teléfono del cliente para marcarle directo.
+//  - "A quién llamar hoy" (solo el agente principal), de lunes a sábado a las 9:00: los clientes más calientes.
 import { getDb, getLead, logEvent } from "../db.js";
 import { getNegocio } from "../config.js";
 import { localParts, localDateString, zonedToUtc } from "./calendar.js";
 import { negocioActual } from "../contexto.js";
 import { paraCadaNegocio } from "../negocios.js";
+import { textoLlamarHoy } from "./llamar-hoy.js";
 
 const HORA_AGENDA = Number(process.env.AGENDA_HORA || 8);
+const HORA_LLAMAR = Number(process.env.LLAMAR_HOY_HORA || 9);
 
 const hora = (iso, tz) => new Intl.DateTimeFormat("es-MX", { timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(iso));
 const diaLargo = (fecha, tz) =>
@@ -49,6 +52,17 @@ export async function revisarRecordatorios(ahora = new Date(), enviar) {
       else return enviados; // chip desconectado: se reintenta en el siguiente minuto
     }
     logEvent("agenda_dueno", null, { clave: hoy, citas: citas.length });
+  }
+
+  // 1b) A quién llamar hoy (lunes a sábado; una vez al día).
+  const lp = localParts(ahora, tz);
+  if (!negocioActual() && lp.weekday !== 0 && lp.h >= HORA_LLAMAR && !yaEnviado("llamar_hoy", hoy)) {
+    const texto = textoLlamarHoy(ahora, tz, marca);
+    if (texto) {
+      if (await enviar(texto)) enviados.push(texto);
+      else return enviados; // chip desconectado: se reintenta en el siguiente minuto
+    }
+    logEvent("llamar_hoy", null, { clave: hoy, hay: !!texto });
   }
 
   // 2) Una hora antes de cada cita (entre 70 y 0 minutos antes; no si se agendó hace menos de 20 min).

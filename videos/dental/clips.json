@@ -1,0 +1,16 @@
+{
+  "salida": "assets/base.mp4",
+  "w": 1080, "h": 1920,
+  "cortes": [0, 2.6, 4.26, 5.92, 7.58, 9.24, 11.1, 13.6, 16],
+  "xfade": 0.45,
+  "clips": [
+    { "id": 12141, "desde": 1.0, "x": 0.68, "fx": "zoomin" },
+    { "id": 14669, "desde": 1.0, "x": 0.6,  "fx": "hblur" },
+    { "id": 39782, "desde": 1.0, "x": 0.5,  "fx": "smoothup" },
+    { "id": 12146, "desde": 1.0, "x": 0.42, "fx": "radial" },
+    { "id": 12144, "desde": 1.0, "x": 0.6,  "fx": "fadewhite" },
+    { "id": 12140, "desde": 2.0, "x": 0.55, "fx": "circleopen" },
+    { "id": 33328, "desde": 1.0, "x": 0.5,  "fx": "fadeblack" },
+    { "id": 21977, "desde": 1.0, "x": 0.5 }
+  ]
+}

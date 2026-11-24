@@ -14,7 +14,8 @@ import { settings, ROOT } from "../config.js";
 const PID = path.join(ROOT, "data", "tunel.pid");
 const URLF = path.join(ROOT, "data", "tunel.url");
 const LOG = path.join(ROOT, "logs", "tunel.log");
-const RE = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/;
+// "api.trycloudflare.com" sale en los errores (sin internet): no es una dirección de túnel.
+const RE = /https:\/\/(?!api\.)[a-z0-9-]+-[a-z0-9-]+\.trycloudflare\.com/;
 
 const leer = (f) => {
   try {

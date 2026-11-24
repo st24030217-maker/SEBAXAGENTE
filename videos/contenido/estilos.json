@@ -1,0 +1,290 @@
+{
+  "_nota": "Estilos del contenido diario (reel + carrusel). scripts/contenido-ig.mjs elige uno distinto cada día entre los que tienen activo != false. font: familia en assets/fonts; pos: abajo | centro | arriba; anim: pop | caida | desliza | sube; wipe: vertical | horizontal | ninguno; caja: palabras en cajitas; oscuro: logo en negro (fondos claros); calma: movimiento suave (sin sacudidas, destellos ni giros); etiqueta: chip | texto; generos: música de Mixkit para ese estilo. La marca sss.solutions es minimalista: los estilos llamativos están apagados (activo: false).",
+  "bloque": {
+    "font": "Archivo Black",
+    "mayus": false,
+    "escala": 1,
+    "pos": "abajo",
+    "anim": "pop",
+    "wipe": "vertical",
+    "caja": false,
+    "chip": "#2f7cf6",
+    "chipInk": "#ffffff",
+    "ink": "#ffffff",
+    "hl": "#25d366",
+    "wipes": [
+      "#2f7cf6",
+      "#25d366",
+      "#2f7cf6",
+      "#ffffff"
+    ],
+    "fin": "#2f7cf6",
+    "finInk": "#ffffff",
+    "cta": "#25d366",
+    "ctaInk": "#06210f",
+    "oscuro": false,
+    "sombra": "abajo",
+    "fx": [
+      "smoothup",
+      "wiperight",
+      "zoomin"
+    ],
+    "activo": false
+  },
+  "titular": {
+    "font": "League Gothic",
+    "mayus": true,
+    "escala": 1.55,
+    "pos": "centro",
+    "anim": "caida",
+    "wipe": "horizontal",
+    "caja": false,
+    "chip": "#ffd400",
+    "chipInk": "#0b0b0b",
+    "ink": "#ffffff",
+    "hl": "#ffd400",
+    "wipes": [
+      "#0b0b0b",
+      "#ffd400",
+      "#0b0b0b",
+      "#ffd400"
+    ],
+    "fin": "#0b0b0b",
+    "finInk": "#ffffff",
+    "cta": "#ffd400",
+    "ctaInk": "#0b0b0b",
+    "oscuro": false,
+    "sombra": "toda",
+    "fx": [
+      "slideleft",
+      "fadeblack",
+      "circleopen"
+    ],
+    "activo": false
+  },
+  "sticker": {
+    "font": "Archivo Black",
+    "mayus": false,
+    "escala": 0.82,
+    "pos": "abajo",
+    "anim": "desliza",
+    "wipe": "horizontal",
+    "caja": true,
+    "chip": "#111111",
+    "chipInk": "#ffffff",
+    "ink": "#111111",
+    "hl": "#ff3b30",
+    "wipes": [
+      "#ffffff",
+      "#ff3b30",
+      "#ffffff",
+      "#ff3b30"
+    ],
+    "fin": "#ffffff",
+    "finInk": "#111111",
+    "cta": "#ff3b30",
+    "ctaInk": "#ffffff",
+    "oscuro": true,
+    "sombra": "ninguna",
+    "fx": [
+      "wipeleft",
+      "slideup",
+      "radial"
+    ],
+    "activo": false
+  },
+  "neon": {
+    "font": "Oswald",
+    "mayus": true,
+    "escala": 1.1,
+    "pos": "arriba",
+    "anim": "pop",
+    "wipe": "horizontal",
+    "caja": false,
+    "chip": "#ff2bd6",
+    "chipInk": "#ffffff",
+    "ink": "#ffffff",
+    "hl": "#00e5ff",
+    "wipes": [
+      "#ff2bd6",
+      "#00e5ff",
+      "#6a00ff",
+      "#ff2bd6"
+    ],
+    "fin": "#2a0a4a",
+    "finInk": "#ffffff",
+    "cta": "#00e5ff",
+    "ctaInk": "#06121a",
+    "oscuro": false,
+    "sombra": "arriba",
+    "brillo": true,
+    "fx": [
+      "hblur",
+      "zoomin",
+      "pixelize"
+    ],
+    "activo": false
+  },
+  "minimal": {
+    "font": "Outfit",
+    "mayus": false,
+    "escala": 0.82,
+    "pos": "centro",
+    "anim": "sube",
+    "wipe": "ninguno",
+    "caja": false,
+    "chip": "#ff6b2c",
+    "chipInk": "#ffffff",
+    "ink": "#ffffff",
+    "hl": "#ff6b2c",
+    "wipes": [
+      "#f4efe6",
+      "#f4efe6",
+      "#f4efe6",
+      "#f4efe6"
+    ],
+    "fin": "#f4efe6",
+    "finInk": "#1b1b1b",
+    "cta": "#1b1b1b",
+    "ctaInk": "#ffffff",
+    "oscuro": true,
+    "sombra": "toda",
+    "fx": [
+      "fade",
+      "dissolve",
+      "fade"
+    ],
+    "calma": true,
+    "etiqueta": "texto",
+    "generos": [
+      "chill",
+      "ambient",
+      "piano",
+      "acoustic",
+      "soft",
+      "jazz",
+      "corporate"
+    ]
+  },
+  "editorial": {
+    "font": "Playfair Display",
+    "mayus": false,
+    "escala": 0.85,
+    "pos": "abajo",
+    "anim": "sube",
+    "wipe": "ninguno",
+    "caja": false,
+    "chip": "#e8c36a",
+    "chipInk": "#0f3d2e",
+    "ink": "#ffffff",
+    "hl": "#e8c36a",
+    "wipes": [
+      "#0f3d2e",
+      "#e8c36a",
+      "#0f3d2e",
+      "#e8c36a"
+    ],
+    "fin": "#0f3d2e",
+    "finInk": "#ffffff",
+    "cta": "#e8c36a",
+    "ctaInk": "#0f3d2e",
+    "oscuro": false,
+    "sombra": "abajo",
+    "fx": [
+      "fade",
+      "dissolve",
+      "fade"
+    ],
+    "calma": true,
+    "etiqueta": "texto",
+    "generos": [
+      "piano",
+      "jazz",
+      "acoustic",
+      "ambient",
+      "soft"
+    ]
+  },
+  "minimal-negro": {
+    "font": "Outfit",
+    "mayus": false,
+    "escala": 0.8,
+    "pos": "abajo",
+    "anim": "sube",
+    "wipe": "ninguno",
+    "caja": false,
+    "calma": true,
+    "etiqueta": "texto",
+    "chip": "#ffffff",
+    "chipInk": "#ffffff",
+    "ink": "#ffffff",
+    "hl": "#ffffff",
+    "wipes": [
+      "#000000",
+      "#000000",
+      "#000000",
+      "#000000"
+    ],
+    "fin": "#0a0a0a",
+    "finInk": "#ffffff",
+    "cta": "#ffffff",
+    "ctaInk": "#0a0a0a",
+    "oscuro": false,
+    "sombra": "abajo",
+    "generos": [
+      "chill",
+      "ambient",
+      "piano",
+      "acoustic",
+      "soft",
+      "jazz",
+      "corporate"
+    ],
+    "fx": [
+      "fade",
+      "fadeblack",
+      "fade"
+    ]
+  },
+  "minimal-blanco": {
+    "font": "Outfit",
+    "mayus": false,
+    "escala": 0.8,
+    "pos": "centro",
+    "anim": "sube",
+    "wipe": "ninguno",
+    "caja": false,
+    "calma": true,
+    "etiqueta": "texto",
+    "chip": "#2f7cf6",
+    "chipInk": "#ffffff",
+    "ink": "#ffffff",
+    "hl": "#8fc1ff",
+    "wipes": [
+      "#ffffff",
+      "#ffffff",
+      "#ffffff",
+      "#ffffff"
+    ],
+    "fin": "#ffffff",
+    "finInk": "#111111",
+    "cta": "#2f7cf6",
+    "ctaInk": "#ffffff",
+    "oscuro": true,
+    "sombra": "toda",
+    "generos": [
+      "chill",
+      "ambient",
+      "piano",
+      "acoustic",
+      "soft",
+      "jazz",
+      "corporate"
+    ],
+    "fx": [
+      "fade",
+      "fadewhite",
+      "dissolve"
+    ]
+  }
+}

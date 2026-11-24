@@ -48,6 +48,7 @@ function migrar(d) {
       ["venta_monto", "REAL"], // si se volvió cliente: cuánto se vendió (MXN)
       ["venta_servicio", "TEXT"],
       ["venta_fecha", "TEXT"],
+      ["marca", "TEXT"], // JSON {logo, fotos[], fuente}: logo y fotos reales del negocio (de su página o subidas a mano)
     ],
   };
   for (const [tabla, cols] of Object.entries(nuevas)) {

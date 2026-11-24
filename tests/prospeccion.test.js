@@ -77,7 +77,8 @@ test("no duplica prospectos y la baja los bloquea", () => {
 test("solo envía en horario hábil de La Laguna", () => {
   assert.equal(dentroDeHorarioEnvio(cfg, new Date("2026-11-09T17:00:00Z")), true); // lunes 11:00
   assert.equal(dentroDeHorarioEnvio(cfg, new Date("2026-11-09T03:00:00Z")), false); // domingo noche
-  assert.equal(dentroDeHorarioEnvio(cfg, new Date("2026-11-14T17:00:00Z")), false); // sábado
+  assert.equal(dentroDeHorarioEnvio(cfg, new Date("2026-11-14T17:00:00Z")), true); // sábado 11:00
+  assert.equal(dentroDeHorarioEnvio(cfg, new Date("2026-11-15T17:00:00Z")), false); // domingo 11:00
 });
 
 test("La Laguna es local y suma un punto; las otras ciudades se atienden a distancia", () => {

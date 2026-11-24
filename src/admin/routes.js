@@ -60,18 +60,42 @@ const claveIgual = (token, esperado) =>
   token.length === esperado.length &&
   crypto.timingSafeEqual(Buffer.from(token), Buffer.from(esperado));
 
+// Contra adivinar la clave a lo bruto: 10 claves equivocadas en 15 min desde la misma IP la bloquean 15 min.
+// (Solo cuentan los intentos que sí mandan una clave: el panel sin sesión no se bloquea a sí mismo.)
+const FALLOS_MAX = Number(process.env.ADMIN_FALLOS_MAX || 10);
+const VENTANA_FALLOS = 15 * 60_000;
+const fallos = new Map(); // ip -> [tiempos]
+export function bloqueadoPorFallos(ip, ahora = Date.now()) {
+  const xs = (fallos.get(ip) || []).filter((t) => ahora - t < VENTANA_FALLOS);
+  fallos.set(ip, xs);
+  return xs.length >= FALLOS_MAX;
+}
+export function registrarFallo(ip, ahora = Date.now()) {
+  const xs = (fallos.get(ip) || []).filter((t) => ahora - t < VENTANA_FALLOS);
+  xs.push(ahora);
+  fallos.set(ip, xs);
+  if (fallos.size > 5000) fallos.clear();
+  if (xs.length === FALLOS_MAX) console.warn(`[admin] ${ip} bloqueada 15 min por ${FALLOS_MAX} claves equivocadas`);
+}
+
 function auth(req, res, next) {
   if (esRedLocal(req)) return next();
   const token = req.get("x-admin-token") || "";
+  const ip = req.ip || "?";
+  if (bloqueadoPorFallos(ip)) return res.status(429).json({ error: "Demasiadas claves equivocadas. Espera 15 minutos." });
+  const rechazar = (status, cuerpo) => {
+    if (token) registrarFallo(ip);
+    return res.status(status).json(cuerpo);
+  };
   const n = negocioActual();
   if (n) {
     // Panel de un negocio cliente: entra su dueño con su clave, o tú con la tuya (ADMIN_TOKEN).
     // ADMIN_ABIERTO no aplica aquí: el panel de cada negocio siempre pide clave.
     if (claveIgual(token, n.meta.token) || claveIgual(token, settings.adminToken)) return next();
-    return res.status(401).json({ error: "Clave incorrecta. Pídele a sss.solutions la clave de tu panel." });
+    return rechazar(401, { error: "Clave incorrecta. Pídele a sss.solutions la clave de tu panel." });
   }
   if (panelAbierto() && !SIEMPRE_CON_CLAVE.includes(req.path)) return next();
-  if (!claveIgual(token, settings.adminToken)) return res.status(401).json({ error: "No autorizado. Revisa ADMIN_TOKEN en .env (y que no sea el valor de ejemplo)." });
+  if (!claveIgual(token, settings.adminToken)) return rechazar(401, { error: "No autorizado. Revisa ADMIN_TOKEN en .env (y que no sea el valor de ejemplo)." });
   next();
 }
 
@@ -214,12 +238,22 @@ export function adminRouter({ negocio: esNegocio = false } = {}) {
 
   // Manda un PDF (por ejemplo, una cotización) a una conversación de WhatsApp.
   // Cuerpo: el PDF tal cual. Query: ?nombre=Archivo.pdf&texto=Mensaje que va abajo
-  r.post("/conversaciones/:id/archivo", express.raw({ type: "application/pdf", limit: "15mb" }), wrap(async (req, res) => {
+  // También acepta un video MP4 (sale como video con el texto abajo).
+  r.post("/conversaciones/:id/archivo", express.raw({ type: ["application/pdf", "video/mp4"], limit: "16mb" }), wrap(async (req, res) => {
     const conv = getConversation(req.params.id);
     if (!conv) return res.status(404).json({ error: "No existe" });
     if (conv.canal !== "wa") return res.status(400).json({ error: "Solo se pueden mandar archivos por WhatsApp" });
-    if (!Buffer.isBuffer(req.body) || !req.body.length || req.body.subarray(0, 4).toString() !== "%PDF") {
-      return res.status(400).json({ error: "Manda un PDF (Content-Type: application/pdf)" });
+    const esPdf = Buffer.isBuffer(req.body) && req.body.subarray(0, 4).toString() === "%PDF";
+    const esMp4 = Buffer.isBuffer(req.body) && req.body.subarray(4, 8).toString() === "ftyp";
+    if (!esPdf && !esMp4) {
+      return res.status(400).json({ error: "Manda un PDF (Content-Type: application/pdf) o un MP4 (video/mp4)" });
+    }
+    if (esMp4) {
+      const texto = String(req.query.texto || "").trim();
+      await sendWaVideoArchivo(conv.externo_id, req.body, texto);
+      await recordOutgoing(conv.id, `${texto ? `${texto}\n` : ""}[Video enviado]`, "humano", "Sebastián (envío de video)");
+      logEvent("archivo_enviado", conv.id, { nombre: "video.mp4", bytes: req.body.length });
+      return res.json({ ok: true, nombre: "video.mp4" });
     }
     const nombre = String(req.query.nombre || "Documento.pdf").replace(/[\\/]/g, "-").slice(0, 120);
     const texto = String(req.query.texto || "").trim();
