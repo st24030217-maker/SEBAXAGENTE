@@ -32,6 +32,7 @@ ciudades:
   - { nombre: "San Pedro Garza García", lat: 25.6573, lon: -100.4020, local: false }
   - { nombre: "Chihuahua", lat: 28.6353, lon: -106.0889, local: false }
   - { nombre: "Zacatecas", lat: 22.7709, lon: -102.5833, local: false }
+  - { nombre: "Sombrerete", lat: 23.6347, lon: -103.6397, local: false }
   - { nombre: "Aguascalientes", lat: 21.8818, lon: -102.2916, local: false }
   - { nombre: "Querétaro", lat: 20.5888, lon: -100.3899, local: false }
   - { nombre: "Guadalajara", lat: 20.6767, lon: -103.3475, local: false }
