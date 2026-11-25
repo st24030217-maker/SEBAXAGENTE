@@ -13,6 +13,7 @@ const { procesarMensaje, esBaja, esRespuestaAutomatica, diezDigitos, numeroDueno
 const { logEvent } = await import("../src/db.js");
 const { prepararSeguimientos } = await import("../src/prospeccion/servicio.js");
 const { guardarProspecto } = await import("../src/prospeccion/servicio.js");
+const { getProspeccion } = await import("../src/prospeccion/config.js");
 
 const enviados = [];
 const enviarFalso = async (jid, texto) => enviados.push({ jid, texto });
@@ -82,8 +83,14 @@ test("seguimiento por WhatsApp: solo a quien se le escribió por WhatsApp hace N
   ins("s2", "Barbería Dos (por correo)", "8712222222", hace5);
   const c = ins("s3", "Barbería Tres (reciente)", "8713333333", new Date().toISOString());
   for (const id of [a, c]) logEvent("prospecto_whatsapp", null, { prospecto: Number(id), telefono: "x" });
-  const ids = seguimientosPendientesWa().map((p) => p.id);
+  // La prueba fija sus 4 días: no depende de cómo esté hoy config/prospeccion.yaml (puede estar en 0).
+  const envio = getProspeccion().envio, antes = envio.dias_para_seguimiento;
+  envio.dias_para_seguimiento = 4;
+  let ids;
+  try { ids = seguimientosPendientesWa().map((p) => p.id); } finally { envio.dias_para_seguimiento = antes; }
   assert.deepEqual(ids, [Number(a)]);
+  envio.dias_para_seguimiento = 0;
+  try { assert.deepEqual(seguimientosPendientesWa(), [], "en 0 no hay seguimientos"); } finally { envio.dias_para_seguimiento = antes; }
   assert.match(textoSeguimiento({ nombre: "Barbería Uno", rubro: "Barberías" }), /no les vuelvo a escribir/);
 });
 

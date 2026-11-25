@@ -32,7 +32,10 @@ const partes = clips.map((c, i) => {
   if (!fs.existsSync(out) && c.foto) {
     // Foto real (no de stock): cubre el cuadro un poco más grande y se desliza hacia arriba, como al hacer scroll
     const sw = Math.round(w * 1.12), sh = Math.round(h * 1.12);
-    const vf = `scale=${sw}:${sh}:force_original_aspect_ratio=increase:flags=lanczos,crop=${sw}:${sh},fps=30,crop=${w}:${h}:'(iw-ow)*${c.x ?? 0.5}':'(ih-oh)*(1-t/${dur})',eq=contrast=1.06:saturation=0.95,setsar=1`;
+    // "fija": true → la foto no se mueve ni se recorta (un mapa con puntos encima tiene que quedar exacto)
+    const vf = c.fija
+      ? `scale=${w}:${h}:flags=lanczos,fps=30,setsar=1`
+      : `scale=${sw}:${sh}:force_original_aspect_ratio=increase:flags=lanczos,crop=${sw}:${sh},fps=30,crop=${w}:${h}:'(iw-ow)*${c.x ?? 0.5}':'(ih-oh)*(1-t/${dur})',eq=contrast=1.06:saturation=0.95,setsar=1`;
     ff(["-loop", "1", "-t", String(dur), "-i", path.resolve(dir, c.foto), "-vf", vf, "-an", "-c:v", "libx264", "-crf", "16", "-preset", "veryfast", "-pix_fmt", "yuv420p", out]);
     console.log(`foto ${i + 1}/${clips.length} · ${c.foto} · ${dur}s`);
   }

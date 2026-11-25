@@ -103,7 +103,9 @@ export function redactarPlantilla(p, cfg, { seguimiento = false } = {}) {
   const local = esLocal(p, cfg);
   const boceto = seguimiento ? null : bocetoDe(p);
   // Con negocios de La Laguna se presenta como alguien de la zona; con los de otras ciudades, a distancia.
-  const presentacion = local ? `desarrollador web de ${cfg.remitente.ciudad}` : `de ${cfg.remitente.empresa}, desarrollo web y apps`;
+  const presentacion = local
+    ? `desarrollador web de ${cfg.remitente.ciudad}`
+    : `de ${cfg.remitente.empresa}${cfg.remitente.sede ? ` en ${cfg.remitente.sede}` : ""}, desarrollo web y apps`;
   const alcance = local ? "para negocios de La Laguna" : "para negocios de todo México, a distancia (todo por videollamada y WhatsApp)";
   if (seguimiento) {
     return {
