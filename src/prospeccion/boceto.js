@@ -366,21 +366,25 @@ function sApp(p) {
 function video(p, d) {
   const tipo = d.tipo === "citas" ? "cita" : ["menu", "cafe", "catalogo"].includes(d.tipo) ? "pedido" : d.tipo === "fidelidad" && d.sellos ? "sellos" : "informes";
   const fuente = d.servicios || d.items || d.planes || (d.cats ? Object.values(d.cats).flat() : []);
-  let filas = fuente.slice(0, 3).map((x) => [x[0], typeof x[2] === "number" ? x[2] : null]);
+  // Hoteles: el cliente no "pide", reserva (una habitación, con llegada y noches).
+  const R = tipo === "pedido" && !!d.reservas;
+  let filas = fuente.slice(0, 3).map((x) => [x[0], typeof x[2] === "number" || (typeof x[2] === "string" && /\$/.test(x[2])) ? x[2] : null]);
   if (!filas.length) filas = [["Informes", null], ["Horarios", null], ["Ubicación", null]];
-  const elegidos = tipo === "pedido" ? filas.slice(0, 2) : filas.slice(0, 1);
-  const total = elegidos.reduce((a, [, pr]) => a + (pr || 0), 0);
+  const elegidos = tipo === "pedido" && !R ? filas.slice(0, 2) : filas.slice(0, 1);
+  const total = elegidos.reduce((a, [, pr]) => a + (typeof pr === "number" ? pr : 0), 0);
   const nom = esc(p.nombre), ini = esc(iniciales(p.nombre));
   const dom = (String(p.nombre).normalize("NFD").replace(/[^A-Za-z0-9]/g, "").toLowerCase().slice(0, 16) || "tunegocio") + ".com";
   const caps = {
-    pedido: ["Tu cliente abre tu link", "Elige con fotos y precios", "Toca «Enviar pedido» y listo", "Te llega ordenado a tu WhatsApp"],
+    pedido: R
+      ? ["Tu huésped abre tu link", "Elige su habitación", "Toca «Reservar» y listo", "Te llega la reserva, sin comisión"]
+      : ["Tu cliente abre tu link", "Elige con fotos y precios", "Toca «Enviar pedido» y listo", "Te llega ordenado a tu WhatsApp"],
     cita: ["Tu cliente abre tu link", "Elige servicio y hora libre", "Confirma en un toque", "Te llega el aviso y a él su recordatorio"],
     sellos: ["Abre tu link o escanea tu código", "Guarda su tarjeta en el celular", "Cada visita suma un sello", "Le llega su premio y tus promos"],
     informes: ["Te encuentra en Google", "Ve tus servicios y tu información", "Te escribe con un toque", "Te llega su mensaje con sus datos"],
   }[tipo];
   const precio = (pr) => (pr == null ? "" : `<span>${dinero(pr)}</span>`);
   const s1 = `<div class="v-url">${ico("globe", 11)}<span class="v-tip" style="--n:${dom.length}">${esc(dom)}</span></div>
-<div class="v-hero"${fotosDe(d.id).portada ? ` style="background:linear-gradient(#0000 20%,#000000b3),url(${fotosDe(d.id).portada}) center/cover"` : ""}><i>${ini}</i><b>${nom}</b><small>Abierto ahora</small></div><div class="v-esq"><i></i><i></i><i></i></div>`;
+<div class="v-hero"${fotosDe(d.id).portada ? ` style="background:linear-gradient(#0000 20%,#000000b3),url(${fotosDe(d.id).portada}) center/cover"` : ""}><i>${ini}</i><b>${nom}</b><small>Abierto ahora</small></div><div class="v-esq">${filas.map(([n]) => `<i>${esc(n)}</i>`).join("")}</div>`;
   const sellosHtml = (extra) => {
     const s = d.sellos || { total: 8, llevas: 5, premio: "un regalo" };
     const llevas = Math.min(s.llevas, s.total - 1);
@@ -398,26 +402,33 @@ function video(p, d) {
   } else {
     const lista = filas.map(([n, pr], k) => `<div class="v-fila${k < elegidos.length && tipo !== "informes" ? " v-sel" : ""}" style="--k:${k}"><b>${esc(n)}</b>${precio(pr)}<em></em></div>`).join("");
     const horas = tipo === "cita" ? `<div class="v-horas"><i>10:00</i><i class="v-sel" style="--k:2">11:00</i><i>16:00</i></div>` : "";
-    const barra = tipo === "pedido" ? `Ver pedido (${elegidos.length})${total ? ` · ${dinero(total)}` : ""}` : tipo === "cita" ? "Continuar" : "Escribir por WhatsApp";
-    s2 = `<div class="v-tit">${tipo === "pedido" ? "Menú" : tipo === "cita" ? "Agenda tu cita" : "Servicios"}</div>${lista}${horas}<div class="v-barra">${esc(barra)}</div>`;
-    const lineas =
-      tipo === "pedido"
+    const barra = R ? "Reservar" : tipo === "pedido" ? `Ver pedido (${elegidos.length})${total ? ` · ${dinero(total)}` : ""}` : tipo === "cita" ? "Continuar" : "Escribir por WhatsApp";
+    const titLista = tipo === "pedido" ? (d.tipo === "catalogo" ? d.textosCatalogo?.titulo || "Catálogo" : "Menú") : tipo === "cita" ? "Agenda tu cita" : "Servicios";
+    const fechas = R ? `<div class="v-horas"><i>Llega vie 12</i><i class="v-sel" style="--k:2">2 noches</i></div>` : "";
+    s2 = `<div class="v-tit">${esc(titLista)}</div>${lista}${horas}${fechas}<div class="v-barra">${esc(barra)}</div>`;
+    const lineas = R
+      ? `<div><span>${esc(filas[0][0])}</span></div><div><span>Llegada</span><span>Viernes 12</span></div><div><span>Noches</span><span>2</span></div>`
+      : tipo === "pedido"
         ? elegidos.map(([n, pr]) => `<div><span>${esc(n)}</span>${precio(pr)}</div>`).join("") + (total ? `<div class="v-tot"><span>Total</span><span>${dinero(total)}</span></div>` : "")
         : tipo === "cita"
           ? `<div><span>${esc(filas[0][0])}</span></div><div><span>Mañana</span><span>11:00</span></div>`
           : `<div><span>Para: ${nom}</span></div><div><span>“Hola, quiero informes de ${esc(filas[0][0])}”</span></div>`;
-    const accion = tipo === "pedido" ? "Enviar pedido por WhatsApp" : tipo === "cita" ? "Confirmar cita" : "Enviar mensaje";
-    s3 = `<div class="v-tit">${tipo === "pedido" ? "Tu pedido" : tipo === "cita" ? "Tu cita" : "Escríbenos"}</div><div class="v-res">${lineas}</div><div class="v-boton v-toca">${esc(accion)}</div><div class="v-ok">${tipo === "cita" ? "Cita confirmada ✓" : "Enviado ✓"}</div>`;
+    const accion = R ? "Enviar reserva por WhatsApp" : tipo === "pedido" ? "Enviar pedido por WhatsApp" : tipo === "cita" ? "Confirmar cita" : "Enviar mensaje";
+    s3 = `<div class="v-tit">${R ? "Tu reserva" : tipo === "pedido" ? "Tu pedido" : tipo === "cita" ? "Tu cita" : "Escríbenos"}</div><div class="v-res">${lineas}</div><div class="v-boton v-toca">${esc(accion)}</div><div class="v-ok">${tipo === "cita" ? "Cita confirmada ✓" : "Enviado ✓"}</div>`;
     quien = tipo === "informes" ? "Ana Ruiz" : tipo === "cita" ? "Juan Pérez" : "María López";
-    msg =
-      tipo === "pedido"
+    msg = R
+      ? `Nueva reserva
+• ${esc(filas[0][0])}
+Llegada: viernes 12 · 2 noches
+A nombre de: María López`
+      : tipo === "pedido"
         ? `Nuevo pedido\n${elegidos.map(([n, pr]) => `• ${esc(n)}${pr ? `  ${dinero(pr)}` : ""}`).join("\n")}${total ? `\nTotal: ${dinero(total)}` : ""}\nEntrega: a domicilio`
         : tipo === "cita"
           ? `Cita confirmada\n${esc(filas[0][0])}\nMañana a las 11:00`
           : `Hola, quiero informes de ${esc(filas[0][0])}.\nMi nombre es Ana Ruiz.`;
   }
-  const sist = { pedido: "Pedido recibido · listo para preparar", cita: "Recordatorio programado para Juan ✓", sellos: "Tu tarjeta se actualizó sola ✓", informes: "Nuevo interesado guardado ✓" }[tipo];
-  const s4 = `<div class="v-noti"><i>${ico("wa", 14)}</i><div><b>WhatsApp · ahora</b><small>${tipo === "sellos" ? `${nom}: ¡ya casi es tu premio!` : `${esc(quien)}: ${tipo === "pedido" ? "nuevo pedido" : tipo === "cita" ? "nueva cita" : "quiere informes"}`}</small></div></div>
+  const sist = { pedido: R ? "Reserva directa · sin comisión ✓" : "Pedido recibido · listo para preparar", cita: "Recordatorio programado para Juan ✓", sellos: "Tu tarjeta se actualizó sola ✓", informes: "Nuevo interesado guardado ✓" }[tipo];
+  const s4 = `<div class="v-noti"><i>${ico("wa", 14)}</i><div><b>WhatsApp · ahora</b><small>${tipo === "sellos" ? `${nom}: ¡ya casi es tu premio!` : `${esc(quien)}: ${R ? "nueva reserva" : tipo === "pedido" ? "nuevo pedido" : tipo === "cita" ? "nueva cita" : "quiere informes"}`}</small></div></div>
 <div class="v-wah"><i>${tipo === "sellos" ? ini : esc(iniciales(quien))}</i><b>${tipo === "sellos" ? nom : esc(quien)}</b></div><div class="v-msg">${msg}</div><div class="v-sist">${sist}</div>`;
   const pantallas = [s1, s2, s3, s4].map((h, k) => `<div class="p-pant${k === 3 ? " v-wa" : ""}${k ? "" : " on"}" data-cap="${esc(caps[k])}" aria-hidden="${k ? "true" : "false"}">${h}</div>`).join("");
   return `<div class="peli a" style="--d:2" data-peli data-notap><div class="p-barras" aria-hidden="true">${"<i><b></b></i>".repeat(4)}</div>
@@ -426,11 +437,13 @@ function video(p, d) {
 }
 
 /** La propuesta (parte 2): puente, cómo funciona, antes y después, qué incluye y cierre. */
-function pantallasPropuesta(p, d, quiero, cfg) {
+function pantallasPropuesta(p, d, quiero, cfg, fondoPuente) {
   const pedidos = ["menu", "cafe", "catalogo"].includes(d.tipo);
   const cosa = d.tipo === "catalogo" ? "catálogo" : "menú";
   const [antes, despues] =
-    d.tipo === "citas"
+    d.reservas
+      ? [["Reservas por llamada que se pierden", "Pagas comisión por cada noche en las plataformas", "Si no contestas, reservan en otro lado"], ["Reservas directas a tu WhatsApp", "Sin comisiones: la noche completa es tuya", "Tus huéspedes regresan con tu app"]]
+      : d.tipo === "citas"
       ? [["Te marcan y no siempre contestas", "Olvidan la cita y pierdes el espacio", "Te buscan en Google y no apareces"], ["Agendan solos, a cualquier hora", "Recordatorio automático", "Apareces en Google con tu página"]]
       : pedidos
         ? [["Pedidos por llamada que se confunden", `Tu ${cosa} es una foto que nadie encuentra`, "Si no contestas, piden en otro lado"], ["Pedidos ordenados a tu WhatsApp", `Tu ${cosa} con fotos y precios`, "Tus clientes regresan con tu app"]]
@@ -438,10 +451,10 @@ function pantallasPropuesta(p, d, quiero, cfg) {
   const li = (xs) => xs.map((x) => `<li>${esc(x)}</li>`).join("");
   const llamada = `${quiero.split("?text=")[0]}?text=${encodeURIComponent(`Hola, vi la propuesta para ${p.nombre}. Prefiero platicarlo en una llamada, ¿cuándo puedes?`)}`;
   const proyectos = ["Barbería Vázquez", "Los Compadres", "KB Huates", "Milea Studio", "Copa Zona Laguna", "TikEduca"];
-  const conectada = d.tipo === "citas" ? "Citas y avisos directo" : pedidos ? "Menú o catálogo con pedidos" : "Mensajes y clientes en orden";
+  const conectada = d.reservas ? "Habitaciones y reservas directas" : d.tipo === "citas" ? "Citas y avisos directo" : pedidos ? "Menú o catálogo con pedidos" : "Mensajes y clientes en orden";
   return [
-    pant("puente", "oscuro", 2, "La propuesta", `${encab("La propuesta", `Todo esto, listo para <span class="nom">${esc(p.nombre)}</span>`, "Con tus fotos, tus precios y tu logo.")}
-<button class="sig-btn a" style="--d:3" type="button" data-ir="s-funciona">Ver cómo funciona ${ico("flecha")}</button>`, "puente"),
+    conFondo(pant("puente", "oscuro", 2, "La propuesta", `${encab("La propuesta", `Todo esto, listo para <span class="nom">${esc(p.nombre)}</span>`, "Con tus fotos, tus precios y tu logo.")}
+<button class="sig-btn a" style="--d:3" type="button" data-ir="s-funciona">Ver cómo funciona ${ico("flecha")}</button>`, "puente"), fondoPuente),
     pant("funciona", "oscuro", 2, "Así funciona", `${encab("Así funciona", "4 pasos, cero llamadas")}
 ${video(p, d)}`),
     pant("vs", "oscuro", 2, "Antes y después", `${encab("Antes y después", "Así cambia tu día")}
@@ -479,6 +492,13 @@ ${video(p, d)}`),
  * negocio (o de su giro) que se desvanece hacia arriba: así no se ven vacías y se siente su lugar.
  * "Lo más pedido" no, porque ya es una galería de fotos.
  */
+/** Foto a pantalla completa detrás de una pantalla oscura o de color (Visítanos, La propuesta), con velo para leer. */
+function conFondo(html, foto) {
+  if (typeof foto !== "string" || !/^https?:\/\//.test(foto)) return html;
+  const f = foto.replace(/["'()\\\s]/g, encodeURIComponent);
+  return html.replace(/<section class="pant ([a-z]+)"/, (m, c) => `<section class="pant ${c} con-fondo" style="--foto:url('${esc(f)}')"`);
+}
+
 function conFoto(html, fotos) {
   const lista = fotos.filter((f) => typeof f === "string" && /^https?:\/\//.test(f));
   if (!lista.length) return html;
@@ -514,9 +534,9 @@ export function renderBoceto(p) {
 
   const negocio = pantallasNegocio(p, d).filter(Boolean);
   const primera = (negocio[0] || "").match(/id="(s-[a-z]+)"/)?.[1] || "s-app";
-  const visita = pant("visita", "marca", 1, "Visítanos", `${encab(esc(lugar || "Encuéntranos"), "Visítanos")}
+  const visita = conFondo(pant("visita", "marca", 1, "Visítanos", `${encab(esc(lugar || "Encuéntranos"), "Visítanos")}
 <p class="dir a" style="--d:2">${esc(p.direccion || lugar || p.nombre)}${p.direccion && lugar ? `<small>${esc(lugar)}</small>` : ""}</p>
-<a class="maps a" style="--d:3" href="${esc(mapa)}" target="_blank" rel="noopener">${ico("pin", 20)} Abrir en Google Maps</a>`, "visita").replace('class="pant visita"', `class="pant visita" data-ini="${ini}"`);
+<a class="maps a" style="--d:3" href="${esc(mapa)}" target="_blank" rel="noopener">${ico("pin", 20)} Abrir en Google Maps</a>`, "visita").replace('class="pant visita"', `class="pant visita" data-ini="${ini}"`), (ambiente || [])[0] || fx.portada);
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>${esc(titulo)}</title><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="${d.color}">
 <meta property="og:title" content="${esc(p.nombre)}"><meta property="og:description" content="Una muestra de ${esc(d.que)} hecha para ${esc(p.nombre)}.">${fx.portada ? `<meta property="og:image" content="${fx.portada}">` : ""}<link rel="preconnect" href="https://images.unsplash.com">
@@ -738,6 +758,9 @@ img.cargando{opacity:0}
 .listo-msg{margin:12px 0 0;text-align:center;font-weight:700;color:var(--c-t)}
 
 /* ---------- Visítanos ---------- */
+.pant.con-fondo:after{content:"";position:absolute;inset:0;z-index:-2;pointer-events:none;background:var(--velo),var(--foto) center/cover no-repeat}
+.visita.con-fondo{--velo:linear-gradient(180deg,color-mix(in srgb,var(--c-f) 50%,transparent),color-mix(in srgb,var(--c-f) 88%,transparent) 50%,var(--c-f) 85%)}
+.puente.con-fondo{--velo:linear-gradient(180deg,#0b0d1080,#0b0d10e0 42%,var(--k0) 70%)}
 .visita .t{font-size:clamp(56px,17vw,92px)}
 .visita:before{content:attr(data-ini);position:absolute;right:-20px;bottom:60px;z-index:-1;font:800 260px/1 var(--fd);letter-spacing:-.06em;color:#ffffff17;pointer-events:none}
 .dir{margin:20px 0 0;font:600 clamp(24px,7vw,32px)/1.15 var(--fd);letter-spacing:-.02em}
@@ -772,7 +795,7 @@ img.cargando{opacity:0}
 .v-tip{display:inline-block;overflow:hidden;white-space:nowrap;width:calc(var(--n) * 1ch)}
 .v-hero{display:grid;gap:2px;border-radius:14px;padding:14px 11px;color:#fff;background:linear-gradient(160deg,var(--c-f),color-mix(in srgb,var(--c-f) 55%,#000))}
 .v-hero i{width:30px;height:30px;border-radius:9px;background:#ffffff30;display:grid;place-items:center;font-style:normal;font-weight:800;font-size:11px;margin-bottom:6px}.v-hero b{font-size:14px;overflow-wrap:anywhere}.v-hero small{opacity:.85;font-size:10px}
-.v-esq i{display:block;height:36px;border-radius:10px;background:#fff;margin-top:7px;border:1px solid #ebe9e6}
+.v-esq i{display:flex;align-items:center;height:36px;padding:0 10px;border-radius:10px;background:#fff;margin-top:7px;border:1px solid #ebe9e6;font-style:normal;font-weight:600;color:#3f3f46;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .v-tit{font-weight:800;font-size:13px;margin:2px 0}
 .v-fila{display:flex;align-items:center;gap:6px;background:#fff;border:1.5px solid #e7e5e4;border-radius:10px;padding:8px}.v-fila b{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.v-fila span{color:#71717a}
 .v-fila em{flex:none;width:17px;height:17px;border-radius:50%;border:1.5px solid #d4d4d8;display:grid;place-items:center;font-style:normal;color:#fff;font-size:10px;font-weight:800}
@@ -800,9 +823,9 @@ img.cargando{opacity:0}
 .vs-tog button[aria-pressed=true]{color:#fff}
 .vs-panel{display:grid;margin-top:14px;border-radius:26px;padding:22px 20px;background:var(--k1);border:1px solid var(--k2);transition:background .35s,border-color .35s,box-shadow .35s;cursor:pointer}
 .vs.con .vs-panel{background:linear-gradient(160deg,#0e2a4d,var(--k2) 75%);border-color:var(--kaz);box-shadow:0 0 0 4px #007afc22,0 30px 60px -30px #007afcaa}
-.vs-lado{grid-area:1/1;transition:opacity .3s,visibility .3s,transform .35s var(--ease)}
+.vs-lado{grid-area:1/1;transition:opacity .15s,visibility 0s .15s,transform .2s var(--ease)}
 .vs .vs-con,.vs.con .vs-hoy{opacity:0;visibility:hidden;transform:translateY(10px)}
-.vs.con .vs-con{opacity:1;visibility:visible;transform:none}
+.vs.con .vs-con,.vs:not(.con) .vs-hoy{opacity:1;visibility:visible;transform:none;transition:opacity .3s .15s,visibility 0s .15s,transform .35s .15s var(--ease)}
 .vs-sim{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;margin-bottom:16px}
 .vs-hoy .vs-sim{background:var(--k3);color:var(--kas)}
 .vs-con .vs-sim{background:var(--kb);color:#fff}
@@ -948,7 +971,7 @@ ${conFoto(negocio.join("\n"), [fx.portada, ...(ambiente || [])])}
 ${d.ia ? sIA(p, d) : ""}
 ${conFoto(sApp(p), [...(ambiente || []), fx.portada].reverse())}
 ${visita}
-${pantallasPropuesta(p, d, quiero, cfg)}
+${pantallasPropuesta(p, d, quiero, cfg, (ambiente || [])[1] || fx.portada)}
 </main>
 <button class="bolsa" id="bolsa" type="button" data-demo="pedido" hidden><span class="n" id="bn">0</span>${ico("bag")}<span id="bt">Ver pedido</span></button>
 <nav class="dock" aria-label="Navegación"><button class="nav" id="prev" type="button" aria-label="Pantalla anterior">${ico("izq", 22, 2.4)}</button><a class="dock-cta" href="${esc(quiero)}">${ico("wa", 20)} Quiero arrancar</a><button class="nav" id="next" type="button" aria-label="Siguiente pantalla">${ico("der", 22, 2.4)}</button></nav>

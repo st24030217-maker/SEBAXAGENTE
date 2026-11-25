@@ -82,7 +82,7 @@ export const PERFILES = [
   { id: "eventos", nombre: "Salón de eventos", tipo: "servicios", color: "#d6336c", que: "página con fechas disponibles y cotizaciones", fuerte: true,
     g: /salones para fiestas|mesas, sillas, vajillas/, n: /salon de (eventos|fiestas)|jardin de eventos|banquet|eventos|fiestas|inflable/, rubros: ["Salones de eventos"],
     items: [["Paquete XV años", "Salón, banquete y DJ"], ["Bodas", "Hasta 300 invitados"], ["Fiestas infantiles", "Inflables y show"], ["Renta de mobiliario", "Mesas, sillas y mantelería"]] },
-  { id: "hotel", nombre: "Hotel", tipo: "catalogo", color: "#0b7285", que: "página con reservas directas, sin comisiones", fuerte: true, accion: "Reservar",
+  { id: "hotel", nombre: "Hotel", tipo: "catalogo", color: "#0b7285", que: "página con reservas directas, sin comisiones", fuerte: true, accion: "Reservar", reservas: true,
     textosCatalogo: { eti: "Reserva directo", titulo: "Habitaciones", sub: "Elige y aparta por WhatsApp, sin comisiones." },
     g: /hoteles|moteles|hospedaje/, n: /hotel|motel|hostal|posada|suites/, rubros: ["Hoteles"],
     items: [["Habitación sencilla", "1 cama matrimonial", "$650 / noche"], ["Habitación doble", "2 camas matrimoniales", "$850 / noche"], ["Suite", "Cama king y sala", "$1,400 / noche"], ["Estancia larga", "Semana o mes", "Pregunta"]] },
