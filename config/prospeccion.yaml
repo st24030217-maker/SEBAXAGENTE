@@ -180,7 +180,8 @@ envio:
   hora_fin: "18:00"
   # Seguimiento: si no marcas que respondió, a los N días se prepara un segundo correo
   # (queda en "Por revisar" para que tú lo apruebes). 0 = sin seguimiento.
-  dias_para_seguimiento: 4
+  # En 0 desde el 2026-11-25: todo el cupo va a negocios nuevos (prioridad a Sombrerete). Regresar a 4 después.
+  dias_para_seguimiento: 0
 
 # Cómo debe sonar el mensaje. Claude respeta estas reglas al redactar.
 estilo:
