@@ -10,6 +10,8 @@ remitente:
   apodo: "Sebas"            # cómo te saluda el panel
   empresa: "sss.solutions"
   ciudad: "Lerdo, Durango"
+  # Con negocios de otras ciudades se presenta desde aquí ("de sss.solutions en Torreón"), igual que el video.
+  sede: "Torreón"
   whatsapp: "+52 871 916 4677"
   portafolio: "https://portafolio-salinas-serrano-sebastia.vercel.app"
   # Qué haces, en una frase. La IA la usa para redactar.
@@ -154,6 +156,8 @@ automatico:
   aprobar_solos_desde_puntaje: 6
 
 envio:
+  # Los aprobados de esta ciudad salen primero por WhatsApp, aunque otros tengan más puntaje. "" = ninguna.
+  ciudad_prioritaria: "Sombrerete"
   # --- WhatsApp (chip aparte) ---
   # Calentamiento del chip: empieza con este límite diario de primeros mensajes y sube solo
   # cada semana hasta el máximo. Si en la última semana muchos piden BAJA, vuelve al inicial.

@@ -595,9 +595,10 @@ export async function enviarSiguienteWa(ahora = new Date()) {
     }
     // Hasta 3 intentos por vuelta: los teléfonos fijos sin WhatsApp se saltan sin gastar el turno.
     for (let i = 0; i < 3; i++) {
+      // envio.ciudad_prioritaria: los aprobados de esa ciudad salen antes que los demás, aunque tengan menos puntaje.
       let p = db()
-        .prepare("SELECT * FROM prospectos WHERE estado = 'aprobado' AND IFNULL(telefono,'') != '' AND fuente != 'ejemplo' ORDER BY puntaje DESC, id LIMIT 1")
-        .get();
+        .prepare("SELECT * FROM prospectos WHERE estado = 'aprobado' AND IFNULL(telefono,'') != '' AND fuente != 'ejemplo' ORDER BY (IFNULL(ciudad,'') = ?) DESC, puntaje DESC, id LIMIT 1")
+        .get(String(e.ciudad_prioritaria || ""));
       // Modo automático: si no hay nada aprobado, el agente elige solo al mejor prospecto pendiente.
       const umbral = Number(cfg.automatico.aprobar_solos_desde_puntaje || 0);
       if (!p && umbral > 0) {
