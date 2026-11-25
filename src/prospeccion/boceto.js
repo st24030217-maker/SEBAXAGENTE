@@ -150,8 +150,9 @@ const ico = (n, s = 18, w = 2) =>
 const pant = (id, tono, parte, label, cuerpo, cls = "") =>
   `<section class="pant${cls ? ` ${cls}` : ""}" id="s-${id}" data-parte="${parte}" data-tono="${tono}" aria-label="${esc(label)}"><div class="cuerpo">\n${cuerpo}\n</div></section>`;
 /** Etiqueta + título (+ bajada) con la entrada escalonada. */
+// La etiqueta va solo cuando dice algo que el título no dice (sin etiqueta = "").
 const encab = (eti, titulo, baj) =>
-  `<p class="eti a" style="--d:0">${eti}</p>\n<h2 class="t a" style="--d:1">${titulo}</h2>${baj ? `\n<p class="baj a" style="--d:2">${baj}</p>` : ""}`;
+  `${eti ? `<p class="eti a" style="--d:0">${eti}</p>\n` : ""}<h2 class="t a" style="--d:1">${titulo}</h2>${baj ? `\n<p class="baj a" style="--d:2">${baj}</p>` : ""}`;
 const mas = (n, pr) => `<button class="mas" type="button" data-add="${esc(n)}" data-precio="${esc(pr)}" aria-label="Agregar ${esc(n)}">+</button>`;
 const item = (n, desc, pr, conBoton = true, extra = "") =>
   `<div class="item"><div class="info"><b>${esc(n)}${extra}</b>${desc ? `<small>${esc(desc)}</small>` : ""}${pr != null && pr !== "" ? `<span class="precio">${dinero(pr)}</span>` : ""}</div>${conBoton ? mas(n, pr) : ""}</div>`;
@@ -160,7 +161,7 @@ const item = (n, desc, pr, conBoton = true, extra = "") =>
 function sDestacados(lista, platos, eti) {
   const xs = lista.slice(0, Math.min(platos.length, lista.length, 4));
   if (!xs.length) return "";
-  return pant("dest", "claro", 1, "Lo más pedido", `${encab(eti, "Lo más pedido")}
+  return pant("dest", "claro", 1, "Lo más pedido", `${encab("", "Lo más pedido")}
 <div class="galeria a" style="--d:2" data-galeria data-notap>${xs
     .map(([n, , pr], i) => `<figure class="g-item${i ? "" : " on"}"><img src="${platos[i]}" alt="${esc(n)}" loading="${i ? "lazy" : "eager"}" decoding="async" width="720" height="900"><figcaption><b>${esc(n)}</b><span class="precio">${dinero(pr)}</span></figcaption>${mas(n, pr)}</figure>`)
     .join("")}</div>
@@ -169,7 +170,7 @@ function sDestacados(lista, platos, eti) {
 
 function sMenu(d) {
   const tabs = Object.keys(d.cats);
-  return pant("menu", "claro", 1, "Menú", `${encab("Pide aquí", "Menú", "Y te llega a WhatsApp.")}
+  return pant("menu", "claro", 1, "Menú", `${encab("", "Menú", "Pide aquí y te llega a WhatsApp.")}
 <div class="tabs a" style="--d:3">${tabs.map((t, i) => `<button class="tab${i ? "" : " on"}" type="button" data-tab="${i}" aria-pressed="${i ? "false" : "true"}">${esc(t)}</button>`).join("")}</div>
 <div class="a" style="--d:4">
 ${tabs.map((t, i) => `<div class="lista" data-lista="${i}"${i ? " hidden" : ""}>${d.cats[t].map(([n, desc, pr]) => item(n, desc, pr)).join("")}</div>`).join("\n")}
@@ -190,7 +191,7 @@ function sTarjeta(p, d) {
   const llevas = Math.min(s.llevas, s.total - 1);
   const palabra = d.palabraSello || "visitas";
   const circ = Array.from({ length: s.total }, (_, i) => (i < llevas ? `<i class="on">${ico("check", 14)}</i>` : "<i></i>")).join("");
-  return pant("tarjeta", "claro", 1, "Cliente frecuente", `${encab("Tarjeta", "Cliente frecuente")}
+  return pant("tarjeta", "claro", 1, "Cliente frecuente", `${encab("", "Cliente frecuente")}
 <div class="wallet a" style="--d:2" data-premio="${esc(s.premio)}" data-palabra="${esc(palabra)}"><div class="w-top"><b>${esc(p.nombre)}</b><span>Cliente frecuente</span></div>
 <div class="sellos">${circ}</div>
 <div class="w-pie" role="status"><span data-w-n>Llevas ${llevas} de ${s.total} ${esc(palabra)}</span><b data-w-f>Te faltan ${s.total - llevas} para ${esc(s.premio)}</b></div>
@@ -211,12 +212,12 @@ function sCitas(d) {
   const num = (f) => f.toLocaleDateString("es-MX", { day: "numeric", timeZone: "America/Monterrey" });
   // Textos por perfil (p. ej. un restaurante "reserva", un consultorio "agenda cita").
   const t = { eti: "Agenda tu cita", titulo: "¿Qué servicio?", baj: "Sin llamadas: eliges y listo.", titulo2: "¿Qué día y hora?", confirmar: "Confirmar cita", ...(d.citas || {}) };
-  const detalle = (min, pr) => [typeof min === "number" ? `${min} min` : min, pr != null && pr !== "" ? dinero(pr) : ""].filter(Boolean).join(" · ");
+  const detalle = (min, pr) => [typeof min === "number" ? `${min} min` : min, pr != null && pr !== "" ? dinero(pr) : ""].filter(Boolean).join(", ");
   const servicio = pant("serv", "claro", 1, "Elige servicio", `${encab(esc(t.eti), esc(t.titulo), esc(t.baj))}
 <div class="servs a" style="--d:3">${d.servicios
     .map(([n, min, pr], i) => `<button class="serv${i ? "" : " on"}" type="button" data-serv="${esc(n)}" aria-pressed="${i ? "false" : "true"}"><b>${esc(n)}</b><small>${ico("clock", 13)} ${esc(detalle(min, pr))}</small></button>`)
     .join("")}</div>
-<button class="cta a" style="--d:4" type="button" data-ir="s-hora">Elegir día y hora ${ico("flecha")}</button>`);
+<button class="cta a" style="--d:4" type="button" data-ir="s-hora">Elegir día y hora</button>`);
   const hora = pant("hora", "claro", 1, "Elige día y hora", `${encab(esc(t.eti), esc(t.titulo2))}
 <p class="rot a" style="--d:2">Día</p>
 <div class="dias a" style="--d:2">${dias.map((f, i) => `<button class="dia${i ? "" : " on"}" type="button" data-dia="${esc(nom(f))} ${esc(num(f))}" aria-pressed="${i ? "false" : "true"}"><small>${esc(nom(f))}</small><b>${esc(num(f))}</b></button>`).join("")}</div>
@@ -236,14 +237,14 @@ function sPlanes(d) {
 }
 
 function sPropiedades(p, d) {
-  return pant("props", "claro", 1, "Propiedades", `${encab("Catálogo", "Propiedades")}
+  return pant("props", "claro", 1, "Propiedades", `${encab("", "Propiedades")}
 <div class="tabs a" style="--d:2"><button class="tab on" type="button" aria-pressed="true">Todas</button><button class="tab" type="button" aria-pressed="false">Venta</button><button class="tab" type="button" aria-pressed="false">Renta</button></div>
 <div class="lista a" style="--d:3">${d.items.map(([n, desc, pr]) => item(n, `${desc}${p.colonia ? ` · ${p.colonia}` : ""}`, pr, false)).join("")}</div>
 <button class="cta a" style="--d:4" type="button" data-demo="informes">${ico("cal")} Agendar una visita</button>`);
 }
 
 function sServicios(d) {
-  const ts = { eti: "Lo que hacemos", titulo: "Servicios", cotizaEti: "Sin compromiso", cotizaTitulo: "Cotiza aquí", cotizaQue: "¿Qué necesitas?", ...(d.textosServicios || {}) };
+  const ts = { eti: "", titulo: "Servicios", cotizaEti: "Sin compromiso", cotizaTitulo: "Cotiza aquí", cotizaQue: "¿Qué necesitas?", ...(d.textosServicios || {}) };
   const servicios = pant("servicios", "claro", 1, ts.titulo, `${encab(esc(ts.eti), esc(ts.titulo))}
 <div class="lista a" style="--d:2">${d.items.map(([n, desc]) => item(n, desc, null, false)).join("")}</div>`);
   const resenas = pant("resenas", "claro", 1, "Reseñas", `${encab("Reseñas de ejemplo", "Lo que dicen")}
@@ -252,7 +253,7 @@ function sServicios(d) {
     ["Respondieron rápido y el precio fue justo.", "Carlos M."],
     ["Muy profesionales, los recomiendo.", "Ana R."],
   ]
-    .map(([t, a]) => `<div class="resena"><div class="estrellas">${ico("star", 14).repeat(5)}</div><p>${esc(t)}</p><small>${esc(a)} · reseña de ejemplo</small></div>`)
+    .map(([t, a]) => `<div class="resena"><div class="estrellas">${ico("star", 14).repeat(5)}</div><p>${esc(t)}</p><small>${esc(a)}</small></div>`)
     .join("")}</div>`);
   const cotiza = pant("cotiza", "claro", 1, "Cotiza", `${encab(esc(ts.cotizaEti), esc(ts.cotizaTitulo))}
 <div class="form a" style="--d:2"><input placeholder="Tu nombre" aria-label="Tu nombre" autocomplete="name"><input placeholder="WhatsApp" aria-label="WhatsApp" type="tel" inputmode="tel" autocomplete="tel"><input placeholder="${esc(ts.cotizaQue)}" aria-label="${esc(ts.cotizaQue)}"></div>
@@ -272,7 +273,7 @@ function sEscuela(d) {
 function sAmbiente(p, d, fotos, reales, lugar = null) {
   if (fotos.length < 3) return "";
   const chips = ({ menu: ["Para llevar", "A domicilio", "Pago con tarjeta"], cafe: ["Para llevar", "Wi-Fi", "Pago con tarjeta"], catalogo: ["Envíos", "Apartados", "Pago con tarjeta"] }[d.tipo]) || ["Atención personal", "Pago con tarjeta", "Estacionamiento"];
-  const titulo = lugar?.titulo ? [lugar.eti || "El lugar", lugar.titulo, lugar.texto || ""] : reales ? ["Tus fotos", "Así se ve lo tuyo", "Tomadas de tu página: así de bien se verían."] : ["El lugar", "Que se antoje venir", "Con tus fotos, se ve como es."];
+  const titulo = lugar?.titulo ? [lugar.eti || "", lugar.titulo, lugar.texto || ""] : reales ? ["", "Así se ve lo tuyo", "Tomadas de tu página: así de bien se verían."] : ["", "Que se antoje venir", "Con tus fotos, se ve como es."];
   if (lugar?.chips) chips.splice(0, chips.length, ...lugar.chips);
   return pant("lugar", "oscuro", 1, "El lugar", `${encab(...titulo.map((x) => esc(x)))}
 <div class="mosaico a" style="--d:2">${fotos.slice(0, 3).map((u, i) => `<figure class="mz mz${i}"><img src="${esc(u)}" alt="" loading="lazy" decoding="async"></figure>`).join("")}</div>
@@ -346,7 +347,7 @@ function sIA(p, d) {
     "Listo, quedó agendado. Te mando un recordatorio una hora antes.",
   ];
   return pant("ia", "marca", 1, "Asistente de IA", `${encab("En tu WhatsApp", "Asistente de IA")}
-<div class="ia-cab a" style="--d:2"><div class="orbe" aria-hidden="true"></div><div><b>Asistente de ${esc(p.nombre)}</b><small><i></i>En línea · contesta en segundos</small></div></div>
+<div class="ia-cab a" style="--d:2"><div class="orbe" aria-hidden="true"></div><div><b>Asistente de ${esc(p.nombre)}</b><small><i></i>En línea, contesta en segundos</small></div></div>
 <div class="chat a" style="--d:3">
 ${conv.map((t, i) => `<div class="burbuja ${i % 2 ? "yo" : "ellos"}">${i % 2 ? ico("bot", 14) + " " : ""}${esc(t)}</div>`).join("\n")}</div>
 <p class="mini a" style="--d:4">Contesta, agenda y te avisa, a cualquier hora.</p>`);
@@ -389,7 +390,7 @@ function video(p, d) {
     const s = d.sellos || { total: 8, llevas: 5, premio: "un regalo" };
     const llevas = Math.min(s.llevas, s.total - 1);
     return `<div class="v-tarj"><b>${nom}</b><small>Cliente frecuente</small><div class="v-sellos">${Array.from({ length: s.total }, (_, k) => `<i class="${k < llevas ? "on" : k === llevas && extra ? "on v-nuevo" : ""}">${k < llevas || (k === llevas && extra) ? "✓" : ""}</i>`).join("")}</div>
-<small>${extra ? `Llevas ${llevas + 1} de ${s.total}` : `Llevas ${llevas} de ${s.total}`} · premio: ${esc(s.premio)}</small></div>`;
+<small>${extra ? `Llevas ${llevas + 1} de ${s.total}` : `Llevas ${llevas} de ${s.total}`}, premio: ${esc(s.premio)}</small></div>`;
   };
   let s2, s3, msg, quien;
   if (tipo === "sellos") {
@@ -427,7 +428,7 @@ A nombre de: María López`
           ? `Cita confirmada\n${esc(filas[0][0])}\nMañana a las 11:00`
           : `Hola, quiero informes de ${esc(filas[0][0])}.\nMi nombre es Ana Ruiz.`;
   }
-  const sist = { pedido: R ? "Reserva directa · sin comisión ✓" : "Pedido recibido · listo para preparar", cita: "Recordatorio programado para Juan ✓", sellos: "Tu tarjeta se actualizó sola ✓", informes: "Nuevo interesado guardado ✓" }[tipo];
+  const sist = { pedido: R ? "Reserva directa, sin comisión" : "Pedido recibido, listo para preparar", cita: "Recordatorio programado para Juan", sellos: "Tu tarjeta se actualizó sola", informes: "Nuevo interesado guardado" }[tipo];
   const s4 = `<div class="v-noti"><i>${ico("wa", 14)}</i><div><b>WhatsApp · ahora</b><small>${tipo === "sellos" ? `${nom}: ¡ya casi es tu premio!` : `${esc(quien)}: ${R ? "nueva reserva" : tipo === "pedido" ? "nuevo pedido" : tipo === "cita" ? "nueva cita" : "quiere informes"}`}</small></div></div>
 <div class="v-wah"><i>${tipo === "sellos" ? ini : esc(iniciales(quien))}</i><b>${tipo === "sellos" ? nom : esc(quien)}</b></div><div class="v-msg">${msg}</div><div class="v-sist">${sist}</div>`;
   const pantallas = [s1, s2, s3, s4].map((h, k) => `<div class="p-pant${k === 3 ? " v-wa" : ""}${k ? "" : " on"}" data-cap="${esc(caps[k])}" aria-hidden="${k ? "true" : "false"}">${h}</div>`).join("");
@@ -454,10 +455,10 @@ function pantallasPropuesta(p, d, quiero, cfg, fondoPuente) {
   const conectada = d.reservas ? "Habitaciones y reservas directas" : d.tipo === "citas" ? "Citas y avisos directo" : pedidos ? "Menú o catálogo con pedidos" : "Mensajes y clientes en orden";
   return [
     conFondo(pant("puente", "oscuro", 2, "La propuesta", `${encab("La propuesta", `Todo esto, listo para <span class="nom">${esc(p.nombre)}</span>`, "Con tus fotos, tus precios y tu logo.")}
-<button class="sig-btn a" style="--d:3" type="button" data-ir="s-funciona">Ver cómo funciona ${ico("flecha")}</button>`, "puente"), fondoPuente),
+<button class="sig-btn a" style="--d:3" type="button" data-ir="s-funciona">Ver cómo funciona</button>`, "puente"), fondoPuente),
     pant("funciona", "oscuro", 2, "Así funciona", `${encab("Así funciona", "4 pasos, cero llamadas")}
 ${video(p, d)}`),
-    pant("vs", "oscuro", 2, "Antes y después", `${encab("Antes y después", "Así cambia tu día")}
+    pant("vs", "oscuro", 2, "Antes y después", `${encab("", "Así cambia tu día")}
 <div class="vs a" style="--d:2" data-vs data-notap>
 <div class="vs-tog" role="group" aria-label="Comparar"><button type="button" data-vs-btn="0" aria-pressed="true">Hoy</button><button type="button" data-vs-btn="1" aria-pressed="false">Con lo tuyo</button></div>
 <div class="vs-panel">
@@ -466,7 +467,7 @@ ${video(p, d)}`),
 </div>
 <p class="vs-pista">Toca para comparar</p>
 </div>`),
-    pant("incluye", "oscuro", 2, "Qué incluye", `${encab("Qué incluye", "Todo en uno")}
+    pant("incluye", "oscuro", 2, "Qué incluye", `${encab("", "Qué incluye")}
 <div class="incs">
 <div class="inc a" style="--d:2">${ico("globe", 22)}<b>Página web</b><small>Lista para el celular y Google</small></div>
 <div class="inc a" style="--d:3">${ico("app", 22)}<b>App instalable</b><small>Tu logo en su celular</small></div>
@@ -476,13 +477,13 @@ ${video(p, d)}`),
 <ol class="pasos a" style="--d:6"><li>Te visitamos y juntamos tus datos</li><li>Ajustamos el diseño contigo</li><li>Lo publicamos y te enseñamos</li></ol>`),
     pant("cierre", "oscuro", 2, "Quién te atiende", `<p class="eti a" style="--d:0">Quién te atiende</p>
 <div class="quien a" style="--d:1"><video src="/presentacion.mp4#t=0.1" controls playsinline preload="metadata"></video></div>
-<p class="quien-txt a" style="--d:2"><b>${esc(cfg.remitente.nombre)}</b> · ${esc(cfg.remitente.ciudad || "Lerdo, Durango")}<br>Diseño, programo y te atiendo en persona.</p>
+<p class="quien-txt a" style="--d:2"><b>${esc(cfg.remitente.nombre)}</b>, de ${esc(cfg.remitente.ciudad || "Lerdo, Durango")}<br>Diseño, programo y te atiendo en persona.</p>
 <a class="cta a" style="--d:3" href="${esc(quiero)}">${ico("wa", 20)} Quiero arrancar</a>
 <a class="sec2 a" style="--d:4" href="${esc(llamada)}">Prefiero una llamada primero</a>
 <p class="rail-t a" style="--d:5">Proyectos que ya hicimos</p>
 <ul class="rail a" style="--d:5">${proyectos.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
 <a class="sec3 a" style="--d:6" href="${esc(cfg.remitente.portafolio)}" target="_blank" rel="noopener">Ver más trabajos de ${esc(cfg.remitente.empresa)}</a>
-<p class="firma">Hecho por ${esc(cfg.remitente.nombre)} · ${esc(cfg.remitente.empresa)}</p>`, "cierre"),
+<p class="firma">Hecho por ${esc(cfg.remitente.nombre)} en ${esc(cfg.remitente.empresa)}</p>`, "cierre"),
   ].join("\n");
 }
 
@@ -518,7 +519,8 @@ export function renderBoceto(p) {
   const chip = String(process.env.WA_NUMERO || cfg.remitente.whatsapp || "").replace(/\D/g, "").slice(-10);
   const quiero = `https://wa.me/52${chip}?text=${encodeURIComponent(p.demo ? `Hola, vi la muestra de ${d.nombre.toLowerCase()} y me interesa una para mi negocio.` : `Hola, vi la propuesta que me hicieron para ${p.nombre} y me interesa arrancar.`)}`;
   const mapa = p.lat && p.lon ? `https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lon}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${p.nombre} ${p.ciudad || ""}`)}`;
-  const lugar = [p.colonia, p.ciudad].filter(Boolean).join(", ");
+  // "Sombrerete, Sombrerete" no: si la colonia se llama como la ciudad, va una sola vez.
+  const lugar = [...new Map([p.colonia, p.ciudad].filter(Boolean).map((x) => [String(x).trim().toLowerCase(), x])).values()].join(", ");
   const tel = String(p.telefono || "").replace(/\D/g, "");
   const accion = d.accion || { menu: "Pedir", cafe: "Pedir", catalogo: "Pedir", citas: "Agendar", fidelidad: "Escribir", inmobiliaria: "Preguntar", escuela: "Informes", servicios: "Cotizar" }[d.tipo] || "Escribir";
   const titulo = `${p.nombre} · muestra de ${d.que}`;
@@ -543,10 +545,10 @@ export function renderBoceto(p) {
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--c:${colorLegible(d.color)};--bg:#fff;--card:#fff;--tx:#141413;--mu:#5f5f5b;--ln:#e7e6e3;--chip:#f0efec;--c-f:var(--c);--c-t:var(--c);--fd:"Bricolage Grotesque","Schibsted Grotesk",system-ui,sans-serif;--fb:"Schibsted Grotesk",system-ui,sans-serif;--k0:#0b0d10;--k1:#14171b;--k2:#1e2228;--k3:#272b33;--kst:#363c47;--kas:#939eb1;--kfo:#b3bccb;--kaz:#3d95ff;--kaz2:#6cb3ff;--kb:#0068dc;--wa:#15803d;--ease:cubic-bezier(.2,.8,.2,1);--rebote:cubic-bezier(.3,1.6,.5,1);--top:calc(env(safe-area-inset-top) + 64px);--bot:calc(env(safe-area-inset-bottom) + 92px);--px:20px}
+:root{--c:${colorLegible(d.color)};--bg:#fff;--card:#fff;--tx:#141413;--mu:#5f5f5b;--ln:#e7e6e3;--chip:#f0efec;--c-f:var(--c);--c-t:var(--c);--fd:"Bricolage Grotesque","Schibsted Grotesk",system-ui,sans-serif;--fb:"Schibsted Grotesk",system-ui,sans-serif;--k0:color-mix(in srgb,var(--c-f) 14%,#060708);--k1:color-mix(in srgb,var(--c-f) 18%,#0e1013);--k2:color-mix(in srgb,var(--c-f) 22%,#181b20);--k3:color-mix(in srgb,var(--c-f) 26%,#22262d);--kst:color-mix(in srgb,var(--c-f) 28%,#323843);--kas:#a3abb8;--kfo:#c2c8d2;--kaz:color-mix(in srgb,var(--c) 45%,#fff);--kaz2:var(--kaz);--kb:var(--c-f);--wa:#15803d;--ease:cubic-bezier(.2,.8,.2,1);--rebote:cubic-bezier(.3,1.6,.5,1);--top:calc(env(safe-area-inset-top) + 64px);--bot:calc(env(safe-area-inset-bottom) + 92px);--px:20px}
 @media (prefers-color-scheme:dark){:root{--bg:#0c0c0d;--card:#161618;--tx:#f4f4f2;--mu:#a9a9a5;--ln:#2a2a2d;--chip:#222225;--c-t:color-mix(in srgb,var(--c) 55%,#fff)}}
 @supports (color:oklch(from red min(l,.5) c h)){
-  :root{--c-f:oklch(from var(--c) min(l,.55) c h);--c-t:oklch(from var(--c) min(l,.5) c h)}
+  :root{--c-f:oklch(from var(--c) min(l,.55) c h);--c-t:oklch(from var(--c) min(l,.5) c h);--kaz:oklch(from var(--c) max(l,.82) min(c,.12) h)}
   @media (prefers-color-scheme:dark){:root{--c-f:oklch(from var(--c) clamp(.4,l,.56) c h);--c-t:oklch(from var(--c) max(l,.76) min(c,.16) h)}}
 }
 [hidden]{display:none!important}
@@ -555,7 +557,8 @@ html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 var(--fb);-webkit-font-smoothing:antialiased;overflow:hidden;overscroll-behavior:none}
 button,input{font:inherit;color:inherit}
 button{cursor:pointer;-webkit-user-select:none;user-select:none}
-:focus-visible{outline:3px solid var(--kaz);outline-offset:3px}
+:focus-visible{outline:3px solid var(--c-t);outline-offset:3px}
+.pant:not([data-tono=claro]) :focus-visible{outline-color:#fff}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 img.cargando{opacity:0}
 .ic{flex:none;display:block}
@@ -574,20 +577,19 @@ img.cargando{opacity:0}
 .pant{position:relative;flex:none;width:100%;height:100%;scroll-snap-align:start;scroll-snap-stop:always;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;isolation:isolate;display:flex;flex-direction:column;padding:var(--top) var(--px) var(--bot);background:var(--bg);color:var(--tx);transition:padding-bottom .3s var(--ease)}
 .pant::-webkit-scrollbar{display:none}
 .pant[data-tono=marca]{background:radial-gradient(120% 70% at 100% 0%,#ffffff2b,transparent 60%),linear-gradient(180deg,transparent 50%,#00000033),var(--c-f);color:#fff}
-.pant[data-tono=oscuro]{background:radial-gradient(110% 55% at 100% 0%,#007afc38,transparent 62%),var(--k0);color:#fff}
+.pant[data-tono=oscuro]{background:radial-gradient(110% 55% at 100% 0%,color-mix(in srgb,var(--c-f) 45%,transparent),transparent 62%),var(--k0);color:#fff}
 .pant[data-tono=foto]{background:var(--c-f);color:#fff;padding:0}
 .app.con-pedido[data-parte="1"] .pant:not(.portada){padding-bottom:calc(var(--bot) + 60px)}
 .cuerpo{margin-block:auto;width:100%;display:flex;flex-direction:column}
 
-.eti{display:inline-flex;align-self:flex-start;align-items:center;gap:8px;margin:0 0 14px;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--c-t)}
-.eti:before{content:"";width:20px;height:3px;border-radius:3px;background:currentColor}
+.eti{margin:0 0 10px;font-size:16px;line-height:1.3;font-weight:600;color:var(--c-t)}
 .pant[data-tono=marca] .eti{color:#ffffffe0}
 .pant[data-tono=oscuro] .eti{color:var(--kaz2)}
 .t{margin:0;font:800 clamp(40px,11.6vw,58px)/.94 var(--fd);letter-spacing:-.045em;text-wrap:balance;overflow-wrap:anywhere}
 .baj{margin:12px 0 0;font-size:17px;line-height:1.4;color:var(--mu);max-width:30ch}
 .pant[data-tono=marca] .baj{color:#ffffffe6}
 .pant[data-tono=oscuro] .baj{color:var(--kfo)}
-.rot{margin:22px 0 10px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--mu)}
+.rot{margin:22px 0 10px;font-size:15px;font-weight:600;color:var(--mu)}
 .mini{margin:16px 0 0;font-size:15px;line-height:1.45;color:var(--mu)}
 .pant[data-tono=marca] .mini{color:#ffffffe0}
 
@@ -599,7 +601,7 @@ img.cargando{opacity:0}
 .prog b{display:block;height:100%;background:var(--ui);transform:scaleX(0);transform-origin:left;transition:transform .35s var(--ease),background .3s}
 .prog i.ya b,.prog i.ahora b{transform:none}
 .cab-fila{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px;font-size:12px;font-weight:700}
-.cab-parte{letter-spacing:.12em;text-transform:uppercase}
+.cab-parte{font-size:13px}
 .cab-muestra{padding:4px 10px;border-radius:99px;background:color-mix(in srgb,var(--ui) 15%,transparent);font-weight:600;transition:background .3s}
 
 /* ---------- Barra inferior ---------- */
@@ -693,7 +695,7 @@ img.cargando{opacity:0}
 .wallet:before{content:"";position:absolute;z-index:-1;width:260px;height:260px;right:-100px;top:-130px;border-radius:50%;border:44px solid #ffffff14;pointer-events:none}
 .w-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
 .w-top b{font:800 22px/1.1 var(--fd);letter-spacing:-.02em;overflow-wrap:anywhere}
-.w-top span{flex:none;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.92}
+.w-top span{flex:none;font-size:13px;font-weight:600;opacity:.92}
 .sellos{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:22px 0 18px}
 .sellos i{aspect-ratio:1;border-radius:50%;border:2px dashed #ffffff8c;display:grid;place-items:center}
 .sellos i.on{background:#fff;color:var(--c-f);border:0}
@@ -760,7 +762,7 @@ img.cargando{opacity:0}
 /* ---------- Visítanos ---------- */
 .pant.con-fondo:after{content:"";position:absolute;inset:0;z-index:-2;pointer-events:none;background:var(--velo),var(--foto) center/cover no-repeat}
 .visita.con-fondo{--velo:linear-gradient(180deg,color-mix(in srgb,var(--c-f) 50%,transparent),color-mix(in srgb,var(--c-f) 88%,transparent) 50%,var(--c-f) 85%)}
-.puente.con-fondo{--velo:linear-gradient(180deg,#0b0d1080,#0b0d10e0 42%,var(--k0) 70%)}
+.puente.con-fondo{--velo:linear-gradient(180deg,color-mix(in srgb,var(--k0) 50%,transparent),color-mix(in srgb,var(--k0) 88%,transparent) 42%,var(--k0) 70%)}
 .visita .t{font-size:clamp(56px,17vw,92px)}
 .visita:before{content:attr(data-ini);position:absolute;right:-20px;bottom:60px;z-index:-1;font:800 260px/1 var(--fd);letter-spacing:-.06em;color:#ffffff17;pointer-events:none}
 .dir{margin:20px 0 0;font:600 clamp(24px,7vw,32px)/1.15 var(--fd);letter-spacing:-.02em}
@@ -780,7 +782,7 @@ img.cargando{opacity:0}
 .p-barras b{display:block;height:100%;background:#fff;transform:scaleX(0);transform-origin:left}.p-barras .ya b{transform:none}
 .p-barras .ahora b{animation:p-barra 4.6s linear forwards}@keyframes p-barra{to{transform:none}}
 .peli:not(.corre) .ahora b,.peli:not(.corre) .p-pant *,.peli:not(.corre) .p-pant{animation-play-state:paused!important}
-.p-escena{position:relative;height:min(48svh,400px);border-radius:24px;border:1px solid var(--k2);background:radial-gradient(55% 65% at 50% 45%,#007afc38,transparent 72%),radial-gradient(var(--k3) 1px,transparent 1.4px) 0 0/16px 16px,var(--k1);overflow:hidden;display:flex;justify-content:center;padding-top:20px;cursor:pointer}
+.p-escena{position:relative;height:min(48svh,400px);border-radius:24px;border:1px solid var(--k2);background:radial-gradient(55% 65% at 50% 45%,color-mix(in srgb,var(--c-f) 40%,transparent),transparent 72%),radial-gradient(var(--k3) 1px,transparent 1.4px) 0 0/16px 16px,var(--k1);overflow:hidden;display:flex;justify-content:center;padding-top:20px;cursor:pointer}
 .p-escena:after{content:"";position:absolute;inset:auto 0 0;height:80px;background:linear-gradient(transparent,var(--k1));pointer-events:none}
 .p-cel{position:relative;width:200px;height:380px;flex:none;border-radius:32px;border:7px solid #2b2f37;background:#f6f5f3;overflow:hidden;box-shadow:0 0 0 1px var(--kst),0 30px 60px -20px #000}
 .p-pant{position:absolute;inset:0;padding:12px 10px;display:flex;flex-direction:column;gap:7px;font-size:11px;line-height:1.35;color:#18181b;background:#f6f5f3;opacity:0;visibility:hidden;transition:opacity .35s,visibility .35s}
@@ -822,7 +824,7 @@ img.cargando{opacity:0}
 .vs-tog button{position:relative;z-index:1;min-height:48px;border:0;background:none;color:var(--kfo);font-weight:800;font-size:15px;transition:color .3s}
 .vs-tog button[aria-pressed=true]{color:#fff}
 .vs-panel{display:grid;margin-top:14px;border-radius:26px;padding:22px 20px;background:var(--k1);border:1px solid var(--k2);transition:background .35s,border-color .35s,box-shadow .35s;cursor:pointer}
-.vs.con .vs-panel{background:linear-gradient(160deg,#0e2a4d,var(--k2) 75%);border-color:var(--kaz);box-shadow:0 0 0 4px #007afc22,0 30px 60px -30px #007afcaa}
+.vs.con .vs-panel{background:linear-gradient(160deg,color-mix(in srgb,var(--c-f) 55%,var(--k1)),var(--k2) 75%);border-color:var(--kaz);box-shadow:0 30px 60px -30px color-mix(in srgb,var(--c-f) 70%,transparent)}
 .vs-lado{grid-area:1/1;transition:opacity .15s,visibility 0s .15s,transform .2s var(--ease)}
 .vs .vs-con,.vs.con .vs-hoy{opacity:0;visibility:hidden;transform:translateY(10px)}
 .vs.con .vs-con,.vs:not(.con) .vs-hoy{opacity:1;visibility:visible;transform:none;transition:opacity .3s .15s,visibility 0s .15s,transform .35s .15s var(--ease)}
@@ -835,12 +837,12 @@ img.cargando{opacity:0}
 .vs-pista{margin:12px 0 0;text-align:center;font-size:13.5px;color:var(--kas)}
 
 /* Qué incluye */
-.incs{display:grid;gap:10px;margin-top:20px}
-.inc{display:grid;grid-template-columns:48px 1fr;column-gap:14px;align-items:center;padding:12px 14px;border-radius:20px;background:var(--k1);border:1px solid var(--k2)}
-.inc .ic{grid-row:1/3;width:48px;height:48px;padding:12px;box-sizing:border-box;border-radius:14px;background:#007afc26;color:var(--kaz)}
-.inc b{font:700 17px/1.2 var(--fd);align-self:end}
-.inc small{color:var(--kas);font-size:14px;align-self:start}
-.rot2{margin:24px 0 10px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--kas)}
+.incs{display:grid;gap:18px;margin-top:24px}
+.inc{display:grid;grid-template-columns:28px 1fr;column-gap:14px;align-items:start}
+.inc .ic{grid-row:1/3;width:26px;height:26px;margin-top:1px;color:var(--kaz)}
+.inc b{font:700 21px/1.15 var(--fd);letter-spacing:-.015em}
+.inc small{color:var(--kfo);font-size:15px;margin-top:2px}
+.rot2{margin:30px 0 12px;font-size:15px;font-weight:600;color:var(--kas)}
 .pasos{counter-reset:p;list-style:none;margin:0;padding:0;display:grid;gap:10px}
 .pasos li{counter-increment:p;display:flex;align-items:center;gap:14px;font-size:16px;font-weight:600;color:#e6e8ec}
 .pasos li:before{content:counter(p);flex:none;width:36px;height:36px;border-radius:50%;background:var(--kb);color:#fff;display:grid;place-items:center;font:800 17px/1 var(--fd)}
@@ -854,7 +856,7 @@ img.cargando{opacity:0}
 .cierre .cta{position:relative;isolation:isolate;background:var(--wa);margin-top:18px;min-height:62px;font-size:18px;box-shadow:0 20px 40px -16px #15803dcc,inset 0 1px 0 #ffffff40}
 .cierre .cta:after{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;box-shadow:0 0 0 2px #22c55e;opacity:0;pointer-events:none}
 .sec2{display:flex;align-items:center;justify-content:center;text-align:center;min-height:52px;margin-top:10px;padding:0 20px;border-radius:99px;border:1.5px solid #ffffff40;color:#fff;font-weight:700;font-size:15.5px;text-decoration:none}
-.rail-t{margin:18px 0 8px;font-size:11.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--kas)}
+.rail-t{margin:18px 0 8px;font-size:14px;font-weight:600;color:var(--kas)}
 .rail{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
 .rail li{font-size:12.5px;font-weight:600;color:var(--kfo);padding:5px 10px;border:1px solid var(--kst);border-radius:99px}
 .sec3{display:block;text-align:center;margin-top:12px;padding:6px;color:var(--kas);font-size:13.5px;text-underline-offset:3px}
@@ -892,14 +894,16 @@ dialog.hoja[open]::backdrop{background-color:rgb(0 0 0 / .6)}
 @media (prefers-reduced-motion:no-preference){
   dialog.hoja{transform:translateY(28px)}dialog.hoja[open]{transform:none}
   @starting-style{dialog.hoja[open]{transform:translateY(28px)}}
-  .js .pant .a{opacity:0;transform:translateY(22px);transition:opacity .35s var(--ease),transform .45s var(--ease)}
-  .js .pant.on .a{opacity:1;transform:none;transition-delay:calc(var(--d,0) * 50ms + 120ms)}
+  /* Un solo movimiento por pantalla: el título sube; lo demás aparece quieto, sin escalonar. */
+  .js .pant .a{opacity:0;transition:opacity .4s var(--ease)}
+  .js .pant.on .a{opacity:1;transition-delay:.12s}
+  .js .pant .t{transform:translateY(18px);transition:opacity .4s var(--ease),transform .55s var(--ease)}
+  .js .pant.on .t{transform:none;transition-delay:0s}
   .js .portada.on h1{animation:entra-t .6s var(--ease) both .15s}
   @keyframes entra-t{from{opacity:0;transform:translateY(40px) scale(.96);letter-spacing:-.02em}}
   .js .portada .fondo{transition:transform 1.2s var(--ease)}
   .js .lugar.on .mz img{animation:kb 9s ease-out both}.js .lugar.on .mz1 img{animation-delay:.2s;animation-name:kb2}.js .lugar.on .mz2 img{animation-delay:.4s}
   @keyframes kb{from{transform:scale(1.14) translate(2%,2%)}}@keyframes kb2{from{transform:scale(1.14) translate(-2%,-1%)}}
-  .js .portada.on .sello .anillo{animation:gira 30s linear infinite;transform-origin:60px 60px}
 
   .js .portada:not(.on) .fondo{transform:scale(1.08)}
   .g-item.on img{animation:acerca .7s var(--ease) both}
@@ -915,8 +919,6 @@ dialog.hoja[open]::backdrop{background-color:rgb(0 0 0 / .6)}
   .sellos i.nuevo{animation:sello .5s var(--rebote)}
   @keyframes sello{from{opacity:0;transform:scale(2.2) rotate(-25deg)}}
   .cel.instalada i.mio{animation:pop .5s var(--rebote)}
-  .orbe{animation:gira 6s linear infinite}
-  @keyframes gira{to{transform:rotate(1turn)}}
   .js .pant.on .burbuja{animation:sube .4s var(--ease) both}
   .js .pant.on .burbuja:nth-child(1){animation-delay:.4s}.js .pant.on .burbuja:nth-child(2){animation-delay:1.2s}.js .pant.on .burbuja:nth-child(3){animation-delay:2s}.js .pant.on .burbuja:nth-child(4){animation-delay:2.8s}
   .js .pant:not(.on) .burbuja{opacity:0}
@@ -937,7 +939,7 @@ dialog.hoja[open]::backdrop{background-color:rgb(0 0 0 / .6)}
   .p-pant.on .v-msg{animation:v-pop .4s 1.2s both;transform-origin:top left}.p-pant.on .v-sist{animation:v-sube .4s 2.5s both}
 }
 @media (prefers-reduced-motion:reduce){*,*:before,*:after{transition-duration:.01ms!important}}
-.top-v{display:inline-block;margin-left:8px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--c-t);vertical-align:2px}
+.top-v{display:inline-block;margin-left:8px;font-size:13px;font-weight:600;color:var(--c-t);vertical-align:1px}
 .resenas{display:grid;gap:10px}
 .resena{background:var(--chip);border-radius:18px;padding:14px 16px}
 .resena p{margin:6px 0 4px;font-size:15px;line-height:1.4}
@@ -950,14 +952,14 @@ dialog.hoja[open]::backdrop{background-color:rgb(0 0 0 / .6)}
 </style></head>
 <body data-neg="${esc(p.nombre)}">
 <div class="app" id="app" data-tono="foto" data-parte="1">
-<header class="cab" aria-hidden="true"><div class="prog" id="prog"></div><div class="cab-fila"><span class="cab-parte" id="parte">Tu página</span><span class="cab-muestra">Muestra · contenido de ejemplo</span></div></header>
+<header class="cab" aria-hidden="true"><div class="prog" id="prog"></div><div class="cab-fila"><span class="cab-parte" id="parte">Tu página</span><span class="cab-muestra">Muestra con datos de ejemplo</span></div></header>
 <main class="deck" id="deck" aria-label="Muestra para ${esc(p.nombre)}">
 <section class="pant portada" id="s-portada" data-parte="1" data-tono="foto" aria-label="Portada">
 ${fx.portada ? `<img class="fondo" src="${fx.portada}" alt="" fetchpriority="high" decoding="async" width="1400" height="933">` : ""}
 <div class="p-in">
 ${logoHtml}
 <h1>${esc(p.nombre)}</h1>
-<p class="meta a" style="--d:3"><span class="ab">Abierto ahora</span><span>${esc(d.nombre)}${lugar ? ` · ${esc(lugar)}` : ""}</span></p>
+<p class="meta a" style="--d:3"><span class="ab">Abierto ahora</span><span>${esc(d.nombre)}</span>${lugar ? `<span>${esc(lugar)}</span>` : ""}</p>
 <div class="acciones a" style="--d:4">
 <button class="acc pri" type="button" data-ir="${primera}">${ico(d.tipo === "citas" ? "cal" : "wa", 20)}${esc(accion)}</button>
 <a class="acc redondo" href="${tel ? `tel:${tel}` : "#"}" aria-label="Llamar">${ico("phone", 20)}</a>
