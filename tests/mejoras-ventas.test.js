@@ -86,4 +86,10 @@ test("el boceto: precios con unidad legibles, hotel con habitaciones y fotos en 
   assert.doesNotMatch(html, /Arma tu pedido/);
   assert.match(html, /\$850<small class="u">\/noche<\/small>/);
   assert.match(html, /class="pant con-foto" style="--foto:url\('https:/);
+  // Un hotel recibe reservas, no pedidos; y Visítanos / La propuesta llevan foto de fondo
+  assert.match(html, /Reservas directas a tu WhatsApp/);
+  assert.match(html, /Enviar reserva por WhatsApp/);
+  assert.doesNotMatch(html, /Pedidos por llamada|Enviar pedido/);
+  assert.match(html, /class="pant visita con-fondo"/);
+  assert.match(html, /class="pant puente con-fondo"/);
 });
