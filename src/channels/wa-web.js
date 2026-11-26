@@ -186,8 +186,32 @@ const PATRONES_AUTOMATICOS = [
   /(mensaje|respuesta) autom[aá]tic/i,
   /(estamos|nos encontramos) fuera (de|del) horario/i,
   /(haznos|h[aá]ganos|d[ée]janos) saber (c[oó]mo|en qu[eé]) (podemos|te podemos) ayudar/i,
+  /agradecemos su preferencia/i,
+  /no (realizamos|damos|brindamos|atendemos) (consultas|informes|atenci[oó]n)[^.]{0,30}(v[ií]a|por) (whats|redes|este medio)/i,
+  /(est[aá]|la) cuenta (es|est[aá]) (manejada|atendida|administrada) por/i,
+  /bienvenid[oa]s?(\s*\(a\))? a /i,
 ];
 export const esRespuestaAutomatica = (texto) => PATRONES_AUTOMATICOS.some((r) => r.test(String(texto || "")));
+
+// Nadie lee nuestro mensaje y escribe un texto largo en segundos: si llega así justo después de que
+// le escribimos (y la persona no venía platicando), es la respuesta automática de su WhatsApp Business.
+const SEGUNDOS_INSTANTANEA = 20;
+const LARGO_INSTANTANEA = 60;
+export function esRespuestaInstantanea(texto, segundosDesdeNuestro, platicandoReciente = false) {
+  if (platicandoReciente || segundosDesdeNuestro == null) return false;
+  return segundosDesdeNuestro >= 0 && segundosDesdeNuestro < SEGUNDOS_INSTANTANEA && String(texto || "").trim().length >= LARGO_INSTANTANEA;
+}
+
+/** Segundos entre nuestro último mensaje y `llegada`, y si el cliente escribió (de verdad) en los últimos 10 minutos. */
+function contextoLlegada(id, llegada) {
+  const conv = `wa:${id}`;
+  const nuestro = db().prepare("SELECT creado FROM mensajes WHERE conversacion_id = ? AND rol = 'agente' ORDER BY id DESC LIMIT 1").get(conv);
+  const hace10 = new Date(llegada - 10 * 60_000).toISOString();
+  const platicando = !!db()
+    .prepare("SELECT 1 FROM mensajes WHERE conversacion_id = ? AND rol = 'cliente' AND creado >= ? AND texto NOT LIKE '[Respuesta automática]%'")
+    .get(conv, hace10);
+  return { segundos: nuestro ? (llegada - Date.parse(nuestro.creado)) / 1000 : null, platicando };
+}
 
 /** Guarda la respuesta automática en la conversación (para verla en el panel) sin que cuente como respuesta del cliente. */
 function guardarRespuestaAutomatica(id, nombre, texto) {
@@ -222,16 +246,20 @@ async function recibir(m) {
     else if (m.message) texto = SOLO_IMAGEN;
     else return;
   }
-  const p = pendientes.get(id) || { textos: [], nombre: m.pushName || null, timer: null };
+  const p = pendientes.get(id) || { textos: [], instantaneas: new Set(), nombre: m.pushName || null, timer: null };
+  const llegada = Date.now();
+  const ctx = contextoLlegada(id, llegada);
+  if (esRespuestaInstantanea(texto, ctx.segundos, ctx.platicando)) p.instantaneas.add(texto);
   p.textos.push(texto);
   clearTimeout(p.timer);
   p.timer = setTimeout(() => {
     pendientes.delete(id);
     // Las respuestas automáticas se guardan aparte; si la persona escribió algo más, se responde solo eso.
-    const automaticas = p.textos.filter(esRespuestaAutomatica);
+    const esAuto = (t) => esRespuestaAutomatica(t) || p.instantaneas.has(t);
+    const automaticas = p.textos.filter(esAuto);
     if (automaticas.length) {
       for (const t of automaticas) guardarRespuestaAutomatica(id, p.nombre, t);
-      p.textos = p.textos.filter((t) => !esRespuestaAutomatica(t));
+      p.textos = p.textos.filter((t) => !esAuto(t));
       if (!p.textos.length) return;
     }
     // Solo imágenes otra vez (ya se le pidió una vez que lo escribiera): el bot no repite lo mismo;

@@ -9,7 +9,7 @@ process.env.SMTP_USER = "";
 process.env.OWNER_WEBHOOK_URL = "";
 
 const { openDb, getDb, getConversation, getLead } = await import("../src/db.js");
-const { procesarMensaje, esBaja, esRespuestaAutomatica, diezDigitos, numeroDueno, seguimientosPendientesWa, textoSeguimiento } = await import("../src/channels/wa-web.js");
+const { procesarMensaje, esBaja, esRespuestaAutomatica, esRespuestaInstantanea, diezDigitos, numeroDueno, seguimientosPendientesWa, textoSeguimiento } = await import("../src/channels/wa-web.js");
 const { logEvent } = await import("../src/db.js");
 const { prepararSeguimientos } = await import("../src/prospeccion/servicio.js");
 const { guardarProspecto } = await import("../src/prospeccion/servicio.js");
@@ -122,6 +122,9 @@ test("detecta respuestas automáticas de WhatsApp Business y no confunde a perso
     "Gracias por comunicarte a Consultoría Integral En Seguros Y Fianzas. ¿Cómo podemos ayudarte? 😃",
     "Gracias por comunicarte con M&M Álvarez Agente De Seguros Y De Fianzas. Por favor, haznos saber cómo podemos ayudarte.",
     "En este momento estamos fuera de horario, te responderemos pronto.",
+    "* Agradecemos su preferencia. \nCon el fin de poder brindarle atención especializada, no realizamos consultas vía WhatsApp ni por nuestras redes sociales.",
+    "Le recordamos que está cuenta es manejada por personal administrativo, con el fin de realizar agenda de citas.",
+    "¡Hola! Bienvenido(a) a Gorditas Atotonilco. Únicamente atendemos pedidos por llamada telefónica.",
   ]) assert.equal(esRespuestaAutomatica(t), true, t);
   for (const t of [
     "Lo comparto a Gerencia",
@@ -129,5 +132,15 @@ test("detecta respuestas automáticas de WhatsApp Business y no confunde a perso
     "Gracias , por tenernos en cuenta , como le comento ya tenemos quien maneje nuestra publicidad",
     "Esta bien el jueves a las 9",
     "¿Cuál es su horario para pasar?",
+    "Agradecemos mucho, pero por ahora no",
   ]) assert.equal(esRespuestaAutomatica(t), false, t);
+});
+
+test("un texto largo que llega segundos después de nuestro mensaje es respuesta automática", () => {
+  const largo = "Por su bienestar le recordamos que todas las valoraciones requieren una valoración médica en consultorio.";
+  assert.equal(esRespuestaInstantanea(largo, 0.14), true);
+  assert.equal(esRespuestaInstantanea(largo, 90), false); // ya le dio tiempo de leer y escribir
+  assert.equal(esRespuestaInstantanea("Ok", 2), false); // corto: una persona sí contesta así de rápido
+  assert.equal(esRespuestaInstantanea(largo, 3, true), false); // venía platicando: pudo estar escribiendo
+  assert.equal(esRespuestaInstantanea(largo, null), false); // nunca le escribimos
 });
