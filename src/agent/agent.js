@@ -34,8 +34,8 @@ function systemPrompt() {
   return systemCache.get(n);
 }
 
-// Los negocios cliente no tienen el video de presentación de sss.solutions.
-const SOLO_PRINCIPAL = new Set(["enviar_video_presentacion"]);
+// Los negocios cliente no tienen los videos de sss.solutions.
+const SOLO_PRINCIPAL = new Set(["enviar_video_presentacion", "enviar_video_proyectos"]);
 const TOOLS_NEGOCIO = TOOL_DEFINITIONS.filter((t) => !SOLO_PRINCIPAL.has(t.name));
 const herramientas = () => (negocioActual() ? TOOLS_NEGOCIO : TOOL_DEFINITIONS);
 

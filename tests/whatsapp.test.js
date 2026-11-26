@@ -116,6 +116,20 @@ test("sin video cargado, el agente no intenta mandarlo y el primer mensaje sigue
   assert.match(r.motivo, /portafolio/);
 });
 
+test("video de proyectos: se reconoce el del repo, solo por WhatsApp y nunca dos veces al mismo cliente", async () => {
+  const { videoProyectos } = await import("../src/channels/wa-web.js");
+  const { executeTool } = await import("../src/agent/tools.js");
+  const { getNegocio } = await import("../src/config.js");
+  assert.match(String(videoProyectos()), /proyectos\.mp4$/);
+  const conv = { id: "wa:8712222222", canal: "wa", externo_id: "8712222222" };
+  const web = await executeTool("enviar_video_proyectos", {}, { convId: "web:x", canal: "web", conv, negocio: getNegocio() });
+  assert.equal(web.ok, false);
+  logEvent("video_proyectos_enviado", conv.id, {});
+  const r = await executeTool("enviar_video_proyectos", {}, { convId: conv.id, canal: "wa", conv, negocio: getNegocio() });
+  assert.equal(r.ok, false);
+  assert.match(r.motivo, /ya recibió/);
+});
+
 test("detecta respuestas automáticas de WhatsApp Business y no confunde a personas", () => {
   for (const t of [
     "Hola, gracias por comunicarte a Loncheria Mingo. Nuestro horario de servicio es de 1 de la tarde a 12 de la noche todos los días ⏱️ . En cuanto retomemos nuestro servicio con gusto te atenderemos.",

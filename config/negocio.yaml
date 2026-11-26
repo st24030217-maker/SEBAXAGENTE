@@ -72,6 +72,11 @@ catalogo:
     categoria: "Paquete"
     precio: 2000
     descripcion: "Primer pago de $2,000 del paquete completo de $4,000. Con este pago Sebastián arranca el proyecto; los otros $2,000 se pagan al entregarlo terminado. Es lo que se cobra cuando el cliente dice 'va'."
+  - id: ANTICIPO_FLEX
+    nombre: "Anticipo del plan flexible: arranque del paquete completo (primer pago de 3)"
+    categoria: "Paquete"
+    precio: 1000
+    descripcion: "Plan flexible del paquete completo de $4,000: $1,000 para arrancar, $1,500 cuando el cliente aprueba el diseño y $1,500 al entregarlo terminado. Solo para el cliente que dudó por el precio y aceptó el plan flexible."
   - id: PAQUETE
     nombre: "Paquete completo: página web + app + menú digital conectado a WhatsApp"
     categoria: "Paquete"
@@ -126,10 +131,10 @@ catalogo:
 politicas:
   proceso: "1) Diagnóstico y alcance, 2) diseño y prototipo antes de programar, 3) desarrollo con revisiones continuas, 4) publicación en la nube y mantenimiento."
   precios: "Paquete completo (página web + app + menú digital conectado a WhatsApp): $4,000 MXN todo incluido. El agente SÍ da este precio con confianza. Otros servicios sueltos (sistemas a la medida, agente de IA, tienda en línea) se cotizan con Sebastián."
-  forma_de_pago: "2 pagos: $2,000 al iniciar el proyecto y $2,000 al entregarlo terminado. El cliente no paga todo por adelantado."
+  forma_de_pago: "2 pagos: $2,000 al iniciar el proyecto y $2,000 al entregarlo terminado. El cliente no paga todo por adelantado. Plan flexible (solo si el cliente duda por el precio): $1,000 para arrancar, $1,500 al aprobar el diseño y $1,500 al entregar; el total sigue siendo $4,000."
   plazos: "Dependen del proyecto; Sebastián los confirma en la propuesta."
   soporte: "Incluye soporte continuo y mantenimiento después de publicar."
-  medios_pago: "Paquete: $2,000 al iniciar y $2,000 al entregar. Sebastián confirma los datos para el pago."
+  medios_pago: "Paquete: $2,000 al iniciar y $2,000 al entregar (o plan flexible: $1,000 + $1,500 + $1,500). Sebastián confirma los datos para el pago."
 
 descuentos:
   maximo_porcentaje: 0
@@ -138,7 +143,7 @@ descuentos:
 pagos:
   # Si hay MERCADOPAGO_ACCESS_TOKEN y PAYMENT_PROVIDER=mercadopago en .env, el agente manda un link
   # de pago real. Si no, manda este texto (pon aquí tu banco, CLABE y a nombre de quién).
-  instrucciones_transferencia: "Sebastián te manda hoy mismo los datos para depositar el anticipo de $2,000 y te confirma en cuanto lo reciba."
+  instrucciones_transferencia: "Sebastián te manda hoy mismo los datos para depositar el anticipo y te confirma en cuanto lo reciba."
 
 seguimientos:
   activo: true
@@ -149,7 +154,7 @@ faq:
   - p: "¿Cuánto cuesta?"
     r: "El paquete completo cuesta $4,000 e incluye todo: tu página web, tu app y tu menú digital conectado a tu WhatsApp. Y no lo pagas todo de golpe: $2,000 para arrancar y los otros $2,000 cuando ya te entregamos todo funcionando. ¿Qué día te queda bien que Sebastián pase a tu negocio para arrancar?"
   - p: "Está caro / lo voy a pensar"
-    r: "Te entiendo. Piénsalo así: con que el menú y la página te traigan unos cuantos pedidos o clientes nuevos al mes, ya se pagó. Y solo arrancas con $2,000; el resto lo pagas cuando ya lo tengas funcionando. ¿Te parece si Sebastián pasa a enseñártelo en persona y lo decides ahí?"
+    r: "Te entiendo. Para que no te pese, lo podemos hacer más ligero: arrancas con solo $1,000, das $1,500 cuando apruebes el diseño y los últimos $1,500 cuando ya lo tengas funcionando. Mismo paquete completo, mismos $4,000. ¿Arrancamos así?"
   - p: "¿Usan plantillas?"
     r: "No. Todo se diseña y programa a la medida de tu negocio."
   - p: "¿Pueden venir a mi negocio?"
@@ -162,7 +167,9 @@ faq:
 reglas_extra:
   - "Tu meta es CERRAR el paquete completo de $4,000 (2 pagos de $2,000: al iniciar y al entregar). Cuando pregunten precio, dalo directo y claro, sin rodeos, y ofrece de inmediato el siguiente paso."
   - "Cada respuesta tuya termina con una pregunta que avance la venta: proponer 2 horarios concretos para la visita o llamada (por ejemplo 'el jueves a las 11 o a las 4'), o preguntar si arrancamos con el paquete. Nunca termines con 'quedo a la orden' sin proponer algo."
-  - "Si el cliente dice 'lo pienso', 'lo reviso' o 'luego te digo', no lo sueltes: resuelve su duda principal, recuérdale que solo arranca con $2,000 y propone una fecha concreta para verse; si aun así pide tiempo, acuerda un día exacto para volver a escribirle."
+  - "Si el cliente dice 'lo pienso', 'lo reviso', 'lo consulto', 'luego te digo' o que está caro, no lo sueltes: ofrécele el PLAN FLEXIBLE ($1,000 para arrancar, $1,500 al aprobar el diseño y $1,500 al entregar; mismo paquete, mismos $4,000) y pregúntale si arrancan así. El plan flexible NUNCA se ofrece de entrada: primero va el precio normal (2 pagos de $2,000). Si aun así pide tiempo, acuerda un día exacto para volver a escribirle."
+  - "Cuando el cliente pregunte el precio o dude por primera vez, usa enviar_video_proyectos (una sola vez por conversación) para que vea trabajos reales ya entregados, y en tu mensaje de texto da el precio o el plan flexible como siempre. Si la herramienta dice que ya se mandó, no lo menciones."
+  - "Si el cliente aceptó el PLAN FLEXIBLE, al cerrar cotiza el ANTICIPO_FLEX ($1,000) en lugar del ANTICIPO, y aclara que siguen $1,500 al aprobar el diseño y $1,500 al entregar."
   - "Si el cliente acepta el paquete ('va', 'sí', 'arrancamos', 'me interesa arrancar'), felicítalo y CIERRA en ese momento: guarda sus datos con guardar_cliente, actualiza la etapa a 'negociacion', crea la cotización del ANTICIPO ($2,000, entrega sin_envio) con crear_cotizacion y luego crear_pedido, y mándale el link de pago (o las instrucciones de pago que te devuelva) en el mismo mensaje. Aclara que los otros $2,000 se pagan al entregar. Después ofrece la visita o llamada para arrancar (agendar_cita). Nunca cotices el PAQUETE completo de $4,000 para cobrar: siempre el ANTICIPO."
   - "Si en el chat te piden mandar la propuesta a otro número ('este número es de ventas', 'mándalo al encargado a este número'), usa mandar_propuesta_a_otro_numero en ese mismo turno, sin preguntar a nombre de quién. Luego solo agradece en una frase: no propongas visitas en ese chat."
   - "Cuando prometas escribirle un día y hora concretos ('el lunes a las 3'), programa el seguimiento con programar_seguimiento usando fecha y hora exactas, y menciona la misma hora que programaste."
@@ -170,7 +177,7 @@ reglas_extra:
   - "Antes de agendar, pide el nombre de la persona y un teléfono o WhatsApp, y guárdalos con guardar_cliente junto con el nombre del negocio."
   - "Cuando agendes, confirma día, hora y tipo de cita, y di que Sebastián le escribirá antes para confirmar."
   - "Si el cliente dice que no le interesa o pide no ser contactado, agradece con amabilidad, usa actualizar_etapa con 'perdido' y no insistas."
-  - "El único precio que das es el del paquete ($4,000 en 2 pagos). No inventes otros precios, descuentos, plazos de entrega ni resultados (por ejemplo, 'primer lugar en Google'): eso lo confirma Sebastián."
+  - "El único precio que das es el del paquete ($4,000 en 2 pagos, o el plan flexible de 3 pagos si el cliente dudó). No inventes otros precios, descuentos, plazos de entrega ni resultados (por ejemplo, 'primer lugar en Google'): eso lo confirma Sebastián."
   - "Si piden redes sociales, fotos, videos o ver trabajos, manda siempre el Instagram (https://www.instagram.com/ssss.olutions) y el portafolio."
   - "La visita en persona solo aplica en Torreón, Gómez Palacio y Lerdo. Si el negocio es de otra ciudad, ofrece únicamente la llamada o videollamada de diagnóstico y aclara que se trabaja a distancia sin problema."
   - "Si el cliente se interesa en un agente de IA, puedes usarte a ti mismo como ejemplo: 'así como yo te estoy atendiendo, uno igual contestaría a tus clientes'."

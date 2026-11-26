@@ -449,8 +449,11 @@ async function enviarTexto(jid, texto) {
 
 /** Para sendToChannel (mensajes del panel, seguimientos, recordatorios de cita). */
 /** Ruta del video de presentación ("quiénes somos"), si está cargado y pesa menos de 16 MB. */
-export function videoPresentacion() {
-  const v = getProspeccion().envio.video_presentacion;
+export const videoPresentacion = () => rutaVideo(getProspeccion().envio.video_presentacion);
+/** Video "Proyectos reales" (trabajos entregados a clientes): da confianza cuando el cliente duda. */
+export const videoProyectos = () => rutaVideo(getProspeccion().envio.video_proyectos);
+
+function rutaVideo(v) {
   if (!v) return null;
   const ruta = path.isAbsolute(v) ? v : path.join(ROOT, v);
   try {
@@ -476,9 +479,8 @@ async function enviarVideo(jid, ruta, caption) {
 }
 
 /** Para el agente: manda el video de presentación a un contacto de WhatsApp. */
-export async function sendWaVideo(id, caption = "") {
-  const ruta = videoPresentacion();
-  if (!ruta) throw new Error("No hay video de presentación cargado");
+export async function sendWaVideo(id, caption = "", ruta = videoPresentacion()) {
+  if (!ruta) throw new Error("No hay video cargado");
   const fila = db().prepare("SELECT jid FROM wa_contactos WHERE id = ?").get(String(id));
   const jid = fila?.jid || (/^\d{10}$/.test(String(id)) ? await resolverJid(id) : null);
   if (!jid) throw new Error("No se encontró el chat de WhatsApp de este contacto");

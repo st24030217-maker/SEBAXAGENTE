@@ -168,6 +168,9 @@ envio:
   # video con el texto abajo, y el agente lo puede mandar cuando alguien pregunte quiénes son.
   # Si el archivo no existe, todo sigue igual que siempre (solo texto).
   video_presentacion: "public/presentacion.mp4"
+  # Video "Proyectos reales" (trabajos entregados). El agente lo manda una vez cuando el cliente
+  # pregunta precio, duda o pide ver trabajos. Máximo 16 MB.
+  video_proyectos: "public/proyectos.mp4"
   video_en_primer_mensaje: true
   # Pausa al azar entre un mensaje y otro (minutos), para que se vea natural.
   whatsapp_minutos_min: 7

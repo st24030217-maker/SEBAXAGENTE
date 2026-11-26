@@ -148,6 +148,18 @@ export const TOOL_DEFINITIONS = [
     },
   },
   {
+    name: "enviar_video_proyectos",
+    description:
+      "Manda por WhatsApp el video 'Proyectos reales': trabajos que Sebastián ya entregó a negocios (barbería, restaurante, escuela, papelería...). Da confianza. Úsala cuando el cliente pregunte el precio, dude ('lo pienso', 'está caro', 'lo consulto'), pregunte si es real o pida ver trabajos. Solo una vez por conversación y solo en WhatsApp.",
+    input_schema: {
+      type: "object",
+      properties: {
+        mensaje: { type: "string", description: "Texto corto que va abajo del video, por ejemplo: 'Te dejo algunos proyectos que ya entregamos a negocios como el tuyo.'" },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "mandar_propuesta_a_otro_numero",
     description:
       "Cuando en este chat te pidan mandar la propuesta, la información o la muestra a OTRO número de WhatsApp (por ejemplo 'este número es de ventas, mándalo al 871...', 'escríbele al encargado a este número'), úsala de inmediato con ese número: abre el chat nuevo y le manda la propuesta con su muestra y el video. No preguntes a nombre de quién: si te dieron el nombre del encargado, ponlo; si no, mándala igual. La persona de ESTE chat no es el encargado: nunca la llames por el nombre del encargado. Solo WhatsApp.",
@@ -433,6 +445,20 @@ Notas: ${input.notas}` : ""}`,
     await wa.sendWaVideo(tel, str(input.mensaje) || "");
     logEvent("video_enviado", convId, {});
     return { ok: true, mensaje: "Video enviado. No lo repitas; sigue la conversación y busca agendar la llamada." };
+  },
+
+  async enviar_video_proyectos(input, { convId, canal, conv }) {
+    if (negocioActual()) return { ok: false, motivo: "Esta herramienta no está disponible para este negocio." };
+    if (canal !== "wa") return { ok: false, motivo: "El video solo se puede mandar por WhatsApp. Comparte el Instagram y el portafolio en su lugar." };
+    const wa = await import("../channels/wa-web.js");
+    const ruta = wa.videoProyectos();
+    if (!ruta) return { ok: false, motivo: "No hay video de proyectos cargado. Comparte el Instagram y el portafolio en su lugar." };
+    if (getDb().prepare("SELECT 1 FROM eventos WHERE tipo = 'video_proyectos_enviado' AND conversacion_id = ? LIMIT 1").get(convId)) {
+      return { ok: false, motivo: "Este cliente ya recibió el video de proyectos. No lo mandes otra vez; sigue la conversación." };
+    }
+    await wa.sendWaVideo(conv.externo_id, str(input.mensaje) || "", ruta);
+    logEvent("video_proyectos_enviado", convId, {});
+    return { ok: true, mensaje: "Video de proyectos enviado. No lo repitas; sigue la conversación y busca cerrar." };
   },
 
   async mandar_propuesta_a_otro_numero(input, { convId, canal, conv }) {
