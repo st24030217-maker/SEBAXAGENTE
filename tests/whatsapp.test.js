@@ -9,7 +9,7 @@ process.env.SMTP_USER = "";
 process.env.OWNER_WEBHOOK_URL = "";
 
 const { openDb, getDb, getConversation, getLead } = await import("../src/db.js");
-const { procesarMensaje, esBaja, esRespuestaAutomatica, esRespuestaInstantanea, diezDigitos, numeroDueno, seguimientosPendientesWa, textoSeguimiento } = await import("../src/channels/wa-web.js");
+const { procesarMensaje, esBaja, esRespuestaAutomatica, esRespuestaInstantanea, diezDigitos, numeroDueno, seguimientosPendientesWa, textoSeguimiento, conPortafolio } = await import("../src/channels/wa-web.js");
 const { logEvent } = await import("../src/db.js");
 const { prepararSeguimientos } = await import("../src/prospeccion/servicio.js");
 const { guardarProspecto } = await import("../src/prospeccion/servicio.js");
@@ -157,4 +157,15 @@ test("un texto largo que llega segundos después de nuestro mensaje es respuesta
   assert.equal(esRespuestaInstantanea("Ok", 2), false); // corto: una persona sí contesta así de rápido
   assert.equal(esRespuestaInstantanea(largo, 3, true), false); // venía platicando: pudo estar escribiendo
   assert.equal(esRespuestaInstantanea(largo, null), false); // nunca le escribimos
+});
+
+test("el primer mensaje siempre lleva el portafolio, antes de la pregunta final y sin repetirlo", () => {
+  const url = getProspeccion().remitente.portafolio;
+  const conMuestra = "Hola, buen día. Soy Sebastián.\n\nLes preparé una muestra:\nhttps://x.io/m/abc\n\n¿Qué les parece?";
+  const r = conPortafolio(conMuestra);
+  assert.ok(r.includes(url));
+  assert.ok(r.indexOf(url) < r.indexOf("¿Qué les parece?"));
+  assert.ok(r.trimEnd().endsWith("¿Qué les parece?"));
+  assert.equal(conPortafolio(r), r);
+  assert.ok(conPortafolio("Hola, soy Sebastián.").endsWith(url));
 });

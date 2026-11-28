@@ -336,8 +336,9 @@ export async function probarPrimerMensaje() {
   if (!p) throw new Error("No hay ningún negocio con mensaje listo");
   jidDueno ||= await resolverJid(tel);
   const video = videoPresentacion();
-  if (video) await enviarVideo(jidDueno, video, p.whatsapp_texto);
-  else await enviarTexto(jidDueno, p.whatsapp_texto);
+  const texto = conPortafolio(p.whatsapp_texto);
+  if (video) await enviarVideo(jidDueno, video, texto);
+  else await enviarTexto(jidDueno, texto);
   return { negocio: p.nombre, video: !!video, numero: tel };
 }
 
@@ -449,6 +450,20 @@ async function enviarTexto(jid, texto) {
 
 /** Para sendToChannel (mensajes del panel, seguimientos, recordatorios de cita). */
 /** Ruta del video de presentación ("quiénes somos"), si está cargado y pesa menos de 16 MB. */
+/**
+ * Todo primer mensaje a un negocio lleva el link del portafolio (además de su muestra, si la tiene).
+ * Va antes de la pregunta final para que el mensaje siga terminando en algo fácil de responder.
+ */
+export function conPortafolio(texto, url = getProspeccion().remitente?.portafolio) {
+  const t = String(texto || "");
+  if (!url || !t.trim() || t.includes(url)) return t;
+  const linea = `Y aquí pueden ver otros trabajos míos: ${url}`;
+  const partes = t.trimEnd().split(/\n\s*\n/);
+  if (partes.length > 1 && /\?\s*$/.test(partes.at(-1))) partes.splice(-1, 0, linea);
+  else partes.push(linea);
+  return partes.join("\n\n");
+}
+
 export const videoPresentacion = () => rutaVideo(getProspeccion().envio.video_presentacion);
 /** Video "Proyectos reales" (trabajos entregados a clientes): da confianza cuando el cliente duda. */
 export const videoProyectos = () => rutaVideo(getProspeccion().envio.video_proyectos);
@@ -664,6 +679,8 @@ export async function enviarSiguienteWa(ahora = new Date()) {
         const video = propio || (e.video_en_primer_mensaje !== false ? videoPresentacion() : null);
         // El link del boceto siempre sale con la dirección pública actual (Render o túnel pudieron cambiar).
         if (/^https:\/\//.test(baseBocetos())) p.whatsapp_texto = p.whatsapp_texto.replace(/https?:\/\/[^\s/]+\/m\//g, `${baseBocetos()}/m/`);
+        p.whatsapp_texto = conPortafolio(p.whatsapp_texto);
+        db().prepare("UPDATE prospectos SET whatsapp_texto = ? WHERE id = ?").run(p.whatsapp_texto, p.id);
         if (video) await enviarVideo(jid, video, p.whatsapp_texto);
         else await enviarTexto(jid, p.whatsapp_texto);
         db().prepare("INSERT INTO wa_contactos (id, jid, actualizado) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET jid = excluded.jid").run(p.telefono, jid, now());

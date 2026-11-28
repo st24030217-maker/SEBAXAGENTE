@@ -64,7 +64,7 @@ async function publicar() {
   if (fs.existsSync(origen) && (!fs.existsSync(video) || fs.statSync(video).size !== fs.statSync(origen).size)) { fs.copyFileSync(origen, video); cambios++; }
   if (escribir(path.join(dir, ".nojekyll"), "")) cambios++;
   if (escribir(path.join(dir, "robots.txt"), "User-agent: *\nDisallow: /\n")) cambios++;
-  if (escribir(path.join(dir, "index.html"), '<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex"><title>sss.solutions</title><meta http-equiv="refresh" content="0;url=https://portafolio-salinas-serrano-sebastia.vercel.app">')) cambios++;
+  if (escribir(path.join(dir, "index.html"), '<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex"><title>sss.solutions</title><meta http-equiv="refresh" content="0;url=https://sss.solutions">')) cambios++;
   if (!cambios) return 0;
   const git = (...a) => run("git", a, { cwd: dir, windowsHide: true, timeout: 180_000 });
   await git("add", "-A");
